@@ -6,11 +6,12 @@ import {
   confirmTelegramPairingCode,
   ensureTelegramPairingCode,
 } from '@/server/channels/pairing/telegramCodePairing';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const handleInbound = vi.fn();
-const getOrCreateConversation = vi.fn();
-const handleNativeCommand = vi.fn();
-const extractTelegramInboundMedia = vi.fn();
+const handleInbound = vi.fn<MockProcedure>();
+const getOrCreateConversation = vi.fn<MockProcedure>();
+const handleNativeCommand = vi.fn<MockProcedure>();
+const extractTelegramInboundMedia = vi.fn<MockProcedure>();
 
 vi.mock('../../../src/server/channels/messages/runtime', () => ({
   getMessageService: () => ({
@@ -24,7 +25,7 @@ vi.mock('../../../src/server/channels/telegram/nativeCommandHandler', () => ({
 }));
 
 vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
-  processTelegramModelCallback: vi.fn(),
+  processTelegramModelCallback: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('../../../src/server/channels/telegram/media', () => ({

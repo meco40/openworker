@@ -4,15 +4,19 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI summary text',
-    provider: 'openai',
-    model: 'gpt-4o-mini',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI summary text',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+    }),
+  ),
 );
 
-const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
+const memoryStoreMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+);
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({

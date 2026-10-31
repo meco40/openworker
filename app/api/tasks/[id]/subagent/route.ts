@@ -37,8 +37,7 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
     if (agent_name) {
       // Check if agent already exists
       const task = db.prepare('SELECT workspace_id FROM tasks WHERE id = ?').get(taskId) as
-        | { workspace_id: string }
-        | undefined;
+        { workspace_id: string } | undefined;
       const existingAgent = db
         .prepare('SELECT id FROM agents WHERE name = ? AND workspace_id = ?')
         .get(agent_name, task?.workspace_id || 'default') as { id: string } | undefined;

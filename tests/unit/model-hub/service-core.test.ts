@@ -6,6 +6,7 @@ import type {
   ProviderAccountRecord,
   ProviderAccountView,
 } from '@/server/model-hub/repository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildAccountRecord(
   providerId: string,
@@ -45,18 +46,18 @@ function buildAccountRecord(
 
 function createMockRepository(overrides: Partial<ModelHubRepository> = {}): ModelHubRepository {
   return {
-    listPipelineModels: vi.fn().mockReturnValue([]),
-    getAccountRecordById: vi.fn().mockReturnValue(null),
-    updatePipelineModelStatus: vi.fn(),
-    updatePipelineModelPriority: vi.fn(),
-    listAccounts: vi.fn().mockReturnValue([]),
-    createAccount: vi.fn(),
-    deleteAccount: vi.fn(),
-    updateAccountCredentials: vi.fn(),
-    setHealthStatus: vi.fn(),
-    addPipelineModel: vi.fn(),
-    removePipelineModel: vi.fn(),
-    replacePipeline: vi.fn(),
+    listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([]),
+    getAccountRecordById: vi.fn<MockProcedure>().mockReturnValue(null),
+    updatePipelineModelStatus: vi.fn<MockProcedure>(),
+    updatePipelineModelPriority: vi.fn<MockProcedure>(),
+    listAccounts: vi.fn<MockProcedure>().mockReturnValue([]),
+    createAccount: vi.fn<MockProcedure>(),
+    deleteAccount: vi.fn<MockProcedure>(),
+    updateAccountCredentials: vi.fn<MockProcedure>(),
+    setHealthStatus: vi.fn<MockProcedure>(),
+    addPipelineModel: vi.fn<MockProcedure>(),
+    removePipelineModel: vi.fn<MockProcedure>(),
+    replacePipeline: vi.fn<MockProcedure>(),
     ...overrides,
   };
 }
@@ -72,21 +73,25 @@ async function setupService(options?: {
 }) {
   vi.resetModules();
 
-  const encryptSecret = vi.fn((value: string) => ({
+  const encryptSecret = vi.fn<
+    (value: string) => { alg: string; keyId: string; iv: string; ciphertext: string; tag: string }
+  >((value: string) => ({
     alg: 'aes-256-gcm',
     keyId: 'default',
     iv: `iv-${value}`,
     ciphertext: `cipher-${value}`,
     tag: `tag-${value}`,
   }));
-  const maskSecret = vi.fn((value: string) => `****${value.slice(-2)}`);
-  const decryptSecret = vi.fn(
+  const maskSecret = vi.fn<(value: string) => string>((value: string) => `****${value.slice(-2)}`);
+  const decryptSecret = vi.fn<MockProcedure>(
     options?.decryptSecretImpl ??
       (() => {
         return 'token';
       }),
   );
-  const dispatchGatewayRequest = vi.fn(async () => {
+  const dispatchGatewayRequest = vi.fn<
+    () => Promise<{ ok: boolean; text: string; model: string; provider: string; error?: string }>
+  >(async () => {
     return (
       options?.dispatchResult ?? {
         ok: true,
@@ -96,13 +101,15 @@ async function setupService(options?: {
       }
     );
   });
-  const fetchModelsForAccount = vi.fn(async () => options?.fetchModelsResult ?? []);
-  const isJwtExpiringSoon = vi.fn(() => options?.isJwtExpiringSoon ?? false);
+  const fetchModelsForAccount = vi.fn<
+    () => Promise<{ id: string; name: string; provider: string }[]>
+  >(async () => options?.fetchModelsResult ?? []);
+  const isJwtExpiringSoon = vi.fn<() => boolean>(() => options?.isJwtExpiringSoon ?? false);
   const refreshOpenAICodexToken = options?.refreshThrows
-    ? vi.fn(async () => {
+    ? vi.fn<() => Promise<never>>(async () => {
         throw new Error('refresh failed');
       })
-    : vi.fn(
+    : vi.fn<() => Promise<{ accessToken: string; refreshToken: string }>>(
         async () =>
           options?.refreshResult ?? { accessToken: 'new-access', refreshToken: 'new-refresh' },
       );
@@ -159,7 +166,7 @@ describe('ModelHubService core flows', () => {
       lastCheckOk: null,
     };
     const repository = createMockRepository({
-      createAccount: vi.fn(() => accountView),
+      createAccount: vi.fn<() => ProviderAccountView>(() => accountView),
     });
     const { service, encryptSecret, maskSecret } = await setupService({ repository });
 
@@ -182,9 +189,9 @@ describe('ModelHubService core flows', () => {
   it('forwards list/get/update/delete account wrappers to repository', async () => {
     const account = buildAccountRecord('openai');
     const repository = createMockRepository({
-      listAccounts: vi.fn(() => [account]),
-      getAccountRecordById: vi.fn(() => account),
-      deleteAccount: vi.fn(() => true),
+      listAccounts: vi.fn<() => ProviderAccountRecord[]>(() => [account]),
+      getAccountRecordById: vi.fn<() => ProviderAccountRecord>(() => account),
+      deleteAccount: vi.fn<() => boolean>(() => true),
     });
     const { service } = await setupService({ repository });
 
@@ -199,7 +206,7 @@ describe('ModelHubService core flows', () => {
     const initial = buildAccountRecord('openai-codex', 'oauth');
     const refreshed = { ...initial, secretMasked: '****99' };
     const getAccountRecordById = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockReturnValueOnce(initial)
       .mockReturnValueOnce(refreshed);
     const repository = createMockRepository({
@@ -227,7 +234,7 @@ describe('ModelHubService core flows', () => {
   it('keeps original account when codex token refresh fails', async () => {
     const initial = buildAccountRecord('openai-codex', 'oauth');
     const repository = createMockRepository({
-      getAccountRecordById: vi.fn(() => initial),
+      getAccountRecordById: vi.fn<() => ProviderAccountRecord>(() => initial),
     });
     const { service } = await setupService({
       repository,
@@ -244,7 +251,7 @@ describe('ModelHubService core flows', () => {
 
   it('dispatchChat returns account-not-found error when account is unavailable', async () => {
     const repository = createMockRepository({
-      getAccountRecordById: vi.fn(() => null),
+      getAccountRecordById: vi.fn<() => null>(() => null),
     });
     const { service } = await setupService({ repository });
 
@@ -260,7 +267,7 @@ describe('ModelHubService core flows', () => {
   it('dispatchChat delegates to gateway dispatch for usable accounts', async () => {
     const account = buildAccountRecord('openai');
     const repository = createMockRepository({
-      getAccountRecordById: vi.fn(() => account),
+      getAccountRecordById: vi.fn<() => ProviderAccountRecord>(() => account),
     });
     const { service, dispatchGatewayRequest } = await setupService({
       repository,
@@ -290,7 +297,7 @@ describe('ModelHubService core flows', () => {
   it('fetchModelsForAccount delegates to modelFetcher for usable accounts', async () => {
     const account = buildAccountRecord('openai');
     const repository = createMockRepository({
-      getAccountRecordById: vi.fn(() => account),
+      getAccountRecordById: vi.fn<() => ProviderAccountRecord>(() => account),
     });
     const { service, fetchModelsForAccount } = await setupService({
       repository,
@@ -322,8 +329,10 @@ describe('ModelHubService core flows', () => {
       },
     ];
     const repository = createMockRepository({
-      listPipelineModels: vi.fn(() => pipeline),
-      getAccountRecordById: vi.fn((id: string) => (id === account.id ? account : null)),
+      listPipelineModels: vi.fn<() => PipelineModelEntry[]>(() => pipeline),
+      getAccountRecordById: vi.fn<(id: string) => ProviderAccountRecord | null>((id: string) =>
+        id === account.id ? account : null,
+      ),
     });
     const { service } = await setupService({ repository });
 
@@ -355,7 +364,7 @@ describe('ModelHubService core flows', () => {
       },
     ];
     const repository = createMockRepository({
-      listPipelineModels: vi.fn(() => pipeline),
+      listPipelineModels: vi.fn<() => PipelineModelEntry[]>(() => pipeline),
     });
     const { service, dispatchGatewayRequest } = await setupService({ repository });
     const controller = new AbortController();
@@ -398,11 +407,11 @@ describe('ModelHubService core flows', () => {
     };
     const account = buildAccountRecord('openai');
     const repository = createMockRepository({
-      listPipelineModels: vi.fn(() => [preferred, fallback]),
-      getAccountRecordById: vi.fn(() => account),
+      listPipelineModels: vi.fn<MockProcedure>(() => [preferred, fallback]),
+      getAccountRecordById: vi.fn<() => ProviderAccountRecord>(() => account),
     });
     const dispatchGatewayRequest = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce({
         ok: false,
         text: '',
@@ -420,25 +429,33 @@ describe('ModelHubService core flows', () => {
 
     vi.resetModules();
     vi.doMock('../../../src/server/model-hub/crypto', () => ({
-      encryptSecret: vi.fn((value: string) => ({
+      encryptSecret: vi.fn<
+        (value: string) => {
+          alg: string;
+          keyId: string;
+          iv: string;
+          ciphertext: string;
+          tag: string;
+        }
+      >((value: string) => ({
         alg: 'aes-256-gcm',
         keyId: 'default',
         iv: `iv-${value}`,
         ciphertext: `cipher-${value}`,
         tag: `tag-${value}`,
       })),
-      decryptSecret: vi.fn(() => 'token'),
-      maskSecret: vi.fn(() => '****'),
+      decryptSecret: vi.fn<() => string>(() => 'token'),
+      maskSecret: vi.fn<() => string>(() => '****'),
     }));
     vi.doMock('../../../src/server/model-hub/gateway', () => ({
       dispatchGatewayRequest,
     }));
     vi.doMock('../../../src/server/model-hub/modelFetcher', () => ({
-      fetchModelsForAccount: vi.fn(async () => []),
+      fetchModelsForAccount: vi.fn<() => Promise<never[]>>(async () => []),
     }));
     vi.doMock('../../../src/server/model-hub/codexAuth', () => ({
-      isJwtExpiringSoon: vi.fn(() => false),
-      refreshOpenAICodexToken: vi.fn(),
+      isJwtExpiringSoon: vi.fn<() => boolean>(() => false),
+      refreshOpenAICodexToken: vi.fn<MockProcedure>(),
     }));
     const { ModelHubService } = await import('@/server/model-hub/service');
     const service = new ModelHubService(repository);

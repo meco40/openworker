@@ -3,18 +3,22 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI summary text',
-    provider: 'mock-provider',
-    model: 'mock-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI summary text',
+      provider: 'mock-provider',
+      model: 'mock-model',
+    }),
+  ),
 );
 
-const proactiveIngestMock = vi.hoisted(() => vi.fn(() => 2));
-const proactiveEvaluateMock = vi.hoisted(() => vi.fn(() => []));
-const eventBusPublishMock = vi.hoisted(() => vi.fn());
-const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
+const proactiveIngestMock = vi.hoisted(() => vi.fn<() => number>(() => 2));
+const proactiveEvaluateMock = vi.hoisted(() => vi.fn<() => never[]>(() => []));
+const eventBusPublishMock = vi.hoisted(() => vi.fn<MockProcedure>());
+const memoryStoreMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+);
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -43,6 +47,7 @@ vi.mock('../../../src/server/memory/runtime', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(): MessageRepository {
   return {

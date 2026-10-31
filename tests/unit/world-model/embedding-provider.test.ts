@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const modelHubMocks = vi.hoisted(() => ({
-  getModelHubEncryptionKey: vi.fn(() => 'test-encryption-key'),
-  getModelHubService: vi.fn(),
+  getModelHubEncryptionKey: vi.fn<() => string>(() => 'test-encryption-key'),
+  getModelHubService: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/model-hub/runtime', () => modelHubMocks);
@@ -50,9 +51,13 @@ describe('world-model embedding provider', () => {
   });
 
   it('uses the active Model Hub embedding pipeline when no env override exists', async () => {
-    const dispatchEmbedding = vi.fn(async () => ({ embedding: { values: [0.1, 0.2, 0.3] } }));
+    const dispatchEmbedding = vi.fn<() => Promise<{ embedding: { values: number[] } }>>(
+      async () => ({ embedding: { values: [0.1, 0.2, 0.3] } }),
+    );
     modelHubMocks.getModelHubService.mockReturnValue({
-      listPipeline: vi.fn(() => [
+      listPipeline: vi.fn<
+        () => { id: string; modelName: string; priority: number; status: string }[]
+      >(() => [
         {
           id: 'pipeline-entry-1',
           modelName: 'qwen/qwen3-embedding-8b',
@@ -92,7 +97,9 @@ describe('world-model embedding provider', () => {
 
   it('reports provider errors instead of persisting an invalid vector', async () => {
     modelHubMocks.getModelHubService.mockReturnValue({
-      listPipeline: vi.fn(() => [
+      listPipeline: vi.fn<
+        () => { id: string; modelName: string; priority: number; status: string }[]
+      >(() => [
         {
           id: 'pipeline-entry-1',
           modelName: 'qwen/qwen3-embedding-8b',
@@ -100,7 +107,9 @@ describe('world-model embedding provider', () => {
           status: 'active',
         },
       ]),
-      dispatchEmbedding: vi.fn(async () => ({ error: 'provider unavailable' })),
+      dispatchEmbedding: vi.fn<() => Promise<{ error: string }>>(async () => ({
+        error: 'provider unavailable',
+      })),
     });
 
     const provider = getConfiguredEmbeddingProvider();
@@ -115,7 +124,7 @@ describe('world-model embedding provider', () => {
     const pending = new Promise<number[]>((resolve) => {
       release = resolve;
     });
-    const generateEmbedding = vi.fn(() => pending);
+    const generateEmbedding = vi.fn<() => Promise<number[]>>(() => pending);
     const provider = { model: 'embed-test', modelVersion: '1', generateEmbedding };
 
     const first = generateEmbeddingOnce(provider, 'same query');

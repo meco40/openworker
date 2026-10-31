@@ -4,7 +4,7 @@ describe('unpairChannel unsupported input', () => {
   it('throws unsupported channel before touching credential store', async () => {
     vi.resetModules();
 
-    const getCredentialStoreMock = vi.fn(() => {
+    const getCredentialStoreMock = vi.fn<() => never>(() => {
       throw new Error('credential store should not be touched');
     });
 

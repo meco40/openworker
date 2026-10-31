@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-v2'): GatewayClient {
   return {
@@ -8,8 +9,8 @@ function makeClient(userId = 'user-v2'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-v2',
     userId,
@@ -71,18 +72,21 @@ function setupMocks(overrides?: {
 }) {
   vi.stubEnv('AGENT_ROOM_ENABLED', 'true');
 
-  const getAgentRoomSwarm = overrides?.getAgentRoomSwarm ?? vi.fn(() => ({ ...SOURCE_SWARM }));
+  const getAgentRoomSwarm =
+    overrides?.getAgentRoomSwarm ?? vi.fn<MockProcedure>(() => ({ ...SOURCE_SWARM }));
   const createAgentRoomSwarm =
     overrides?.createAgentRoomSwarm ??
-    vi.fn((input: Record<string, unknown>) => ({
-      id: 'swarm-new',
-      ...input,
-      createdAt: 'now',
-      updatedAt: 'now',
-    }));
+    vi.fn<(input: Record<string, unknown>) => { createdAt: string; updatedAt: string; id: string }>(
+      (input: Record<string, unknown>) => ({
+        id: 'swarm-new',
+        ...input,
+        createdAt: 'now',
+        updatedAt: 'now',
+      }),
+    );
   const updateAgentRoomSwarm =
     overrides?.updateAgentRoomSwarm ??
-    vi.fn((_id: string, _uid: string, patch: Record<string, unknown>) => ({
+    vi.fn<MockProcedure>((_id: string, _uid: string, patch: Record<string, unknown>) => ({
       ...SOURCE_SWARM,
       ...patch,
       status: patch.status ?? SOURCE_SWARM.status,
@@ -90,40 +94,49 @@ function setupMocks(overrides?: {
     }));
 
   vi.doMock('../../../src/server/channels/messages/runtime', () => ({
-    getMessageRepository: vi.fn(() => ({
+    getMessageRepository: vi.fn<MockProcedure>(() => ({
       createAgentRoomSwarm,
-      listAgentRoomSwarms: vi.fn(() => []),
+      listAgentRoomSwarms: vi.fn<() => never[]>(() => []),
       getAgentRoomSwarm,
       updateAgentRoomSwarm,
-      deleteAgentRoomSwarm: vi.fn(() => true),
+      deleteAgentRoomSwarm: vi.fn<() => boolean>(() => true),
     })),
-    getMessageService: vi.fn(() => ({
-      getConversation: vi.fn(() => ({ id: 'conv-1', personaId: null })),
-      isAgentRoomConversation: vi.fn(() => true),
-      getOrCreateConversation: vi.fn(() => ({ id: 'conv-new', personaId: null })),
-      setPersonaId: vi.fn(),
+    getMessageService: vi.fn<MockProcedure>(() => ({
+      getConversation: vi.fn<() => { id: string; personaId: null }>(() => ({
+        id: 'conv-1',
+        personaId: null,
+      })),
+      isAgentRoomConversation: vi.fn<() => boolean>(() => true),
+      getOrCreateConversation: vi.fn<() => { id: string; personaId: null }>(() => ({
+        id: 'conv-new',
+        personaId: null,
+      })),
+      setPersonaId: vi.fn<MockProcedure>(),
     })),
   }));
   vi.doMock('../../../src/server/personas/personaRepository', () => ({
     getPersonaRepository: () => ({
-      getPersona: vi.fn((id: string) => ({ id, name: id })),
+      getPersona: vi.fn<(id: string) => { id: string; name: string }>((id: string) => ({
+        id,
+        name: id,
+      })),
     }),
   }));
   vi.doMock('../../../src/server/agent-v2/runtime', () => ({
     getAgentV2SessionManager: () => ({
-      startSession: vi.fn(),
-      enqueueInput: vi.fn(),
-      enqueueSteer: vi.fn(),
-      enqueueFollowUp: vi.fn(),
-      enqueueApprovalResponse: vi.fn(),
-      enqueueAbort: vi.fn(),
-      getSession: vi.fn(),
-      listSessions: vi.fn(),
-      replaySessionEvents: vi.fn(),
+      startSession: vi.fn<MockProcedure>(),
+      enqueueInput: vi.fn<MockProcedure>(),
+      enqueueSteer: vi.fn<MockProcedure>(),
+      enqueueFollowUp: vi.fn<MockProcedure>(),
+      enqueueApprovalResponse: vi.fn<MockProcedure>(),
+      enqueueAbort: vi.fn<MockProcedure>(),
+      getSession: vi.fn<MockProcedure>(),
+      listSessions: vi.fn<MockProcedure>(),
+      replaySessionEvents: vi.fn<MockProcedure>(),
     }),
   }));
   vi.doMock('../../../src/server/gateway/broadcast', () => ({
-    broadcastToUser: vi.fn(),
+    broadcastToUser: vi.fn<MockProcedure>(),
   }));
 
   return { getAgentRoomSwarm, createAgentRoomSwarm, updateAgentRoomSwarm };
@@ -271,7 +284,7 @@ describe('gateway swarm contract — swarm.fork (C4)', () => {
 
   it('fork returns NOT_FOUND when source does not exist', async () => {
     vi.resetModules();
-    setupMocks({ getAgentRoomSwarm: vi.fn(() => null) });
+    setupMocks({ getAgentRoomSwarm: vi.fn<() => null>(() => null) });
 
     const result = await dispatch('agent.v2.swarm.fork', { id: 'missing' });
     expect(result).toMatchObject({
@@ -334,7 +347,7 @@ describe('gateway swarm contract — swarm.chain (C10)', () => {
 
   it('chain returns NOT_FOUND when source does not exist', async () => {
     vi.resetModules();
-    setupMocks({ getAgentRoomSwarm: vi.fn(() => null) });
+    setupMocks({ getAgentRoomSwarm: vi.fn<() => null>(() => null) });
 
     const result = await dispatch('agent.v2.swarm.chain', {
       sourceSwarmId: 'missing',
@@ -366,7 +379,7 @@ describe('gateway swarm contract — swarm.deploy', () => {
     vi.resetModules();
     const idleSwarm = { ...SOURCE_SWARM, status: 'idle', currentPhase: 'result' };
     const { updateAgentRoomSwarm } = setupMocks({
-      getAgentRoomSwarm: vi.fn(() => ({ ...idleSwarm })),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => ({ ...idleSwarm })),
     });
 
     const result = await dispatch('agent.v2.swarm.deploy', { id: 'swarm-src' });
@@ -383,7 +396,7 @@ describe('gateway swarm contract — swarm.deploy', () => {
     vi.resetModules();
     const holdSwarm = { ...SOURCE_SWARM, status: 'hold', currentPhase: 'critique' };
     const { updateAgentRoomSwarm } = setupMocks({
-      getAgentRoomSwarm: vi.fn(() => ({ ...holdSwarm })),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => ({ ...holdSwarm })),
     });
 
     const result = await dispatch('agent.v2.swarm.deploy', { id: 'swarm-src' });
@@ -399,7 +412,7 @@ describe('gateway swarm contract — swarm.deploy', () => {
     vi.resetModules();
     const runningSwarm = { ...SOURCE_SWARM, status: 'running' };
     setupMocks({
-      getAgentRoomSwarm: vi.fn(() => ({ ...runningSwarm })),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => ({ ...runningSwarm })),
     });
 
     const result = await dispatch('agent.v2.swarm.deploy', { id: 'swarm-src' });

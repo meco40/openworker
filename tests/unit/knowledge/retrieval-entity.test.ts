@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeMessage(seq: number, content: string): StoredMessage {
   return {
@@ -32,14 +33,21 @@ const BASE_AUDIT = {
 
 describe('Entity-Graph integration in retrieval', () => {
   it('resolves alias "Bruder" to entity Max for count queries', async () => {
-    const countUniqueDaysMock = vi.fn((_filter: unknown) => ({
+    const countUniqueDaysMock = vi.fn<
+      (_filter: unknown) => {
+        uniqueDayCount: number;
+        uniqueDays: string[];
+        eventCount: number;
+        events: never[];
+      }
+    >((_filter: unknown) => ({
       uniqueDayCount: 3,
       uniqueDays: ['2026-01-01', '2026-01-15', '2026-02-01'],
       eventCount: 3,
       events: [],
     }));
 
-    const resolveEntityMock = vi.fn((text: string) => {
+    const resolveEntityMock = vi.fn<MockProcedure>((text: string) => {
       if (text === 'bruder') {
         return {
           entity: {
@@ -61,7 +69,7 @@ describe('Entity-Graph integration in retrieval', () => {
       return null;
     });
 
-    const getEntityWithRelationsMock = vi.fn(() => ({
+    const getEntityWithRelationsMock = vi.fn<MockProcedure>(() => ({
       entity: {
         id: 'ent-max',
         userId: 'user-1',
@@ -90,19 +98,22 @@ describe('Entity-Graph integration in retrieval', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => BASE_AUDIT),
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => BASE_AUDIT),
         countUniqueDays: countUniqueDaysMock,
         resolveEntity: resolveEntityMock,
         getEntityWithRelations: getEntityWithRelationsMock,
-        getRelatedEntities: vi.fn(() => []),
+        getRelatedEntities: vi.fn<() => never[]>(() => []),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
       },
     });
 
@@ -122,8 +133,7 @@ describe('Entity-Graph integration in retrieval', () => {
     // countUniqueDays was called with canonical name "Max", not "bruder"
     expect(countUniqueDaysMock).toHaveBeenCalledTimes(1);
     const filterArg = countUniqueDaysMock.mock.calls[0]?.[0] as
-      | { counterpartEntity?: string; eventType?: string }
-      | undefined;
+      { counterpartEntity?: string; eventType?: string } | undefined;
     if (!filterArg) throw new Error('countUniqueDays was not called with a filter');
     expect(filterArg.counterpartEntity).toBe('Max');
     expect(filterArg.eventType).toBe('shared_sleep');
@@ -135,7 +145,7 @@ describe('Entity-Graph integration in retrieval', () => {
   });
 
   it('injects project entity context for general recall queries', async () => {
-    const resolveEntityMock = vi.fn((text: string) => {
+    const resolveEntityMock = vi.fn<MockProcedure>((text: string) => {
       if (text === 'notes2') {
         return {
           entity: {
@@ -157,7 +167,7 @@ describe('Entity-Graph integration in retrieval', () => {
       return null;
     });
 
-    const getEntityWithRelationsMock = vi.fn(() => ({
+    const getEntityWithRelationsMock = vi.fn<MockProcedure>(() => ({
       entity: {
         id: 'ent-notes2',
         userId: 'user-1',
@@ -194,7 +204,7 @@ describe('Entity-Graph integration in retrieval', () => {
       ],
     }));
 
-    const getRelatedEntitiesMock = vi.fn(() => [
+    const getRelatedEntitiesMock = vi.fn<MockProcedure>(() => [
       {
         id: 'ent-nextjs',
         userId: 'user-1',
@@ -222,8 +232,8 @@ describe('Entity-Graph integration in retrieval', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => [
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<MockProcedure>(() => [
           {
             id: 'ep-notes',
             userId: 'user-1',
@@ -241,19 +251,23 @@ describe('Entity-Graph integration in retrieval', () => {
             updatedAt: '2026-02-01T10:00:00Z',
           },
         ]),
-        insertRetrievalAudit: vi.fn(() => BASE_AUDIT),
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => BASE_AUDIT),
         resolveEntity: resolveEntityMock,
         getEntityWithRelations: getEntityWithRelationsMock,
         getRelatedEntities: getRelatedEntitiesMock,
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({
+        recallDetailed: vi.fn<
+          () => Promise<{ context: string; matches: { node: { id: string; content: string } }[] }>
+        >(async () => ({
           context: 'Notes2 ist ein Projekt mit Next.js',
           matches: [{ node: { id: 'mem-1', content: 'Notes2 Projekt' } }],
         })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [makeMessage(2, 'Wir nutzen Next.js fuer Notes2')]),
+        listMessages: vi.fn<() => StoredMessage[]>(() => [
+          makeMessage(2, 'Wir nutzen Next.js fuer Notes2'),
+        ]),
       },
     });
 
@@ -274,27 +288,32 @@ describe('Entity-Graph integration in retrieval', () => {
   });
 
   it('passes correct userId and personaId filter to resolveEntity', async () => {
-    const resolveEntityMock = vi.fn(() => null);
+    const resolveEntityMock = vi.fn<() => null>(() => null);
 
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => BASE_AUDIT),
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => BASE_AUDIT),
         resolveEntity: resolveEntityMock,
-        getEntityWithRelations: vi.fn(() => ({
+        getEntityWithRelations: vi.fn<
+          () => { entity: never; aliases: never[]; relations: never[] }
+        >(() => ({
           entity: {} as never,
           aliases: [],
           relations: [],
         })),
-        getRelatedEntities: vi.fn(() => []),
+        getRelatedEntities: vi.fn<() => never[]>(() => []),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
       },
     });
 

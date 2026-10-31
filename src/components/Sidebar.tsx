@@ -123,7 +123,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileCloseRef = useRef<HTMLButtonElement>(null);
-  const mobileDrawerRef = useRef<HTMLElement>(null);
+  const mobileDrawerRef = useRef<HTMLDialogElement>(null);
 
   const closeMobileNavigation = useCallback(() => {
     setMobileNavigationOpen(false);
@@ -271,14 +271,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             className="absolute inset-0 bg-black/75 backdrop-blur-sm"
             onClick={closeMobileNavigation}
           />
-          <aside
+          <dialog
             ref={mobileDrawerRef}
+            open
             id="mobile-navigation"
             data-testid="mobile-navigation-drawer"
-            role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-navigation-title"
-            className="absolute inset-y-0 left-0 flex w-[min(20rem,calc(100vw-3rem))] flex-col border-r border-zinc-800 bg-[#0c0c0c] shadow-2xl"
+            className="absolute inset-y-0 left-0 flex h-full w-[min(20rem,calc(100vw-3rem))] flex-col border-r border-zinc-800 bg-[#0c0c0c] text-inherit shadow-2xl"
           >
             <div className="flex min-h-16 items-center justify-between border-b border-zinc-800 px-4">
               <div className="flex items-center gap-3">
@@ -321,7 +321,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <ConnectionStatus state={gatewayConnectionState} />
               </div>
             </div>
-          </aside>
+          </dialog>
         </div>
       )}
     </>

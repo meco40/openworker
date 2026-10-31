@@ -4,17 +4,23 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'should-not-run',
-    provider: 'test-provider',
-    model: 'test-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'should-not-run',
+      provider: 'test-provider',
+      model: 'test-model',
+    }),
+  ),
 );
 const dispatchSkillMock = vi.hoisted(() =>
-  vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
+  vi.fn<() => Promise<{ stdout: string; stderr: string; exitCode: number }>>(async () => ({
+    stdout: 'ok',
+    stderr: '',
+    exitCode: 0,
+  })),
 );
-const isCommandApprovedMock = vi.hoisted(() => vi.fn(() => false));
+const isCommandApprovedMock = vi.hoisted(() => vi.fn<() => boolean>(() => false));
 
 let shellInstalled = false;
 
@@ -26,18 +32,21 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 }));
 
 vi.mock('../../../src/server/channels/outbound/router', () => ({
-  deliverOutbound: vi.fn(async () => {}),
+  deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock('../../../src/server/gateway/broadcast', () => ({
-  broadcastToUser: vi.fn(),
+  broadcastToUser: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
-    recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-    store: vi.fn(async () => ({ id: 'mem-1' })),
-    updateFeedback: vi.fn(async () => {}),
+    recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+      context: '',
+      matches: [],
+    })),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+    updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
   }),
 }));
 
@@ -83,7 +92,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
 }));
 
 vi.mock('@/skills/definitions', () => ({
-  mapSkillsToTools: vi.fn(() => []),
+  mapSkillsToTools: vi.fn<() => never[]>(() => []),
 }));
 
 vi.mock('../../../src/server/skills/executeSkill', async () => {
@@ -103,6 +112,7 @@ vi.mock('../../../src/server/gateway/exec-approval-manager', async () => {
 });
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(): MessageRepository {
   let seq = 0;

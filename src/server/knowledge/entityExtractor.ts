@@ -103,8 +103,7 @@ export class EntityExtractor {
                 .trim()
                 .toLowerCase(),
               direction: (String(r.direction) === 'incoming' ? 'incoming' : 'outgoing') as
-                | 'outgoing'
-                | 'incoming',
+                'outgoing' | 'incoming',
             }))
             .filter((r) => r.targetName.length > 0 && r.relationType.length > 0)
         : [];

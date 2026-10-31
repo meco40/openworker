@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_LOCAL_USER_ID, resolveUserIdFromSession } from '@/server/auth/userContext';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -45,7 +46,7 @@ describe('resolveUserIdFromSession', () => {
 describe('resolveRequestUserContext', () => {
   it('skips session lookup in local optional-auth dev mode', async () => {
     process.env = { ...ORIGINAL_ENV, NODE_ENV: 'development', REQUIRE_AUTH: 'false' };
-    const authMock = vi.fn().mockRejectedValue(new Error('should not be called'));
+    const authMock = vi.fn<MockProcedure>().mockRejectedValue(new Error('should not be called'));
     vi.doMock('../../../src/auth', () => ({
       auth: authMock,
     }));
@@ -64,7 +65,7 @@ describe('resolveRequestUserContext', () => {
     process.env = { ...ORIGINAL_ENV, REQUIRE_AUTH: 'false' };
     vi.doMock('../../../src/auth', () => ({
       auth: vi
-        .fn()
+        .fn<MockProcedure>()
         .mockRejectedValue(
           new Error(
             '`headers` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context',
@@ -89,7 +90,7 @@ describe('resolveRequestUserContext', () => {
     };
     vi.doMock('../../../src/auth', () => ({
       auth: vi
-        .fn()
+        .fn<MockProcedure>()
         .mockRejectedValue(
           new Error(
             '`headers` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context',
@@ -110,7 +111,7 @@ describe('resolveRequestUserContext', () => {
     process.env = { ...ORIGINAL_ENV, REQUIRE_AUTH: 'true' };
     vi.doMock('../../../src/auth', () => ({
       auth: vi
-        .fn()
+        .fn<MockProcedure>()
         .mockRejectedValue(
           new Error(
             '`headers` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context',
@@ -127,7 +128,7 @@ describe('resolveRequestUserContext', () => {
   it('rethrows unexpected auth errors', async () => {
     process.env = { ...ORIGINAL_ENV, REQUIRE_AUTH: 'false' };
     vi.doMock('../../../src/auth', () => ({
-      auth: vi.fn().mockRejectedValue(new Error('Database unavailable')),
+      auth: vi.fn<MockProcedure>().mockRejectedValue(new Error('Database unavailable')),
     }));
 
     const { resolveRequestUserContext } = await import('@/server/auth/userContext');

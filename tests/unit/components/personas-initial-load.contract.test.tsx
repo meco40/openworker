@@ -15,7 +15,14 @@ describe('personas initial load contract', () => {
   });
 
   it('does not request persona templates until the template panel is opened', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn<
+      () => Promise<{
+        ok: boolean;
+        json: () => Promise<{
+          templates: { id: string; name: string; emoji: string; vibe: string }[];
+        }>;
+      }>
+    >(async () => ({
       ok: true,
       json: async () => ({
         templates: [{ id: 'blank', name: 'Blank', emoji: 'B', vibe: 'test' }],
@@ -48,7 +55,12 @@ describe('personas initial load contract', () => {
   });
 
   it('dedupes pipeline model requests after the first successful load', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn<
+      () => Promise<{
+        ok: boolean;
+        json: () => Promise<{ models: { id: string; displayName: string; provider: string }[] }>;
+      }>
+    >(async () => ({
       ok: true,
       json: async () => ({
         models: [{ id: 'model-1', displayName: 'Model 1', provider: 'test' }],

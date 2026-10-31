@@ -1,13 +1,14 @@
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const fsMock = vi.hoisted(() => ({
-  mkdir: vi.fn(),
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  rename: vi.fn(),
-  rm: vi.fn(),
+  mkdir: vi.fn<MockProcedure>(),
+  readFile: vi.fn<MockProcedure>(),
+  writeFile: vi.fn<MockProcedure>(),
+  rename: vi.fn<MockProcedure>(),
+  rm: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('node:fs/promises', () => fsMock);

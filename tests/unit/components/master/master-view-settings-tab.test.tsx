@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import MasterView from '@/modules/master/components/MasterView';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 const mockView = {
   masterMode: 'system' as 'system' | 'legacy',
@@ -69,23 +70,23 @@ const mockView = {
   runTitle: 'New Master Contract',
   runContract: '',
   selectedRunId: null,
-  setSelectedPersonaId: vi.fn(),
-  setWorkspaceId: vi.fn(),
-  setRunTitle: vi.fn(),
-  setRunContract: vi.fn(),
-  setSelectedRunId: vi.fn(),
-  setRunsPage: vi.fn(),
-  dismissStatus: vi.fn(),
-  createRun: vi.fn(async () => {}),
-  startRun: vi.fn(async () => {}),
-  exportRun: vi.fn(async () => {}),
-  cancelRun: vi.fn(async () => {}),
-  submitDecision: vi.fn(async () => {}),
-  decideApproval: vi.fn(async () => {}),
-  submitFeedback: vi.fn(async () => ({ ok: true as const })),
-  saveSettings: vi.fn(async () => {}),
-  dismissExportBundle: vi.fn(),
-  refreshAll: vi.fn(async () => {}),
+  setSelectedPersonaId: vi.fn<MockProcedure>(),
+  setWorkspaceId: vi.fn<MockProcedure>(),
+  setRunTitle: vi.fn<MockProcedure>(),
+  setRunContract: vi.fn<MockProcedure>(),
+  setSelectedRunId: vi.fn<MockProcedure>(),
+  setRunsPage: vi.fn<MockProcedure>(),
+  dismissStatus: vi.fn<MockProcedure>(),
+  createRun: vi.fn<() => Promise<void>>(async () => {}),
+  startRun: vi.fn<() => Promise<void>>(async () => {}),
+  exportRun: vi.fn<() => Promise<void>>(async () => {}),
+  cancelRun: vi.fn<() => Promise<void>>(async () => {}),
+  submitDecision: vi.fn<() => Promise<void>>(async () => {}),
+  decideApproval: vi.fn<() => Promise<void>>(async () => {}),
+  submitFeedback: vi.fn<() => Promise<{ ok: true }>>(async () => ({ ok: true as const })),
+  saveSettings: vi.fn<() => Promise<void>>(async () => {}),
+  dismissExportBundle: vi.fn<MockProcedure>(),
+  refreshAll: vi.fn<() => Promise<void>>(async () => {}),
 };
 
 vi.mock('@/modules/master/hooks/useMasterView', () => ({

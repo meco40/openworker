@@ -4,12 +4,7 @@ import type { MasterRun } from '@/server/master/types';
 export type Capability = 'web_search' | 'code_generation' | 'notes' | 'reminders' | 'system_ops';
 export type RuntimeMode = 'model' | 'fallback';
 export type MasterRuntimeTool =
-  | 'notes'
-  | 'reminders'
-  | 'shell_execute'
-  | 'web_search'
-  | 'write'
-  | 'read';
+  'notes' | 'reminders' | 'shell_execute' | 'web_search' | 'write' | 'read';
 
 export interface ExecutionPlan {
   capabilities: Capability[];

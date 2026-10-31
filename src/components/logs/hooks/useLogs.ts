@@ -189,15 +189,18 @@ export function useLogs(options: UseLogsOptions) {
 
   // Initial fetch
   useEffect(() => {
-    void fetchLogs();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(fetchLogs);
   }, [fetchLogs]);
 
   useEffect(() => {
-    void fetchSources();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(fetchSources);
   }, [fetchSources]);
 
   useEffect(() => {
-    void fetchCategories();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(fetchCategories);
   }, [fetchCategories]);
 
   useEffect(() => {
@@ -245,8 +248,10 @@ export function useLogs(options: UseLogsOptions) {
       }
     });
 
-    // Set connected if already connected
-    if (client.state === 'connected') setIsConnected(true);
+    // Set connected if already connected (after the effect returns)
+    void Promise.resolve().then(() => {
+      if (client.state === 'connected') setIsConnected(true);
+    });
 
     return () => {
       unsub();

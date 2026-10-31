@@ -11,21 +11,22 @@ import {
 } from '@/server/tasks/taskService';
 import * as db from '@/lib/db';
 import type { Task } from '@/lib/types';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 vi.mock('@/lib/db', () => ({
-  queryAll: vi.fn(),
-  queryOne: vi.fn(),
-  run: vi.fn(),
-  transaction: vi.fn((fn) => fn()),
+  queryAll: vi.fn<MockProcedure>(),
+  queryOne: vi.fn<MockProcedure>(),
+  run: vi.fn<MockProcedure>(),
+  transaction: vi.fn<MockProcedure>((fn) => fn()),
 }));
 
 vi.mock('@/server/tasks/taskWorkspace', () => ({
-  deleteTaskWorkspace: vi.fn(),
-  ensureTaskWorkspace: vi.fn(),
+  deleteTaskWorkspace: vi.fn<MockProcedure>(),
+  ensureTaskWorkspace: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/tasks/taskHydration', () => ({
-  hydrateTaskRelations: vi.fn((task) => task),
+  hydrateTaskRelations: vi.fn<MockProcedure>((task) => task),
 }));
 
 const mockQueryAll = vi.mocked(db.queryAll);

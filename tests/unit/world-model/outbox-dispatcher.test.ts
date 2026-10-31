@@ -9,21 +9,21 @@ const mocks = vi.hoisted(() => ({
     outboxBatchSize: 100,
     outboxPollIntervalMs: 60_000,
   },
-  getWorldModelConfig: vi.fn(),
-  closeWorldModelDb: vi.fn(),
-  runWithWorldModelScope: vi.fn(),
-  runWorldModelMigrations: vi.fn(),
-  createGraphitiShadowHandler: vi.fn(),
-  createGraphitiProjectorHandler: vi.fn(),
-  createProactiveQuestionHandler: vi.fn(),
-  createProactiveIntentFiredHandler: vi.fn(),
-  projectMissionControlTaskCreated: vi.fn(),
-  projectMissionControlTaskDeleted: vi.fn(),
-  projectMissionControlTaskStatusChanged: vi.fn(),
-  claimPendingOutboxEvents: vi.fn(),
-  markOutboxDispatched: vi.fn(),
-  markOutboxFailed: vi.fn(),
-  listRuntimeWorldModelScopes: vi.fn(),
+  getWorldModelConfig: vi.fn<MockProcedure>(),
+  closeWorldModelDb: vi.fn<MockProcedure>(),
+  runWithWorldModelScope: vi.fn<MockProcedure>(),
+  runWorldModelMigrations: vi.fn<MockProcedure>(),
+  createGraphitiShadowHandler: vi.fn<MockProcedure>(),
+  createGraphitiProjectorHandler: vi.fn<MockProcedure>(),
+  createProactiveQuestionHandler: vi.fn<MockProcedure>(),
+  createProactiveIntentFiredHandler: vi.fn<MockProcedure>(),
+  projectMissionControlTaskCreated: vi.fn<MockProcedure>(),
+  projectMissionControlTaskDeleted: vi.fn<MockProcedure>(),
+  projectMissionControlTaskStatusChanged: vi.fn<MockProcedure>(),
+  claimPendingOutboxEvents: vi.fn<MockProcedure>(),
+  markOutboxDispatched: vi.fn<MockProcedure>(),
+  markOutboxFailed: vi.fn<MockProcedure>(),
+  listRuntimeWorldModelScopes: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/config', () => ({
@@ -66,6 +66,7 @@ import {
   stopOutboxDispatcher,
 } from '@/server/world-model/outboxDispatcher';
 import type { OutboxEvent } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function event(partial: Partial<OutboxEvent> = {}): OutboxEvent {
   return {
@@ -121,7 +122,7 @@ afterEach(async () => {
 
 describe('outbox dispatcher', () => {
   it('fails events with no handler and acknowledges all handlers on success', async () => {
-    const ok = vi.fn(async () => {});
+    const ok = vi.fn<() => Promise<void>>(async () => {});
     registerOutboxHandler('test.success', ok);
     mocks.claimPendingOutboxEvents.mockResolvedValue([
       event({ id: 'no-handler', eventType: 'test.missing' }),
@@ -140,8 +141,8 @@ describe('outbox dispatcher', () => {
   });
 
   it('runs multiple handlers together and normalizes non-Error failures', async () => {
-    const first = vi.fn(async () => {});
-    const second = vi.fn().mockRejectedValue('transport down');
+    const first = vi.fn<() => Promise<void>>(async () => {});
+    const second = vi.fn<MockProcedure>().mockRejectedValue('transport down');
     registerOutboxHandler('test.multiple', first);
     registerOutboxHandler('test.multiple', second);
     mocks.claimPendingOutboxEvents.mockResolvedValue([event({ eventType: 'test.multiple' })]);
@@ -158,8 +159,8 @@ describe('outbox dispatcher', () => {
   });
 
   it('deduplicates a keyed registration, keeps distinct keys, and counts empty batches', async () => {
-    const handler = vi.fn(async () => {});
-    const duplicate = vi.fn(async () => {});
+    const handler = vi.fn<() => Promise<void>>(async () => {});
+    const duplicate = vi.fn<() => Promise<void>>(async () => {});
     registerOutboxHandler('test.keyed', handler, 'stable');
     registerOutboxHandler('test.keyed', duplicate, 'stable');
     registerOutboxHandler('test.keyed', duplicate, 'second');
@@ -246,8 +247,8 @@ describe('outbox dispatcher', () => {
     mocks.config.enabled = true;
     mocks.config.graphitiShadowEnabled = true;
     mocks.config.graphitiBackendEnabled = true;
-    const graphitiShadow = vi.fn(async () => {});
-    const graphitiProjector = vi.fn(async () => {});
+    const graphitiShadow = vi.fn<() => Promise<void>>(async () => {});
+    const graphitiProjector = vi.fn<() => Promise<void>>(async () => {});
     mocks.createGraphitiShadowHandler.mockReturnValue(graphitiShadow);
     mocks.createGraphitiProjectorHandler.mockReturnValue(graphitiProjector);
     mocks.listRuntimeWorldModelScopes.mockResolvedValue([

@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  executeGmailAction: vi.fn(),
-  bridgeMasterAction: vi.fn(),
-  getMasterRepository: vi.fn(() => ({})),
-  resolveMasterUserId: vi.fn(async () => 'user-1'),
-  resolveScopeFromRequest: vi.fn(() => ({
+  executeGmailAction: vi.fn<MockProcedure>(),
+  bridgeMasterAction: vi.fn<MockProcedure>(),
+  getMasterRepository: vi.fn<() => Record<string, unknown>>(() => ({})),
+  resolveMasterUserId: vi.fn<() => Promise<string>>(async () => 'user-1'),
+  resolveScopeFromRequest: vi.fn<
+    () => {
+      userId: string;
+      personaId: string;
+      workspaceId: string;
+      personaWorkspaceRoot: string;
+      workspaceCwd: string;
+    }
+  >(() => ({
     userId: 'user-1',
     personaId: 'persona-1',
     workspaceId: 'workspace-1',
@@ -29,6 +37,7 @@ vi.mock('@/server/master/http', () => ({
 }));
 
 import { POST } from '../../../app/api/master/gmail/route';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('master Gmail route World-Model bridge', () => {
   beforeEach(() => {

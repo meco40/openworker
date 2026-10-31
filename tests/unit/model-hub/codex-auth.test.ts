@@ -49,20 +49,22 @@ describe('codexAuth', () => {
   it('refreshes openai codex token using fallback public client id', async () => {
     delete process.env.OPENAI_OAUTH_CLIENT_ID;
 
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-      const body = String(init?.body || '');
-      expect(body).toContain('grant_type=refresh_token');
-      expect(body).toContain(`client_id=${OPENAI_CODEX_PUBLIC_CLIENT_ID}`);
-      return new Response(
-        JSON.stringify({
-          access_token:
-            'eyJhbGciOiJIUzI1NiJ9.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjXzQ1NiJ9fQ.signature',
-          refresh_token: 'refresh-2',
-          expires_in: 3600,
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      );
-    });
+    const fetchMock = vi.fn<(_url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const body = String(init?.body || '');
+        expect(body).toContain('grant_type=refresh_token');
+        expect(body).toContain(`client_id=${OPENAI_CODEX_PUBLIC_CLIENT_ID}`);
+        return new Response(
+          JSON.stringify({
+            access_token:
+              'eyJhbGciOiJIUzI1NiJ9.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjXzQ1NiJ9fQ.signature',
+            refresh_token: 'refresh-2',
+            expires_in: 3600,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      },
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const refreshed = await refreshOpenAICodexToken('refresh-1');

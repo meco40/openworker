@@ -6,11 +6,12 @@ import {
   subscribeClawHubChanged,
   type ClawHubEventTarget,
 } from '@/skills/clawhub-events';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('ClawHub UI guardrails', () => {
   it('emits clawhub changed event on provided target', () => {
     const target = new EventTarget();
-    const listener = vi.fn();
+    const listener = vi.fn<MockProcedure>();
     target.addEventListener(CLAWHUB_CHANGED_EVENT, listener);
 
     emitClawHubChanged(target as unknown as ClawHubEventTarget);
@@ -20,7 +21,7 @@ describe('ClawHub UI guardrails', () => {
 
   it('subscribes and unsubscribes clawhub changed listener', () => {
     const target = new EventTarget();
-    const listener = vi.fn();
+    const listener = vi.fn<MockProcedure>();
 
     const unsubscribe = subscribeClawHubChanged(target as unknown as ClawHubEventTarget, listener);
 

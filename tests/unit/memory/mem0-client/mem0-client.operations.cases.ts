@@ -5,7 +5,7 @@ import { registerMem0ClientCleanup } from './mem0-client.harness';
 describe('mem0Client', () => {
   registerMem0ClientCleanup();
   it('posts add memory with scoped payload', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(JSON.stringify([{ id: 'mem0-1', memory: 'Ich trinke Kaffee schwarz' }]), {
           status: 200,
@@ -49,7 +49,7 @@ describe('mem0Client', () => {
   });
 
   it('forwards extended evidence metadata in add memory payload', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(JSON.stringify([{ id: 'mem0-extended-1', memory: 'Episode summary' }]), {
           status: 200,
@@ -93,7 +93,7 @@ describe('mem0Client', () => {
   });
 
   it('lists memories with filters and pagination for WebUI CRUD', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(
           JSON.stringify({
@@ -186,7 +186,7 @@ describe('mem0Client', () => {
       ),
     ];
 
-    const fetchMock = vi.fn(async () => responses.shift() as Response);
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => responses.shift() as Response);
     const client = createMem0Client(
       {
         baseUrl: 'http://mem0.local',
@@ -220,7 +220,7 @@ describe('mem0Client', () => {
   });
 
   it('extracts memory id from results envelope on add memory', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(
           JSON.stringify({

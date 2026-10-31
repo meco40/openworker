@@ -11,6 +11,7 @@ import type {
 } from '@/server/memory/mem0';
 import { getServerEventBus } from '@/server/events/runtime';
 import { MemoryService } from '@/server/memory/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function scopeKey(userId: string, personaId: string): string {
   return `${userId}::${personaId}`;
@@ -252,8 +253,8 @@ describe('MemoryService (mem0-only)', () => {
   });
 
   it('keeps canonical semantic queries natural and reserves variants for lexical fallback', async () => {
-    const searchMemories = vi.fn(async () => [] as Mem0SearchHit[]);
-    const listMemories = vi.fn(
+    const searchMemories = vi.fn<() => Promise<Mem0SearchHit[]>>(async () => [] as Mem0SearchHit[]);
+    const listMemories = vi.fn<(input: Mem0ListInput) => Promise<Mem0ListMemoryResult>>(
       async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
         memories: [],
         total: 0,
@@ -360,23 +361,25 @@ describe('MemoryService (mem0-only)', () => {
   });
 
   it('builds a cross-scope page from the required prefix instead of full snapshots', async () => {
-    const listMemories = vi.fn(async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => {
-      const offset = (input.page - 1) * input.pageSize;
-      return {
-        memories: Array.from({ length: input.pageSize }, (_, index) => ({
-          id: `${input.userId}-${offset + index}`,
-          content: `memory ${input.userId} ${offset + index}`,
-          score: null,
-          metadata: {
-            type: 'fact',
-            lastVerified: new Date(Date.UTC(2026, 0, 1, 0, 0, offset + index)).toISOString(),
-          },
-        })),
-        total: 10_000,
-        page: input.page,
-        pageSize: input.pageSize,
-      };
-    });
+    const listMemories = vi.fn<(input: Mem0ListInput) => Promise<Mem0ListMemoryResult>>(
+      async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => {
+        const offset = (input.page - 1) * input.pageSize;
+        return {
+          memories: Array.from({ length: input.pageSize }, (_, index) => ({
+            id: `${input.userId}-${offset + index}`,
+            content: `memory ${input.userId} ${offset + index}`,
+            score: null,
+            metadata: {
+              type: 'fact',
+              lastVerified: new Date(Date.UTC(2026, 0, 1, 0, 0, offset + index)).toISOString(),
+            },
+          })),
+          total: 10_000,
+          page: input.page,
+          pageSize: input.pageSize,
+        };
+      },
+    );
     const service = new MemoryService({
       provider: 'postgres',
       listMemories,
@@ -699,15 +702,17 @@ describe('MemoryService (mem0-only)', () => {
       metadata: { type: 'fact', importance: 3, confidence: 0.8, version: 4 },
     });
     let persisted = initial;
-    const getMemory = vi.fn(async () => persisted);
-    const updateMemory = vi.fn(async (_id: string, input: Mem0MemoryInput) => {
-      persisted = {
-        ...persisted,
-        content: input.content,
-        metadata: input.metadata,
-        updatedAt: '2026-10-08T10:00:00.000Z',
-      };
-    });
+    const getMemory = vi.fn<() => Promise<Mem0MemoryRecord>>(async () => persisted);
+    const updateMemory = vi.fn<(_id: string, input: Mem0MemoryInput) => Promise<void>>(
+      async (_id: string, input: Mem0MemoryInput) => {
+        persisted = {
+          ...persisted,
+          content: input.content,
+          metadata: input.metadata,
+          updatedAt: '2026-10-08T10:00:00.000Z',
+        };
+      },
+    );
     const client = {
       provider: 'postgres',
       getMemory,
@@ -763,8 +768,8 @@ describe('MemoryService (mem0-only)', () => {
   });
 
   it('returns no update for an unowned PostgreSQL memory', async () => {
-    const getMemory = vi.fn(async () => null);
-    const updateMemory = vi.fn();
+    const getMemory = vi.fn<() => Promise<null>>(async () => null);
+    const updateMemory = vi.fn<MockProcedure>();
     const service = new MemoryService({
       provider: 'postgres',
       getMemory,
@@ -923,8 +928,8 @@ describe('MemoryService (mem0-only)', () => {
         metadata: { type: 'fact', importance: 3 },
       }),
     ];
-    const countMemories = vi.fn(async () => 2);
-    const listMemories = vi.fn(
+    const countMemories = vi.fn<() => Promise<number>>(async () => 2);
+    const listMemories = vi.fn<(input: Mem0ListInput) => Promise<Mem0ListMemoryResult>>(
       async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
         memories: input.page === 1 ? [records[0]!] : [records[1]!],
         total: 2,
@@ -959,8 +964,17 @@ describe('MemoryService (mem0-only)', () => {
       content: 'before',
       metadata: { type: 'fact', importance: 3, confidence: 0.8 },
     });
-    const getMemory = vi.fn(async () => current);
-    const getMemoryHistory = vi.fn(async () => [
+    const getMemory = vi.fn<() => Promise<Mem0MemoryRecord>>(async () => current);
+    const getMemoryHistory = vi.fn<
+      () => Promise<
+        {
+          action: string;
+          content: string;
+          metadata: Record<string, unknown>;
+          raw: Record<string, unknown>;
+        }[]
+      >
+    >(async () => [
       { action: 'create', content: 'before', metadata: {}, raw: {} },
       { action: 'update', content: 'before', metadata: {}, raw: {} },
     ]);
@@ -968,7 +982,7 @@ describe('MemoryService (mem0-only)', () => {
     const updateGate = new Promise<void>((resolve) => {
       releaseUpdate = resolve;
     });
-    const updateMemory = vi.fn(async () => updateGate);
+    const updateMemory = vi.fn<() => Promise<void>>(async () => updateGate);
     const service = new MemoryService({
       provider: 'postgres',
       getMemory,
@@ -1002,7 +1016,7 @@ describe('MemoryService (mem0-only)', () => {
       content: 'older copy',
       metadata: { type: 'fact', lastVerified: timestampAtMinute(1) },
     });
-    const listMemories = vi.fn(
+    const listMemories = vi.fn<(input: Mem0ListInput) => Promise<Mem0ListMemoryResult>>(
       async (input: Mem0ListInput): Promise<Mem0ListMemoryResult> => ({
         memories: [input.userId === 'user-a' ? newest : older],
         total: 1,

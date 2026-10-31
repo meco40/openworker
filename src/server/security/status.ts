@@ -42,7 +42,7 @@ interface BuildSecurityStatusInput {
 function resolveMessagesDbPath(
   rawPath = process.env.MESSAGES_DB_PATH || '.local/messages.db',
 ): string {
-  return path.resolve(rawPath);
+  return path.resolve(/* turbopackIgnore: true */ rawPath);
 }
 
 function hasDangerousCommandEnabled(commands: CommandPermission[]): boolean {

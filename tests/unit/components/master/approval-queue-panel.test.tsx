@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ApprovalQueuePanel } from '@/modules/master/components/ApprovalQueuePanel';
 import type { MasterApprovalRequest } from '@/modules/master/types';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 function makeApproval(overrides: Partial<MasterApprovalRequest> = {}): MasterApprovalRequest {
   return {
@@ -32,7 +33,7 @@ function makeApproval(overrides: Partial<MasterApprovalRequest> = {}): MasterApp
 
 describe('ApprovalQueuePanel', () => {
   it('renders pending approvals and applies decisions', () => {
-    const onDecide = vi.fn();
+    const onDecide = vi.fn<MockProcedure>();
     render(<ApprovalQueuePanel approvals={[makeApproval()]} loading={false} onDecide={onDecide} />);
 
     expect(screen.getByText('Shell command requires approval')).toBeInTheDocument();

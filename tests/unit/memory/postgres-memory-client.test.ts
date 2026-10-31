@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getWorldModelDb: vi.fn(),
-  runWithWorldModelScope: vi.fn(),
-  withWorldModelTransaction: vi.fn(),
-  query: vi.fn(),
-  getConfiguredEmbeddingProvider: vi.fn(),
-  generateEmbeddingOnce: vi.fn(),
-  vectorSearch: vi.fn(),
+  getWorldModelDb: vi.fn<MockProcedure>(),
+  runWithWorldModelScope: vi.fn<MockProcedure>(),
+  withWorldModelTransaction: vi.fn<MockProcedure>(),
+  query: vi.fn<MockProcedure>(),
+  getConfiguredEmbeddingProvider: vi.fn<MockProcedure>(),
+  generateEmbeddingOnce: vi.fn<MockProcedure>(),
+  vectorSearch: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -23,6 +23,7 @@ vi.mock('@/server/world-model/retrieval/vector', () => ({ vectorSearch: mocks.ve
 
 import { PostgresMemoryClient } from '@/server/memory/postgresMemoryClient';
 import { MemoryVersionConflictError } from '@/server/memory/errors';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const scope = { userId: 'user-a', personaId: 'assistant', workspaceId: 'workspace-a' };
 const client = new PostgresMemoryClient();

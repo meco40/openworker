@@ -57,14 +57,13 @@ const PhaseProgress: React.FC<PhaseProgressProps> = ({ currentPhase }) => {
   const currentIdx = SWARM_PHASES.indexOf(currentPhase);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="list" aria-label="Phase progress">
+    <ul className="flex flex-wrap items-center gap-1.5" aria-label="Phase progress">
       {SWARM_PHASES.map((phase, idx) => {
         const active = currentPhase === phase;
         const done = idx < currentIdx;
         return (
-          <span
+          <li
             key={phase}
-            role="listitem"
             className={`rounded border px-2 py-0.5 font-mono text-[9px] font-black tracking-widest uppercase transition-colors ${
               active
                 ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'
@@ -74,10 +73,10 @@ const PhaseProgress: React.FC<PhaseProgressProps> = ({ currentPhase }) => {
             }`}
           >
             {getSwarmPhaseLabel(phase)}
-          </span>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
 

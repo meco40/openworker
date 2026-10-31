@@ -105,11 +105,7 @@ fn run_query(connection: &Connection, query: &str) -> Result<Value, SkillError> 
         ));
     }
 
-    let columns: Vec<String> = statement
-        .column_names()
-        .iter()
-        .map(|name| (*name).to_string())
-        .collect();
+    let columns: Vec<String> = statement.column_names().map(str::to_string).collect();
     let mut rows = statement.query([]).map_err(sql_error)?;
     let mut kept = Vec::new();
     let mut row_count = 0usize;

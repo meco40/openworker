@@ -75,7 +75,9 @@ export function useGrokVoiceAgent({
   );
 
   const setStatusRef = useRef<(nextStatus: VoiceAgentStatus) => void>(() => {});
-  setStatusRef.current = setStatus;
+  useEffect(() => {
+    setStatusRef.current = setStatus;
+  }, [setStatus]);
 
   const pushOutputEvent = useCallback((event: MasterAvatarAudioEvent, record: boolean) => {
     pushOutputAudioEvent({
@@ -89,25 +91,15 @@ export function useGrokVoiceAgent({
   const realtimeEventHandlerRef = useRef<(event: RealtimeParsedEvent) => void>(() => {});
   const socketFaultHandlerRef = useRef<(message: string) => void>(() => {});
 
+  // The session controller is created by the mount effect below; callbacks run after mount.
   const realtimeControllerRef = useRef<RealtimeSessionController | null>(null);
-  if (!realtimeControllerRef.current) {
-    realtimeControllerRef.current = createRealtimeSessionController({
-      isUnmountedRef: unmountedRef,
-      statusRef,
-      setStatusRef,
-      onRealtimeEventRef: realtimeEventHandlerRef,
-      onSocketFaultRef: socketFaultHandlerRef,
-      setConnected,
-      setError,
-      resetAmplitude: () => setAmplitude(0),
-      stopMicrophone: () =>
-        stopMicrophone({
-          runtimeRefs: microphoneRuntimeRefsRef.current,
-          setAmplitude,
-        }),
-    });
-  }
-  const realtime = realtimeControllerRef.current;
+  const requireRealtime = useCallback((): RealtimeSessionController => {
+    const controller = realtimeControllerRef.current;
+    if (!controller) {
+      throw new Error('The voice session is not mounted.');
+    }
+    return controller;
+  }, []);
 
   const handleRealtimeEvent = useCallback(
     (event: RealtimeParsedEvent) => {
@@ -119,7 +111,7 @@ export function useGrokVoiceAgent({
           break;
 
         case 'response_created':
-          realtime.clearAutoDisconnectTimer();
+          realtimeControllerRef.current?.clearAutoDisconnectTimer();
           currentTurnIdRef.current = createTurnId();
           lastOutputAudioEventsRef.current = [];
           pushOutputEvent(
@@ -184,14 +176,14 @@ export function useGrokVoiceAgent({
             );
             currentTurnIdRef.current = null;
           }
-          realtime.scheduleAutoDisconnectAfterTurn();
+          realtimeControllerRef.current?.scheduleAutoDisconnectAfterTurn();
           break;
 
         default:
           break;
       }
     },
-    [pushOutputEvent, realtime, setStatus],
+    [pushOutputEvent, setStatus],
   );
 
   const handleSocketFault = useCallback(
@@ -212,16 +204,35 @@ export function useGrokVoiceAgent({
     [pushOutputEvent],
   );
 
-  realtimeEventHandlerRef.current = handleRealtimeEvent;
-  socketFaultHandlerRef.current = handleSocketFault;
+  useEffect(() => {
+    realtimeEventHandlerRef.current = handleRealtimeEvent;
+    socketFaultHandlerRef.current = handleSocketFault;
+  }, [handleRealtimeEvent, handleSocketFault]);
 
   useEffect(() => {
     unmountedRef.current = false;
     const outputAudioListeners = outputAudioListenersRef.current;
+    const controller = createRealtimeSessionController({
+      isUnmountedRef: unmountedRef,
+      statusRef,
+      setStatusRef,
+      onRealtimeEventRef: realtimeEventHandlerRef,
+      onSocketFaultRef: socketFaultHandlerRef,
+      setConnected,
+      setError,
+      resetAmplitude: () => setAmplitude(0),
+      stopMicrophone: () =>
+        stopMicrophone({
+          runtimeRefs: microphoneRuntimeRefsRef.current,
+          setAmplitude,
+        }),
+    });
+    realtimeControllerRef.current = controller;
     return () => {
       unmountedRef.current = true;
       clearReplayTimers(replayTimersRef);
-      realtimeControllerRef.current?.dispose({ stopMic: true, keepStatus: true });
+      controller.dispose({ stopMic: true, keepStatus: true });
+      realtimeControllerRef.current = null;
       outputAudioListeners.clear();
     };
   }, []);
@@ -235,10 +246,10 @@ export function useGrokVoiceAgent({
     if (statusRef.current === 'listening') return;
 
     setError(null);
-    realtime.clearAutoDisconnectTimer();
+    realtimeControllerRef.current?.clearAutoDisconnectTimer();
 
     try {
-      await realtime.connect();
+      await requireRealtime().connect();
     } catch {
       setError('Voice service not connected');
       return;
@@ -250,18 +261,18 @@ export function useGrokVoiceAgent({
       runtimeRefs: microphoneRuntimeRefsRef.current,
       isUnmountedRef: unmountedRef,
       isListening: () => statusRef.current === 'listening',
-      getSocket: () => realtime.getSocket(),
+      getSocket: () => requireRealtime().getSocket(),
       setAmplitude,
       onError: (message) => {
         setError(message);
         setStatus('error');
       },
     });
-  }, [capabilities.sttSupported, realtime, setStatus]);
+  }, [capabilities.sttSupported, requireRealtime, setStatus]);
 
   const stopListening = useCallback(() => {
-    realtime.disconnect({ stopMic: true });
-  }, [realtime]);
+    realtimeControllerRef.current?.disconnect({ stopMic: true });
+  }, []);
 
   const submitText = useCallback(
     async (text: string): Promise<void> => {
@@ -273,11 +284,11 @@ export function useGrokVoiceAgent({
       }
 
       setError(null);
-      realtime.clearAutoDisconnectTimer();
+      realtimeControllerRef.current?.clearAutoDisconnectTimer();
 
       let ws: WebSocket;
       try {
-        ws = await realtime.connect();
+        ws = await requireRealtime().connect();
       } catch {
         setError('Voice service not connected');
         return;
@@ -299,7 +310,7 @@ export function useGrokVoiceAgent({
       );
       ws.send(JSON.stringify({ type: 'response.create' }));
     },
-    [capabilities.ttsSupported, realtime, setStatus],
+    [capabilities.ttsSupported, requireRealtime, setStatus],
   );
 
   const subscribeOutputAudio = useCallback((listener: MasterAvatarAudioListener): (() => void) => {
@@ -311,7 +322,7 @@ export function useGrokVoiceAgent({
 
   const cancel = useCallback(() => {
     clearReplayTimers(replayTimersRef);
-    realtime.disconnect({ stopMic: true });
+    realtimeControllerRef.current?.disconnect({ stopMic: true });
 
     if (!currentTurnIdRef.current) return;
 
@@ -325,7 +336,7 @@ export function useGrokVoiceAgent({
       true,
     );
     currentTurnIdRef.current = null;
-  }, [pushOutputEvent, realtime]);
+  }, [pushOutputEvent]);
 
   const replay = useCallback(() => {
     replayOutputAudioEvents({

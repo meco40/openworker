@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import NodesView from '@/modules/ops/components/NodesView';
 import { useOpsNodes, type UseOpsNodesResult } from '@/modules/ops/hooks/useOpsNodes';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 vi.mock('@/modules/ops/hooks/useOpsNodes', () => ({
-  useOpsNodes: vi.fn(),
+  useOpsNodes: vi.fn<MockProcedure>(),
 }));
 
 const mockedUseOpsNodes = vi.mocked(useOpsNodes);
@@ -20,17 +21,17 @@ function buildState(partial: Partial<UseOpsNodesResult> = {}): UseOpsNodesResult
     pendingAction: null,
     mutationError: null,
     mutationNotice: null,
-    refresh: vi.fn(async () => {}),
+    refresh: vi.fn<() => Promise<void>>(async () => {}),
     actions: {
-      approveExecCommand: vi.fn(async () => {}),
-      revokeExecCommand: vi.fn(async () => {}),
-      clearExecApprovals: vi.fn(async () => {}),
-      setChannelPersona: vi.fn(async () => {}),
-      connectChannel: vi.fn(async () => {}),
-      disconnectChannel: vi.fn(async () => {}),
-      rotateChannelSecret: vi.fn(async () => {}),
-      rejectTelegramPending: vi.fn(async () => {}),
-      clearMutationNotice: vi.fn(() => {}),
+      approveExecCommand: vi.fn<() => Promise<void>>(async () => {}),
+      revokeExecCommand: vi.fn<() => Promise<void>>(async () => {}),
+      clearExecApprovals: vi.fn<() => Promise<void>>(async () => {}),
+      setChannelPersona: vi.fn<() => Promise<void>>(async () => {}),
+      connectChannel: vi.fn<() => Promise<void>>(async () => {}),
+      disconnectChannel: vi.fn<() => Promise<void>>(async () => {}),
+      rotateChannelSecret: vi.fn<() => Promise<void>>(async () => {}),
+      rejectTelegramPending: vi.fn<() => Promise<void>>(async () => {}),
+      clearMutationNotice: vi.fn<() => void>(() => {}),
     },
     ...partial,
   };

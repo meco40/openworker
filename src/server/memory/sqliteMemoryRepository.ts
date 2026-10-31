@@ -268,8 +268,7 @@ export class SqliteMemoryRepository implements MemoryRepository {
 
   getNodeById(nodeId: string): MemoryNodeWithScope | null {
     const row = this.db.prepare('SELECT * FROM memory_nodes WHERE id = ? LIMIT 1').get(nodeId) as
-      | (Record<string, unknown> & { user_id: string; persona_id: string })
-      | undefined;
+      (Record<string, unknown> & { user_id: string; persona_id: string }) | undefined;
     if (!row) return null;
     return {
       node: toNode(row as unknown as MemoryRow),

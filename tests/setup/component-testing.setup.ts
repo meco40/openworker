@@ -2,6 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+import type { MockProcedure } from '../helpers/mockProcedure';
 
 // Cleanup after each test
 afterEach(() => {
@@ -10,7 +11,7 @@ afterEach(() => {
 
 // Next.js Image Mock
 vi.mock('next/image', () => ({
-  default: vi.fn().mockImplementation((props: Record<string, unknown>) => {
+  default: vi.fn<MockProcedure>().mockImplementation((props: Record<string, unknown>) => {
     const { src, alt, width, height, ...rest } = props;
     return React.createElement('img', {
       src: typeof src === 'string' ? src : '',
@@ -23,12 +24,12 @@ vi.mock('next/image', () => ({
 }));
 
 // Next.js Navigation Mock
-const mockPush = vi.fn();
-const mockReplace = vi.fn();
-const mockBack = vi.fn();
-const mockForward = vi.fn();
-const mockRefresh = vi.fn();
-const mockPrefetch = vi.fn();
+const mockPush = vi.fn<MockProcedure>();
+const mockReplace = vi.fn<MockProcedure>();
+const mockBack = vi.fn<MockProcedure>();
+const mockForward = vi.fn<MockProcedure>();
+const mockRefresh = vi.fn<MockProcedure>();
+const mockPrefetch = vi.fn<MockProcedure>();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -48,36 +49,36 @@ vi.mock('next/navigation', () => ({
 }));
 
 // ResizeObserver Mock (for UI components)
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
+global.ResizeObserver = vi.fn<MockProcedure>().mockImplementation(() => ({
+  observe: vi.fn<MockProcedure>(),
+  unobserve: vi.fn<MockProcedure>(),
+  disconnect: vi.fn<MockProcedure>(),
 }));
 
 // IntersectionObserver Mock
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
+global.IntersectionObserver = vi.fn<MockProcedure>().mockImplementation(() => ({
+  observe: vi.fn<MockProcedure>(),
+  unobserve: vi.fn<MockProcedure>(),
+  disconnect: vi.fn<MockProcedure>(),
 }));
 
 // MatchMedia Mock (for responsive components)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: vi.fn<MockProcedure>().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
+    addListener: vi.fn<MockProcedure>(),
+    removeListener: vi.fn<MockProcedure>(),
+    addEventListener: vi.fn<MockProcedure>(),
+    removeEventListener: vi.fn<MockProcedure>(),
+    dispatchEvent: vi.fn<MockProcedure>(),
   })),
 });
 
 // ScrollTo Mock
-window.scrollTo = vi.fn();
+window.scrollTo = vi.fn<MockProcedure>();
 
 // Export mocks for use in tests
 export const routerMocks = {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type TestGlobals = typeof globalThis & {
   __credentialStore?: unknown;
@@ -17,7 +18,7 @@ describe('telegram unpair hard disconnect', () => {
   });
 
   it('stops telegram polling when disconnecting', async () => {
-    const stopTelegramPolling = vi.fn();
+    const stopTelegramPolling = vi.fn<MockProcedure>();
 
     vi.doMock('@/server/channels/pairing/telegramPolling', () => ({
       stopTelegramPolling,
@@ -40,15 +41,19 @@ describe('telegram unpair hard disconnect', () => {
   });
 
   it('fails disconnect when telegram credentials still exist afterwards', async () => {
-    const stopTelegramPolling = vi.fn();
-    const deleteCredentials = vi.fn();
-    const getCredential = vi.fn((channel: string, key: string) => {
-      if (channel === 'telegram' && key === 'bot_token') {
-        return 'still-present';
-      }
-      return null;
-    });
-    const listCredentials = vi.fn((channel: string) => {
+    const stopTelegramPolling = vi.fn<MockProcedure>();
+    const deleteCredentials = vi.fn<MockProcedure>();
+    const getCredential = vi.fn<(channel: string, key: string) => 'still-present' | null>(
+      (channel: string, key: string) => {
+        if (channel === 'telegram' && key === 'bot_token') {
+          return 'still-present';
+        }
+        return null;
+      },
+    );
+    const listCredentials = vi.fn<
+      (channel: string) => { channel: string; key: string; value: string }[]
+    >((channel: string) => {
       if (channel === 'telegram') {
         return [{ channel: 'telegram', key: 'bot_token', value: 'still-present' }];
       }

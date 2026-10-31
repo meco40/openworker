@@ -67,13 +67,12 @@ const TONE_STYLES: Record<StatusTone, { container: string; icon: React.ReactNode
 export const StatusMessage: React.FC<StatusMessageProps> = ({ message }) => {
   const { container, icon } = TONE_STYLES[message.tone];
   return (
-    <div
-      role="status"
+    <output
       aria-live="polite"
       className={`flex items-start gap-2.5 rounded-lg border px-4 py-3 text-xs leading-relaxed ${container}`}
     >
       {icon}
       <span>{message.text}</span>
-    </div>
+    </output>
   );
 };

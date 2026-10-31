@@ -58,7 +58,7 @@ describe('model-hub account test route', () => {
     const accountId = String(created.account.id);
 
     const originalFetch = global.fetch;
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<Response>>(async () => {
       return new Response(
         JSON.stringify({ error: { message: 'token invalid for models scope' } }),
         {

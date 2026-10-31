@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PipelineModelEntry, ProviderAccountRecord } from '@/server/model-hub/repository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const mocks = vi.hoisted(() => ({
-  listPipeline: vi.fn(),
-  getUsableAccountById: vi.fn(),
-  dispatchEmbedding: vi.fn(),
-  getModelHubEncryptionKey: vi.fn(() => 'enc-key'),
-  decryptSecret: vi.fn(() => 'secret'),
+  listPipeline: vi.fn<MockProcedure>(),
+  getUsableAccountById: vi.fn<MockProcedure>(),
+  dispatchEmbedding: vi.fn<MockProcedure>(),
+  getModelHubEncryptionKey: vi.fn<() => string>(() => 'enc-key'),
+  decryptSecret: vi.fn<() => string>(() => 'secret'),
 }));
 
 vi.mock('@/server/model-hub/runtime', () => ({
@@ -99,7 +100,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
 
   it('skips sync when memory provider is not mem0', async () => {
     process.env.MEMORY_PROVIDER = 'disabled';
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -112,7 +113,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
 
   it('returns an explicit error when no active embedding model exists', async () => {
     mocks.listPipeline.mockReturnValue([]);
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -131,12 +132,14 @@ describe('syncMem0EmbedderFromModelHub', () => {
       embedding: { values: [0.1, 0.2, 0.3, 0.4] },
     });
 
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
+    const fetchMock = vi.fn<(_input: RequestInfo | URL, _init?: RequestInit) => Promise<Response>>(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -186,12 +189,14 @@ describe('syncMem0EmbedderFromModelHub', () => {
       embedding: { values: Array.from({ length: 1536 }, () => 0.1) },
     });
 
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
+    const fetchMock = vi.fn<(_input: RequestInfo | URL, _init?: RequestInit) => Promise<Response>>(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -226,12 +231,14 @@ describe('syncMem0EmbedderFromModelHub', () => {
       embedding: { values: Array.from({ length: 768 }, () => 0.1) },
     });
 
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
+    const fetchMock = vi.fn<(_input: RequestInfo | URL, _init?: RequestInit) => Promise<Response>>(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -270,12 +277,14 @@ describe('syncMem0EmbedderFromModelHub', () => {
     mocks.getUsableAccountById.mockResolvedValue(buildAccount());
     mocks.decryptSecret.mockReturnValue('Bearer openrouter-secret');
 
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
-    });
+    const fetchMock = vi.fn<(_input: RequestInfo | URL, _init?: RequestInit) => Promise<Response>>(
+      async (_input: RequestInfo | URL, _init?: RequestInit) => {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -315,7 +324,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
     mocks.getUsableAccountById.mockResolvedValue(buildAccount({ providerId: 'gemini' }));
     mocks.decryptSecret.mockReturnValue('gemini-secret');
 
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<(_input: RequestInfo | URL, _init?: RequestInit) => Promise<Response>>(
       async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 200 }),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -335,7 +344,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
 
   it('returns actionable LLM errors for missing models, credentials, and providers', async () => {
     const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     mocks.listPipeline.mockReturnValue([]);
@@ -363,7 +372,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
 
   it('returns explicit errors when an embedding model, account, secret, or supported provider is missing', async () => {
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry({ modelName: '' })]);
@@ -396,7 +405,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
 
   it('skips LLM sync when Mem0 credentials are not configured', async () => {
     process.env.MEM0_API_KEY = '';
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0LlmFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -442,7 +451,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
     mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
     mocks.getUsableAccountById.mockResolvedValue(buildAccount());
     mocks.dispatchEmbedding.mockResolvedValue({ embedding: null });
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');
@@ -459,7 +468,7 @@ describe('syncMem0EmbedderFromModelHub', () => {
     mocks.listPipeline.mockReturnValue([buildEmbeddingPipelineEntry()]);
     mocks.getUsableAccountById.mockResolvedValue(buildAccount());
     mocks.dispatchEmbedding.mockResolvedValue({ embedding: { values: Array(2048).fill(0.1) } });
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     vi.stubGlobal('fetch', fetchMock);
 
     const { syncMem0EmbedderFromModelHub } = await import('@/server/memory/mem0EmbedderSync');

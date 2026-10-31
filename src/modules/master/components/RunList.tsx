@@ -122,7 +122,7 @@ export const RunList: React.FC<RunListProps> = ({ runs, selectedRunId, onSelectR
   // ── Keyboard navigation ────────────────────────────────────────────────────
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (paginated.length === 0) return;
       const currentIndex = paginated.findIndex((r) => r.id === selectedRunId);
       if (e.key === 'ArrowDown') {
@@ -222,7 +222,7 @@ export const RunList: React.FC<RunListProps> = ({ runs, selectedRunId, onSelectR
           </div>
 
           {/* Status filter chips */}
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
+          <fieldset className="flex min-w-0 flex-wrap gap-1.5" aria-label="Filter by status">
             {FILTER_CHIPS.map((chip) => (
               <button
                 key={chip.id}
@@ -251,7 +251,7 @@ export const RunList: React.FC<RunListProps> = ({ runs, selectedRunId, onSelectR
                 </span>
               </button>
             ))}
-          </div>
+          </fieldset>
         </div>
       )}
 
@@ -309,69 +309,59 @@ export const RunList: React.FC<RunListProps> = ({ runs, selectedRunId, onSelectR
           </div>
         ) : (
           <>
-            <div
-              role="listbox"
-              aria-label="Master runs"
-              className="space-y-2"
-              onKeyDown={handleKeyDown}
-            >
+            <ul aria-label="Master runs" className="space-y-2">
               {paginated.map((run, index) => (
-                <button
-                  key={run.id}
-                  type="button"
-                  role="option"
-                  aria-selected={selectedRunId === run.id}
-                  tabIndex={
-                    selectedRunId === run.id || (selectedRunId === null && index === 0) ? 0 : -1
-                  }
-                  onClick={() => onSelectRun(run.id)}
-                  className={`w-full rounded-xl border p-3.5 text-left transition-all ${
-                    selectedRunId === run.id
-                      ? 'border-indigo-500/50 bg-indigo-900/20 shadow-lg shadow-indigo-900/10'
-                      : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700 hover:bg-zinc-900/60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-zinc-100">
-                      {run.title}
-                    </span>
-                    <RunStatusBadge status={run.status} />
-                  </div>
-                  <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{run.contract}</p>
-                  {/* Progress bar */}
-                  <div className="mt-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-[9px] font-semibold tracking-wide text-zinc-600 uppercase">
-                        Progress
+                <li key={run.id}>
+                  <button
+                    type="button"
+                    aria-current={selectedRunId === run.id ? 'true' : undefined}
+                    tabIndex={
+                      selectedRunId === run.id || (selectedRunId === null && index === 0) ? 0 : -1
+                    }
+                    onClick={() => onSelectRun(run.id)}
+                    onKeyDown={handleKeyDown}
+                    className={`w-full rounded-xl border p-3.5 text-left transition-all ${
+                      selectedRunId === run.id
+                        ? 'border-indigo-500/50 bg-indigo-900/20 shadow-lg shadow-indigo-900/10'
+                        : 'border-zinc-800 bg-zinc-950/50 hover:border-zinc-700 hover:bg-zinc-900/60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-zinc-100">
+                        {run.title}
                       </span>
-                      <span className="font-mono text-[9px] font-semibold text-zinc-400">
-                        {run.progress}%
-                      </span>
+                      <RunStatusBadge status={run.status} />
                     </div>
-                    <div
-                      className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800/80"
-                      role="progressbar"
-                      aria-valuenow={run.progress}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
+                    <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{run.contract}</p>
+                    {/* Progress bar */}
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[9px] font-semibold tracking-wide text-zinc-600 uppercase">
+                          Progress
+                        </span>
+                        <span className="font-mono text-[9px] font-semibold text-zinc-400">
+                          {run.progress}%
+                        </span>
+                      </div>
+                      <progress
+                        value={run.progress}
+                        max={100}
+                        aria-label={`${run.title} progress`}
+                        className={`block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-zinc-800/80 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-current [&::-webkit-progress-bar]:bg-zinc-800/80 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-current [&::-webkit-progress-value]:transition-all [&::-webkit-progress-value]:duration-500 ${
                           run.status === 'FAILED'
-                            ? 'bg-rose-500'
+                            ? 'text-rose-500'
                             : run.status === 'CANCELLED'
-                              ? 'bg-zinc-500'
+                              ? 'text-zinc-500'
                               : run.status === 'COMPLETED'
-                                ? 'bg-indigo-500'
-                                : 'bg-emerald-500'
+                                ? 'text-indigo-500'
+                                : 'text-emerald-500'
                         }`}
-                        style={{ width: `${run.progress}%` }}
                       />
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
 
             {/* ── Pagination ── */}
             {totalPages > 1 && (

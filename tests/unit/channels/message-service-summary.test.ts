@@ -3,15 +3,21 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI summary text',
-    provider: 'openai',
-    model: 'gpt-4o-mini',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI summary text',
+      provider: 'openai',
+      model: 'gpt-4o-mini',
+    }),
+  ),
 );
-const knowledgeIngestConversationWindowMock = vi.hoisted(() => vi.fn(async () => null));
-const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
+const knowledgeIngestConversationWindowMock = vi.hoisted(() =>
+  vi.fn<() => Promise<null>>(async () => null),
+);
+const memoryStoreMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+);
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -41,6 +47,7 @@ vi.mock('../../../src/server/knowledge/runtime', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(
   upsert: MessageRepository['upsertConversationContext'],
@@ -119,7 +126,7 @@ describe('MessageService summary refresh', () => {
   });
 
   it('uses model hub summarization when refreshing conversation summary', async () => {
-    const upsertContext = vi.fn(
+    const upsertContext = vi.fn<MockProcedure>(
       (conversationId: string, summaryText: string, summaryUptoSeq: number, userId?: string) => ({
         userId,
         conversationId,
@@ -152,7 +159,7 @@ describe('MessageService summary refresh', () => {
   });
 
   it('does not run inline knowledge ingestion during summary refresh by default', async () => {
-    const upsertContext = vi.fn(
+    const upsertContext = vi.fn<MockProcedure>(
       (conversationId: string, summaryText: string, summaryUptoSeq: number, userId?: string) => ({
         userId,
         conversationId,
@@ -185,7 +192,7 @@ describe('MessageService summary refresh', () => {
 
   it('allows inline knowledge ingestion during summary refresh only when explicitly enabled', async () => {
     process.env.KNOWLEDGE_INLINE_INGESTION_ENABLED = 'true';
-    const upsertContext = vi.fn(
+    const upsertContext = vi.fn<MockProcedure>(
       (conversationId: string, summaryText: string, summaryUptoSeq: number, userId?: string) => ({
         userId,
         conversationId,

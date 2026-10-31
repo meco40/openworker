@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { PersonaFileName, PersonaTabName, PersonaWithFiles } from '@/shared/personaTypes';
 
 interface UsePersonaEditorOptions {
@@ -25,13 +25,18 @@ export function usePersonaEditor(options: UsePersonaEditorOptions): UsePersonaEd
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load content when switching tabs or persona
-  useEffect(() => {
+  // Load content during render when the tab or persona changes.
+  const [loadedFrom, setLoadedFrom] = useState<{
+    persona: typeof selectedPersona;
+    tab: typeof activeTab;
+  } | null>(null);
+  if (loadedFrom?.persona !== selectedPersona || loadedFrom?.tab !== activeTab) {
+    setLoadedFrom({ persona: selectedPersona, tab: activeTab });
     if (selectedPersona && activeTab !== 'GATEWAY') {
       setEditorContent(selectedPersona.files[activeTab] ?? '');
       setDirty(false);
     }
-  }, [activeTab, selectedPersona]);
+  }
 
   const saveFile = useCallback(async () => {
     if (!selectedId || activeTab === 'GATEWAY') return;

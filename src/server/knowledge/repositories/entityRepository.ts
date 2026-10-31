@@ -149,8 +149,7 @@ export class EntityRepository {
          ORDER BY LENGTH(a.alias) ASC LIMIT 1`,
       )
       .get(filter.userId, filter.personaId, `${normalized}%`) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (byFuzzy) {
       return {
         entity: this.mapEntityRow(byFuzzy),
@@ -178,8 +177,7 @@ export class EntityRepository {
          ORDER BY a.confidence DESC LIMIT 1`,
       )
       .get(filter.userId, filter.personaId, normalized, owner) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!row) return null;
     return {
       entity: this.mapEntityRow(row),

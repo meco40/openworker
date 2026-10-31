@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
 import { TokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 

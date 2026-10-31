@@ -142,8 +142,7 @@ export class ClawHubRepository {
 
   getSkill(slug: string): ClawHubSkillRow | null {
     const row = this.db.prepare('SELECT * FROM clawhub_skills WHERE slug = ?').get(slug) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? toRow(row) : null;
   }
 

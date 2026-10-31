@@ -331,7 +331,23 @@ pnpm run test:e2e:live
 
 # Vollständiger Check (typecheck + lint + format:check)
 pnpm run check
+```
 
+Werkzeug-Konventionen:
+
+- `tsc` ist TypeScript 7 (nativer Compiler). TypeScript 7 exportiert die klassische
+  Compiler-API nicht mehr. Skripte und Tests, die Quelltext parsen
+  (`scripts/verify/route-coverage.mjs`, `tests/unit/architecture/ast-legibility-guards.test.ts`),
+  importieren sie deshalb aus dem Alias-Paket `typescript-api` (TypeScript 6).
+- `oxlint` meldet `vi.fn()` ohne Typparameter. Mocks mit Implementierung tragen ihre
+  Signatur explizit, offene Mocks nutzen `vi.fn<MockProcedure>()` aus
+  `tests/helpers/mockProcedure.ts`.
+- Testdatenbanken liegen pro Vitest-Worker in eigenen Dateien
+  (`*.w<VITEST_POOL_ID>.db`, siehe `tests/setup/test-artifacts.setup.ts`).
+- `better-sqlite3` 13 bringt vorkompilierte Binaries mit und steht deshalb in
+  `pnpm.ignoredBuiltDependencies`; ein lokaler `node-gyp`-Build ist nicht nötig.
+
+```bash
 # Build (Produktion)
 pnpm run build
 ```

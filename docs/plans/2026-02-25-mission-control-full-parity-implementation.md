@@ -78,13 +78,7 @@ Expected: FAIL (missing modules).
 
 ```ts
 export type MissionTaskStatus =
-  | 'planning'
-  | 'inbox'
-  | 'assigned'
-  | 'in_progress'
-  | 'testing'
-  | 'review'
-  | 'done';
+  'planning' | 'inbox' | 'assigned' | 'in_progress' | 'testing' | 'review' | 'done';
 ```
 
 ```ts

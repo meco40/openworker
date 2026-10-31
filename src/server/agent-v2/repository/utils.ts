@@ -128,8 +128,7 @@ export function getCommandRowOrThrow(
 
 export function getCommandOrThrow(db: BetterSqlite3.Database, commandId: string): AgentCommand {
   const row = db.prepare('SELECT * FROM agent_v2_commands WHERE id = ? LIMIT 1').get(commandId) as
-    | CommandRow
-    | undefined;
+    CommandRow | undefined;
   if (!row) {
     throw new AgentV2Error('Command not found.', 'NOT_FOUND');
   }

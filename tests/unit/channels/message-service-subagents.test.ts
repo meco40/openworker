@@ -11,7 +11,7 @@ import type {
 import { resetSubagentRegistryForTests } from '@/server/agents/subagentRegistry';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
-const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
+const dispatchWithFallbackMock = vi.hoisted(() => vi.fn<MockProcedure>());
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -21,18 +21,21 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 }));
 
 vi.mock('../../../src/server/channels/outbound/router', () => ({
-  deliverOutbound: vi.fn(async () => {}),
+  deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock('../../../src/server/gateway/broadcast', () => ({
-  broadcastToUser: vi.fn(),
+  broadcastToUser: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
-    recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-    store: vi.fn(async () => ({ id: 'mem-1' })),
-    updateFeedback: vi.fn(async () => {}),
+    recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+      context: '',
+      matches: [],
+    })),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+    updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
   }),
 }));
 
@@ -89,6 +92,7 @@ vi.mock('@/skills/definitions', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(options?: {
   personaId?: string | null;

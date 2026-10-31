@@ -1,20 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  queryAll: vi.fn(),
-  loadDomainRegistry: vi.fn(),
-  evaluateHarnessRollout: vi.fn(),
-  loadHarnessRolloutConfig: vi.fn(),
-  getMasterRepository: vi.fn(),
-  computeEngineeringMetricsSnapshot: vi.fn(),
-  getGuardianAutoRevertCount: vi.fn(),
-  getEngineeringRolloutBaselineById: vi.fn(),
-  getHarnessDomainStats: vi.fn(),
-  getHarnessLaneStats: vi.fn(),
-  getHarnessScenarioStats: vi.fn(),
-  getHarnessWorktreeStats: vi.fn(),
-  getLatestEngineeringSnapshot: vi.fn(),
-  getLatestEngineeringRolloutBaseline: vi.fn(),
+  queryAll: vi.fn<MockProcedure>(),
+  loadDomainRegistry: vi.fn<MockProcedure>(),
+  evaluateHarnessRollout: vi.fn<MockProcedure>(),
+  loadHarnessRolloutConfig: vi.fn<MockProcedure>(),
+  getMasterRepository: vi.fn<MockProcedure>(),
+  computeEngineeringMetricsSnapshot: vi.fn<MockProcedure>(),
+  getGuardianAutoRevertCount: vi.fn<MockProcedure>(),
+  getEngineeringRolloutBaselineById: vi.fn<MockProcedure>(),
+  getHarnessDomainStats: vi.fn<MockProcedure>(),
+  getHarnessLaneStats: vi.fn<MockProcedure>(),
+  getHarnessScenarioStats: vi.fn<MockProcedure>(),
+  getHarnessWorktreeStats: vi.fn<MockProcedure>(),
+  getLatestEngineeringSnapshot: vi.fn<MockProcedure>(),
+  getLatestEngineeringRolloutBaseline: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/lib/db', () => ({
@@ -53,6 +53,7 @@ import {
   collectEngineeringMetricsSnapshot,
   parseWindowDays,
 } from '@/server/stats/engineeringMetricsService';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const NOW = new Date('2026-08-18T00:00:00.000Z');
 const NOW_MS = NOW.getTime();
@@ -114,9 +115,9 @@ describe('engineeringMetricsService branch coverage', () => {
     });
     mocks.loadHarnessRolloutConfig.mockReturnValue(defaultRolloutConfig());
     mocks.getMasterRepository.mockReturnValue({
-      listKnownScopes: vi.fn(() => []),
-      listRuns: vi.fn(() => []),
-      listAuditEvents: vi.fn(() => []),
+      listKnownScopes: vi.fn<() => never[]>(() => []),
+      listRuns: vi.fn<() => never[]>(() => []),
+      listAuditEvents: vi.fn<() => never[]>(() => []),
     });
     mocks.computeEngineeringMetricsSnapshot.mockReturnValue(defaultComputed());
     mocks.getGuardianAutoRevertCount.mockReturnValue(0);
@@ -169,13 +170,13 @@ describe('engineeringMetricsService branch coverage', () => {
 
     it('resolves scopes via known scopes when no workspaceId', () => {
       mocks.getMasterRepository.mockReturnValue({
-        listKnownScopes: vi.fn(() => [
+        listKnownScopes: vi.fn<() => { userId: string; workspaceId: string }[]>(() => [
           { userId: 'user-1', workspaceId: 'ws-a' },
           { userId: 'user-1', workspaceId: 'ws-b' },
           { userId: 'other', workspaceId: 'ws-c' },
         ]),
-        listRuns: vi.fn(() => []),
-        listAuditEvents: vi.fn(() => []),
+        listRuns: vi.fn<() => never[]>(() => []),
+        listAuditEvents: vi.fn<() => never[]>(() => []),
       });
 
       const result = collectEngineeringMetricsSnapshot({
@@ -190,9 +191,9 @@ describe('engineeringMetricsService branch coverage', () => {
 
     it('uses default workspace when no known scopes', () => {
       mocks.getMasterRepository.mockReturnValue({
-        listKnownScopes: vi.fn(() => []),
-        listRuns: vi.fn(() => []),
-        listAuditEvents: vi.fn(() => []),
+        listKnownScopes: vi.fn<() => never[]>(() => []),
+        listRuns: vi.fn<() => never[]>(() => []),
+        listAuditEvents: vi.fn<() => never[]>(() => []),
       });
 
       const result = collectEngineeringMetricsSnapshot({
@@ -207,8 +208,8 @@ describe('engineeringMetricsService branch coverage', () => {
 
     it('collects run signals with completed runs and rollback events', () => {
       mocks.getMasterRepository.mockReturnValue({
-        listKnownScopes: vi.fn(() => []),
-        listRuns: vi.fn(() => [
+        listKnownScopes: vi.fn<() => never[]>(() => []),
+        listRuns: vi.fn<MockProcedure>(() => [
           {
             status: 'COMPLETED',
             createdAt: '2026-08-10T00:00:00.000Z',
@@ -227,7 +228,7 @@ describe('engineeringMetricsService branch coverage', () => {
             updatedAt: '2026-08-14T00:00:00.000Z',
           },
         ]),
-        listAuditEvents: vi.fn(() => [
+        listAuditEvents: vi.fn<() => { action: string }[]>(() => [
           { action: 'rollback' },
           { action: 'deploy' },
           { action: 'rollback' },

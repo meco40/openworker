@@ -3,6 +3,7 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function createMessage(seq: number, conversationId: string, content: string): StoredMessage {
   return {
@@ -37,7 +38,7 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     let concurrentCalls = 0;
     let maxConcurrentCalls = 0;
 
-    const store = vi.fn(async () => {
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => {
       concurrentCalls += 1;
       maxConcurrentCalls = Math.max(maxConcurrentCalls, concurrentCalls);
       // Simulate async network latency
@@ -72,13 +73,15 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
-      extractor: { extract: vi.fn(async () => extraction) },
+      extractor: {
+        extract: vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => extraction),
+      },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });
@@ -106,7 +109,7 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
     };
 
     let callIndex = 0;
-    const store = vi.fn(async () => {
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => {
       callIndex += 1;
       if (callIndex === 2) {
         throw new Error('Mem0 request failed with HTTP 500: pool exhausted');
@@ -135,13 +138,15 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
-      extractor: { extract: vi.fn(async () => extraction) },
+      extractor: {
+        extract: vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => extraction),
+      },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });
@@ -168,7 +173,7 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
       ],
     };
 
-    const store = vi.fn(async () => {
+    const store = vi.fn<() => Promise<never>>(async () => {
       throw new Error('Mem0 request timeout after 5000ms.');
     });
 
@@ -193,13 +198,15 @@ describe('KnowledgeIngestionService fact store concurrency', () => {
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
-      extractor: { extract: vi.fn(async () => extraction) },
+      extractor: {
+        extract: vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => extraction),
+      },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });

@@ -52,10 +52,12 @@ describe('multiToolUseParallelHandler', () => {
   });
 
   it('forwards subagents calls using runtime context bridge', async () => {
-    const invokeSubagentToolCall = vi.fn(async () => ({
-      status: 'ok',
-      text: 'Subagents',
-    }));
+    const invokeSubagentToolCall = vi.fn<() => Promise<{ status: string; text: string }>>(
+      async () => ({
+        status: 'ok',
+        text: 'Subagents',
+      }),
+    );
 
     const result = await multiToolUseParallelHandler(
       {

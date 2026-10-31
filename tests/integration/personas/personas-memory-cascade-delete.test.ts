@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
@@ -100,74 +101,80 @@ describe('persona memory cascade delete', () => {
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-        const url = typeof input === 'string' ? input : input.toString();
-        const parsed = new URL(url);
-        const method = String(init?.method || 'GET').toUpperCase();
-        const body = (() => {
-          if (!init?.body || typeof init.body !== 'string') return {} as Record<string, unknown>;
-          try {
-            return JSON.parse(init.body) as Record<string, unknown>;
-          } catch {
-            return {} as Record<string, unknown>;
+      vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+        async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const parsed = new URL(url);
+          const method = String(init?.method || 'GET').toUpperCase();
+          const body = (() => {
+            if (!init?.body || typeof init.body !== 'string') return {} as Record<string, unknown>;
+            try {
+              return JSON.parse(init.body) as Record<string, unknown>;
+            } catch {
+              return {} as Record<string, unknown>;
+            }
+          })();
+
+          if (method === 'POST' && parsed.pathname.endsWith('/v1/memories')) {
+            const userId = String(body.user_id || defaultUser);
+            const personaId = String(body.agent_id || 'persona-default');
+            const messages = Array.isArray(body.messages) ? body.messages : [];
+            const content = String(
+              (messages[0] as { content?: string } | undefined)?.content || '',
+            );
+            const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
+            const key = memoryScopeKey(userId, personaId);
+            const next = [
+              ...(memoryStore.get(key) || []),
+              { id, content, metadata: (body.metadata as Record<string, unknown>) || {} },
+            ];
+            memoryStore.set(key, next);
+            return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
           }
-        })();
 
-        if (method === 'POST' && parsed.pathname.endsWith('/v1/memories')) {
-          const userId = String(body.user_id || defaultUser);
-          const personaId = String(body.agent_id || 'persona-default');
-          const messages = Array.isArray(body.messages) ? body.messages : [];
-          const content = String((messages[0] as { content?: string } | undefined)?.content || '');
-          const id = `mem0-${Math.random().toString(36).slice(2, 10)}`;
-          const key = memoryScopeKey(userId, personaId);
-          const next = [
-            ...(memoryStore.get(key) || []),
-            { id, content, metadata: (body.metadata as Record<string, unknown>) || {} },
-          ];
-          memoryStore.set(key, next);
-          return new Response(JSON.stringify([{ id, memory: content }]), { status: 200 });
-        }
+          if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
+            const filters = (body.filters as Record<string, unknown>) || {};
+            const userId = String(filters.user_id || defaultUser);
+            const personaId = String(filters.agent_id || '');
+            const key = memoryScopeKey(userId, personaId);
+            const rows = personaId ? memoryStore.get(key) || [] : [];
+            return new Response(
+              JSON.stringify({
+                memories: rows.map((row) => ({
+                  id: row.id,
+                  memory: row.content,
+                  metadata: row.metadata,
+                })),
+                total: rows.length,
+                page: 1,
+                page_size: 25,
+              }),
+              { status: 200 },
+            );
+          }
 
-        if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
-          const filters = (body.filters as Record<string, unknown>) || {};
-          const userId = String(filters.user_id || defaultUser);
-          const personaId = String(filters.agent_id || '');
-          const key = memoryScopeKey(userId, personaId);
-          const rows = personaId ? memoryStore.get(key) || [] : [];
-          return new Response(
-            JSON.stringify({
-              memories: rows.map((row) => ({
-                id: row.id,
-                memory: row.content,
-                metadata: row.metadata,
-              })),
-              total: rows.length,
-              page: 1,
-              page_size: 25,
-            }),
-            { status: 200 },
-          );
-        }
+          if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
+            const userId = String(body.user_id || defaultUser);
+            const personaId = String(body.agent_id || '');
+            const key = memoryScopeKey(userId, personaId);
+            const deleted = (memoryStore.get(key) || []).length;
+            memoryStore.delete(key);
+            return new Response(JSON.stringify({ deleted }), { status: 200 });
+          }
 
-        if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
-          const userId = String(body.user_id || defaultUser);
-          const personaId = String(body.agent_id || '');
-          const key = memoryScopeKey(userId, personaId);
-          const deleted = (memoryStore.get(key) || []).length;
-          memoryStore.delete(key);
-          return new Response(JSON.stringify({ deleted }), { status: 200 });
-        }
-
-        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
-          status: 500,
-        });
-      }) as unknown as typeof fetch,
+          return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
+            status: 500,
+          });
+        },
+      ) as unknown as typeof fetch,
     );
 
     mockUserContext({ userId: 'user-a', authenticated: true });
 
     (globalThis as { __modelHubService?: unknown }).__modelHubService = {
-      dispatchEmbedding: vi.fn(async () => ({ embedding: { values: [1, 0] } })),
+      dispatchEmbedding: vi.fn<() => Promise<{ embedding: { values: number[] } }>>(async () => ({
+        embedding: { values: [1, 0] },
+      })),
     };
 
     const personasRoute = await loadPersonasRoute();
@@ -370,44 +377,48 @@ describe('persona memory cascade delete', () => {
     process.env.MEM0_API_PATH = '/v1';
     process.env.MEM0_API_KEY = 'mem0_test_key';
 
-    const unpairPersonaTelegram = vi.fn(async () => {});
+    const unpairPersonaTelegram = vi.fn<() => Promise<void>>(async () => {});
     vi.doMock('../../../src/server/telegram/personaTelegramPairing', () => ({
       unpairPersonaTelegram,
     }));
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-        const url = typeof input === 'string' ? input : input.toString();
-        const parsed = new URL(url);
-        const method = String(init?.method || 'GET').toUpperCase();
+      vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+        async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const parsed = new URL(url);
+          const method = String(init?.method || 'GET').toUpperCase();
 
-        if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
-          return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
-        }
+          if (method === 'DELETE' && parsed.pathname.endsWith('/v1/memories')) {
+            return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });
+          }
 
-        if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
-          return new Response(
-            JSON.stringify({
-              memories: [],
-              total: 0,
-              page: 1,
-              page_size: 25,
-            }),
-            { status: 200 },
-          );
-        }
+          if (method === 'POST' && parsed.pathname.endsWith('/v2/memories')) {
+            return new Response(
+              JSON.stringify({
+                memories: [],
+                total: 0,
+                page: 1,
+                page_size: 25,
+              }),
+              { status: 200 },
+            );
+          }
 
-        return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
-          status: 500,
-        });
-      }) as unknown as typeof fetch,
+          return new Response(JSON.stringify({ error: `Unhandled ${method} ${parsed.pathname}` }), {
+            status: 500,
+          });
+        },
+      ) as unknown as typeof fetch,
     );
 
     mockUserContext({ userId: 'user-a', authenticated: true });
 
     (globalThis as { __modelHubService?: unknown }).__modelHubService = {
-      dispatchEmbedding: vi.fn(async () => ({ embedding: { values: [1, 0] } })),
+      dispatchEmbedding: vi.fn<() => Promise<{ embedding: { values: number[] } }>>(async () => ({
+        embedding: { values: [1, 0] },
+      })),
     };
 
     const personasRoute = await loadPersonasRoute();

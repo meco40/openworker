@@ -38,7 +38,7 @@ describe('model-hub oauth callback route', () => {
     expect(state).toBeTruthy();
 
     const originalFetch = global.fetch;
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ key: 'or-sk-test-0001' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -91,20 +91,22 @@ describe('model-hub oauth callback route', () => {
     expect(state).toBeTruthy();
 
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
-      const body = String(init?.body || '');
-      expect(body).toContain('client_id=app_EMoamEEZ73f0CkXaXp7hrann');
-      expect(body).toContain('client_secret=openai-client-secret');
-      expect(body).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback');
-      expect(body).toContain('audience=https%3A%2F%2Fapi.openai.com%2Fv1');
-      return new Response(
-        JSON.stringify({ access_token: 'oa-access-token', refresh_token: 'oa-refresh-token' }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
-    });
+    const fetchMock = vi.fn<(_url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const body = String(init?.body || '');
+        expect(body).toContain('client_id=app_EMoamEEZ73f0CkXaXp7hrann');
+        expect(body).toContain('client_secret=openai-client-secret');
+        expect(body).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback');
+        expect(body).toContain('audience=https%3A%2F%2Fapi.openai.com%2Fv1');
+        return new Response(
+          JSON.stringify({ access_token: 'oa-access-token', refresh_token: 'oa-refresh-token' }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      },
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const callbackRequest = new Request(

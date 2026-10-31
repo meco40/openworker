@@ -14,6 +14,7 @@ import {
   ensureTelegramPairingCode,
 } from '@/server/channels/pairing/telegramCodePairing';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeTelegramWebhookRequest(chatId: number, text: string, messageThreadId?: number) {
   return new Request('http://localhost/api/channels/telegram/webhook', {
@@ -43,7 +44,7 @@ describe('telegram /chatdelete webhook integration', () => {
   let repo: SqliteMessageRepository;
   let uploadRoot = '';
   let telegramWebhookPost: (request: Request) => Promise<Response>;
-  const fetchMock = vi.fn();
+  const fetchMock = vi.fn<MockProcedure>();
 
   beforeEach(async () => {
     vi.resetModules();

@@ -152,6 +152,7 @@ export const LogsToolbar: React.FC<LogsToolbarProps> = ({
             : 'border-zinc-800 bg-zinc-900/80 text-zinc-500 hover:text-zinc-300'
         }`}
         title={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
+        aria-label={autoScroll ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -169,6 +170,7 @@ export const LogsToolbar: React.FC<LogsToolbarProps> = ({
         disabled={logsCount === 0}
         className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs font-bold text-zinc-400 transition-all hover:bg-zinc-800 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30"
         title="Export as JSON"
+        aria-label="Export as JSON"
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

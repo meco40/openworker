@@ -21,13 +21,23 @@ const DEFAULT_ENV_PATHS: Array<{ key: string; segments: string[] }> = [
   { key: 'TASK_WORKSPACES_ROOT', segments: ['workspaces'] },
 ];
 
+// Parallel workers must not share one SQLite file: concurrent schema migrations and
+// cleanup in another worker make otherwise independent tests fail sporadically.
+const workerId = process.env.VITEST_POOL_ID || '0';
+
+function perWorker(segments: string[]): string[] {
+  const file = segments[segments.length - 1];
+  if (!/\.(db|json)$/.test(file)) return segments;
+  return [...segments.slice(0, -1), file.replace(/\.(db|json)$/, `.w${workerId}.$1`)];
+}
+
 for (const entry of DEFAULT_ENV_PATHS) {
   const existing = String(process.env[entry.key] || '').trim();
   if (existing.length > 0) {
     continue;
   }
 
-  const nextPath = testArtifactsPath(...entry.segments);
+  const nextPath = testArtifactsPath(...perWorker(entry.segments));
   process.env[entry.key] = nextPath;
 
   const shouldCreateDirectory = !entry.key.endsWith('_DB_PATH') && !entry.key.endsWith('_PATH');

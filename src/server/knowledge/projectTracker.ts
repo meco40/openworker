@@ -6,13 +6,7 @@
  */
 
 export type ProjectStatus =
-  | 'idea'
-  | 'design'
-  | 'in_progress'
-  | 'deployed'
-  | 'maintenance'
-  | 'paused'
-  | 'abandoned';
+  'idea' | 'design' | 'in_progress' | 'deployed' | 'maintenance' | 'paused' | 'abandoned';
 
 export interface ProjectState {
   entityId: string;

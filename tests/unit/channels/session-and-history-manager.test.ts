@@ -9,25 +9,26 @@ import type {
   MessageRepository,
   StoredMessage,
 } from '@/server/channels/messages/repository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeRepo(overrides: Partial<MessageRepository> = {}): MessageRepository {
   return {
-    createConversation: vi.fn(),
-    getConversation: vi.fn(),
-    getConversationByExternalChat: vi.fn(),
-    getOrCreateConversation: vi.fn(),
-    listConversations: vi.fn(),
-    updateConversationTitle: vi.fn(),
-    saveMessage: vi.fn(),
-    listMessages: vi.fn(),
-    listMessagesAfterSeq: vi.fn(),
-    getDefaultWebChatConversation: vi.fn(),
-    getConversationContext: vi.fn(),
-    upsertConversationContext: vi.fn(),
-    deleteConversation: vi.fn(),
-    updateModelOverride: vi.fn(),
-    updatePersonaId: vi.fn(),
-    findMessageByClientId: vi.fn(),
+    createConversation: vi.fn<MockProcedure>(),
+    getConversation: vi.fn<MockProcedure>(),
+    getConversationByExternalChat: vi.fn<MockProcedure>(),
+    getOrCreateConversation: vi.fn<MockProcedure>(),
+    listConversations: vi.fn<MockProcedure>(),
+    updateConversationTitle: vi.fn<MockProcedure>(),
+    saveMessage: vi.fn<MockProcedure>(),
+    listMessages: vi.fn<MockProcedure>(),
+    listMessagesAfterSeq: vi.fn<MockProcedure>(),
+    getDefaultWebChatConversation: vi.fn<MockProcedure>(),
+    getConversationContext: vi.fn<MockProcedure>(),
+    upsertConversationContext: vi.fn<MockProcedure>(),
+    deleteConversation: vi.fn<MockProcedure>(),
+    updateModelOverride: vi.fn<MockProcedure>(),
+    updatePersonaId: vi.fn<MockProcedure>(),
+    findMessageByClientId: vi.fn<MockProcedure>(),
     ...overrides,
   } as unknown as MessageRepository;
 }
@@ -55,7 +56,7 @@ describe('SessionManager', () => {
       updatedAt: '2026-02-22T00:00:00.000Z',
     };
     const repo = makeRepo({
-      getDefaultWebChatConversation: vi.fn(() => conversation),
+      getDefaultWebChatConversation: vi.fn<() => Conversation>(() => conversation),
     });
 
     const result = manager.resolveConversationForWebChat(repo, undefined, 'user-a');
@@ -67,7 +68,7 @@ describe('SessionManager', () => {
   it('throws when requested conversation does not belong to user', () => {
     const manager = new SessionManager();
     const repo = makeRepo({
-      getConversation: vi.fn(() => null),
+      getConversation: vi.fn<() => null>(() => null),
     });
 
     expect(() => manager.resolveConversationForWebChat(repo, 'conv-missing', 'user-a')).toThrow(
@@ -89,7 +90,7 @@ describe('SessionManager', () => {
       updatedAt: '2026-02-22T00:00:00.000Z',
     };
     const repo = makeRepo({
-      getConversation: vi.fn(() => conversation),
+      getConversation: vi.fn<() => Conversation>(() => conversation),
     });
 
     const result = manager.resolveConversationForWebChat(repo, 'conv-1', 'user-a');
@@ -112,7 +113,7 @@ describe('SessionManager', () => {
       updatedAt: '2026-02-22T00:00:00.000Z',
     };
     const repo = makeRepo({
-      getOrCreateConversation: vi.fn(() => conversation),
+      getOrCreateConversation: vi.fn<() => Conversation>(() => conversation),
     });
 
     const result = manager.getOrCreateConversation(
@@ -148,7 +149,7 @@ describe('HistoryManager', () => {
       seq: 1,
     };
     const repo = makeRepo({
-      saveMessage: vi.fn(() => saved),
+      saveMessage: vi.fn<() => StoredMessage>(() => saved),
     });
     const manager = new HistoryManager(repo);
 
@@ -186,7 +187,7 @@ describe('HistoryManager', () => {
       seq: 2,
     };
     const repo = makeRepo({
-      saveMessage: vi.fn(() => saved),
+      saveMessage: vi.fn<() => StoredMessage>(() => saved),
     });
     const manager = new HistoryManager(repo);
 
@@ -206,7 +207,7 @@ describe('HistoryManager', () => {
 
   it('lists recent messages with default and explicit limits', () => {
     const repo = makeRepo({
-      listMessages: vi.fn(() => []),
+      listMessages: vi.fn<() => never[]>(() => []),
     });
     const manager = new HistoryManager(repo);
 

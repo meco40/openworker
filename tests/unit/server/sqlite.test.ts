@@ -55,8 +55,7 @@ describe('openSqliteDatabase', () => {
 
     const readonlyDb = trackDb(mod.openSqliteDatabase({ dbPath, readonly: true }));
     const row = readonlyDb.prepare('SELECT value FROM readonly_sample WHERE id = 1').get() as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
 
     expect(row?.value).toBe('ok');
   });
@@ -68,8 +67,7 @@ describe('openSqliteDatabase', () => {
     db.exec('CREATE TABLE mem_sample (id INTEGER PRIMARY KEY, value TEXT)');
     db.exec("INSERT INTO mem_sample (value) VALUES ('ok')");
     const row = db.prepare('SELECT value FROM mem_sample WHERE id = 1').get() as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
 
     expect(row?.value).toBe('ok');
   });

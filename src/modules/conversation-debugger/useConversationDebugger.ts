@@ -200,7 +200,8 @@ export function useConversationDebugger(): ConversationDebuggerState & Conversat
 
   // Auto-load conversations on mount
   useEffect(() => {
-    void loadConversations();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(loadConversations);
   }, [loadConversations]);
 
   return {

@@ -41,6 +41,7 @@ const ChatConversationList: React.FC<ChatConversationListProps> = ({
           data-testid="chat-new-conversation"
           onClick={onNewConversation}
           title="Neue Conversation"
+          aria-label="Neue Conversation"
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-600/10 text-violet-400 transition-all hover:border-violet-500/40 hover:bg-violet-600/20 active:scale-90"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

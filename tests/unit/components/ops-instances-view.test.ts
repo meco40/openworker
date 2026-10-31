@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import InstancesView from '@/modules/ops/components/InstancesView';
 import { useOpsInstances, type UseOpsInstancesResult } from '@/modules/ops/hooks/useOpsInstances';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 vi.mock('@/modules/ops/hooks/useOpsInstances', () => ({
-  useOpsInstances: vi.fn(),
+  useOpsInstances: vi.fn<MockProcedure>(),
 }));
 
 const mockedUseOpsInstances = vi.mocked(useOpsInstances);
@@ -17,7 +18,7 @@ function buildState(partial: Partial<UseOpsInstancesResult> = {}): UseOpsInstanc
     refreshing: false,
     error: null,
     data: null,
-    refresh: vi.fn(async () => {}),
+    refresh: vi.fn<() => Promise<void>>(async () => {}),
     ...partial,
   };
 }

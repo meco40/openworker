@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProviderAccountRecord } from '@/server/model-hub/repository';
 import type { ProviderCatalogEntry } from '@/server/model-hub/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildAccount(
   providerId: string,
@@ -44,7 +45,9 @@ async function setupGateway(options: {
 }) {
   vi.resetModules();
 
-  const dispatchOpenAICompatibleChat = vi.fn(async () => {
+  const dispatchOpenAICompatibleChat = vi.fn<
+    () => Promise<{ ok: boolean; text: string; model: string; provider: string; error?: string }>
+  >(async () => {
     return (
       options.openAICompatibleResponse ?? {
         ok: true,
@@ -54,10 +57,12 @@ async function setupGateway(options: {
       }
     );
   });
-  const decryptSecret = vi.fn(() => options.decryptSecretReturn ?? 'provider-secret');
-  const getProviderAdapter = vi.fn(() => options.adapter ?? null);
-  const tokenUsageRecord = vi.fn();
-  const promptDispatchRecord = vi.fn(() => ({ createdAt: new Date().toISOString() }));
+  const decryptSecret = vi.fn<() => string>(() => options.decryptSecretReturn ?? 'provider-secret');
+  const getProviderAdapter = vi.fn<MockProcedure>(() => options.adapter ?? null);
+  const tokenUsageRecord = vi.fn<MockProcedure>();
+  const promptDispatchRecord = vi.fn<() => { createdAt: string }>(() => ({
+    createdAt: new Date().toISOString(),
+  }));
 
   vi.doMock('../../../src/server/model-hub/providerCatalog', () => ({
     PROVIDER_CATALOG: options.catalog,
@@ -79,19 +84,21 @@ async function setupGateway(options: {
   }));
   vi.doMock('../../../src/server/stats/promptAudit', () => ({
     redactGatewayRequest: (request: unknown) => request,
-    estimatePromptTokens: vi.fn(() => 1),
-    detectPromptInjection: vi.fn(() => ({ riskLevel: 'low', score: 0, reasons: [] })),
+    estimatePromptTokens: vi.fn<() => number>(() => 1),
+    detectPromptInjection: vi.fn<() => { riskLevel: string; score: number; reasons: never[] }>(
+      () => ({ riskLevel: 'low', score: 0, reasons: [] }),
+    ),
   }));
   vi.doMock('../../../src/server/stats/promptDispatchDiagnostics', () => ({
-    markPromptDispatchAttempt: vi.fn(),
-    markPromptDispatchError: vi.fn(),
-    markPromptDispatchInsert: vi.fn(),
+    markPromptDispatchAttempt: vi.fn<MockProcedure>(),
+    markPromptDispatchError: vi.fn<MockProcedure>(),
+    markPromptDispatchInsert: vi.fn<MockProcedure>(),
   }));
   vi.doMock('../../../src/server/stats/openRouterPricing', () => ({
-    getOpenRouterModelPricing: vi.fn(async () => null),
+    getOpenRouterModelPricing: vi.fn<() => Promise<null>>(async () => null),
   }));
   vi.doMock('../../../src/server/stats/xaiPricing', () => ({
-    getXaiModelPricing: vi.fn(async () => null),
+    getXaiModelPricing: vi.fn<() => Promise<null>>(async () => null),
   }));
 
   const mod = await import('@/server/model-hub/gateway');

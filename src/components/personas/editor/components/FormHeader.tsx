@@ -87,6 +87,7 @@ export function FormHeader({
                 onClick={startEditMeta}
                 className="p-2 text-zinc-500 transition-colors hover:text-white"
                 title="Bearbeiten"
+                aria-label="Bearbeiten"
               >
                 <svg
                   className="h-4 w-4"
@@ -121,6 +122,7 @@ export function FormHeader({
                 disabled={creating}
                 className="p-2 text-zinc-500 transition-colors hover:text-indigo-400"
                 title="Duplizieren"
+                aria-label="Duplizieren"
               >
                 <svg
                   className="h-4 w-4"
@@ -140,6 +142,7 @@ export function FormHeader({
                 onClick={deletePersona}
                 className="p-2 text-zinc-600 transition-colors hover:text-rose-500"
                 title="Löschen"
+                aria-label="Löschen"
               >
                 <svg
                   className="h-4 w-4"

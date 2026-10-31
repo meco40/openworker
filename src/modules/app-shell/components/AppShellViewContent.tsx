@@ -18,13 +18,12 @@ import {
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 
 const ViewLoadingFallback: React.FC<{ label: string }> = ({ label }) => (
-  <div
-    role="status"
+  <output
     aria-live="polite"
     className="flex min-h-[240px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 text-xs font-semibold tracking-wide text-zinc-400"
   >
     Loading {label}...
-  </div>
+  </output>
 );
 
 function loading(label: string) {

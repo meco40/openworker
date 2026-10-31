@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SkillDispatchContext } from '@/server/skills/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const callMock = vi.fn();
-const deleteMessageMock = vi.fn();
+const callMock = vi.fn<MockProcedure>();
+const deleteMessageMock = vi.fn<MockProcedure>();
 
 beforeEach(() => {
   vi.resetModules();

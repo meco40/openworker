@@ -1,9 +1,10 @@
 import { afterEach, vi } from 'vitest';
 import { __resetMem0ModelHubSyncStateForTests } from '@/server/memory/mem0';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 const mem0SyncMocks = vi.hoisted(() => ({
-  syncMem0LlmFromModelHub: vi.fn(),
-  syncMem0EmbedderFromModelHub: vi.fn(),
+  syncMem0LlmFromModelHub: vi.fn<MockProcedure>(),
+  syncMem0EmbedderFromModelHub: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/memory/mem0EmbedderSync', () => ({

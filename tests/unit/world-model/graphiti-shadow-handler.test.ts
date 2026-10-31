@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OutboxEvent } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 let shadow: typeof import('@/server/world-model/graphiti/shadow');
-const query = vi.fn();
+const query = vi.fn<MockProcedure>();
 
 vi.mock('@/server/world-model/db', () => ({
   getWorldModelDb: () => ({ query }),

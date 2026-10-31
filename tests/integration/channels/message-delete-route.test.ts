@@ -8,20 +8,21 @@ import {
   resolveStoredAttachmentPath,
 } from '@/server/channels/messages/attachments';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
 function mockUserContext(context: MockUserContext): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
 describe('message delete route', () => {
   let repo: SqliteMessageRepository;
   let uploadRoot = '';
-  const emitInboxUpdated = vi.fn();
-  const broadcastToUser = vi.fn();
+  const emitInboxUpdated = vi.fn<MockProcedure>();
+  const broadcastToUser = vi.fn<MockProcedure>();
 
   beforeEach(() => {
     vi.resetModules();

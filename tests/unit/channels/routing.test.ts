@@ -13,7 +13,7 @@ describe('channel routing', () => {
   });
 
   it('routes outbound delivery through registered adapter', async () => {
-    const send = vi.fn(async () => {});
+    const send = vi.fn<() => Promise<void>>(async () => {});
     registerAdapter({ channel: 'telegram', send });
 
     const routed = await routeOutbound({
@@ -36,7 +36,7 @@ describe('channel routing', () => {
   });
 
   it('calls fallback inbound handler when adapter receive is missing', async () => {
-    const fallback = vi.fn(async () => {});
+    const fallback = vi.fn<() => Promise<void>>(async () => {});
     const routed = await routeInbound(
       {
         channel: 'discord',

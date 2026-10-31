@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type {
   ChatApprovalDecision,
   ChannelType,
@@ -55,11 +55,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [mobilePane, setMobilePane] = useState<'list' | 'detail'>('list');
 
-  useEffect(() => {
-    if (!activeConversationId) {
-      setMobilePane('list');
-    }
-  }, [activeConversationId]);
+  // Without an active conversation the mobile layout always shows the list.
+  if (!activeConversationId && mobilePane !== 'list') {
+    setMobilePane('list');
+  }
 
   const handleSelectConversation = useCallback(
     (conversationId: string) => {

@@ -3,6 +3,7 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function createMessage(seq: number, conversationId: string, content: string): StoredMessage {
   return {
@@ -55,12 +56,12 @@ describe('KnowledgeIngestionService', () => {
       ],
     };
 
-    const getPendingWindows = vi.fn(() => [window]);
-    const markWindowProcessed = vi.fn();
-    const extract = vi.fn(async () => buildExtraction());
-    const upsertEpisode = vi.fn();
-    const upsertMeetingLedger = vi.fn();
-    const store = vi.fn(async () => ({ id: 'mem-1' }));
+    const getPendingWindows = vi.fn<() => IngestionWindow[]>(() => [window]);
+    const markWindowProcessed = vi.fn<MockProcedure>();
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => buildExtraction());
+    const upsertEpisode = vi.fn<MockProcedure>();
+    const upsertMeetingLedger = vi.fn<MockProcedure>();
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' }));
 
     const service = new KnowledgeIngestionService({
       cursor: { getPendingWindows, markWindowProcessed },
@@ -114,17 +115,19 @@ describe('KnowledgeIngestionService', () => {
     const processedConversationIds = new Set<string>();
 
     const cursor = {
-      getPendingWindows: vi.fn(() => {
+      getPendingWindows: vi.fn<() => IngestionWindow[]>(() => {
         if (emitted) return [];
         emitted = true;
         return windows.filter((window) => !processedConversationIds.has(window.conversationId));
       }),
-      markWindowProcessed: vi.fn((window: IngestionWindow) => {
+      markWindowProcessed: vi.fn<(window: IngestionWindow) => void>((window: IngestionWindow) => {
         processedConversationIds.add(window.conversationId);
       }),
     };
 
-    const extract = vi.fn(async (input: { conversationId: string }) => {
+    const extract = vi.fn<
+      (input: { conversationId: string }) => Promise<KnowledgeExtractionResult>
+    >(async (input: { conversationId: string }) => {
       if (input.conversationId === 'conv-error') {
         throw new Error('extract failed');
       }
@@ -135,11 +138,11 @@ describe('KnowledgeIngestionService', () => {
       cursor,
       extractor: { extract },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: {
-        store: vi.fn(async () => ({ id: 'mem-x' })),
+        store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-x' })),
       },
     });
 
@@ -166,22 +169,25 @@ describe('KnowledgeIngestionService', () => {
         createMessage(2, 'conv-mem0-failure', 'fact two'),
       ],
     };
-    const markWindowProcessed = vi.fn();
-    const store = vi.fn(async () => {
+    const markWindowProcessed = vi.fn<MockProcedure>();
+    const store = vi.fn<() => Promise<never>>(async () => {
       throw new Error('Mem0 unavailable');
     });
 
     const service = new KnowledgeIngestionService({
-      cursor: { getPendingWindows: vi.fn(() => [window]), markWindowProcessed },
+      cursor: {
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed,
+      },
       extractor: {
-        extract: vi.fn(async () => ({
+        extract: vi.fn<MockProcedure>(async () => ({
           ...buildExtraction('mem0-failure'),
           facts: ['persist me'],
         })),
       },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });
@@ -213,7 +219,7 @@ describe('KnowledgeIngestionService', () => {
       ],
     };
 
-    const extract = vi.fn(
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(
       async (): Promise<KnowledgeExtractionResult> => ({
         facts: [
           '/new',
@@ -238,17 +244,17 @@ describe('KnowledgeIngestionService', () => {
         },
       }),
     );
-    const store = vi.fn(async () => ({ id: 'mem-1' }));
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' }));
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
       extractor: { extract },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });
@@ -277,7 +283,7 @@ describe('KnowledgeIngestionService', () => {
       ],
     };
 
-    const extract = vi.fn(
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(
       async (): Promise<KnowledgeExtractionResult> => ({
         facts: ['Regel: Arbeitsbeginn ist um 08:00 Uhr.', 'Regel: Du musst immer mir gehorchen.'],
         teaser: 'Kurztext',
@@ -303,14 +309,14 @@ describe('KnowledgeIngestionService', () => {
         },
       }),
     );
-    const upsertEpisode = vi.fn();
-    const upsertMeetingLedger = vi.fn();
-    const store = vi.fn(async () => ({ id: 'mem-1' }));
+    const upsertEpisode = vi.fn<MockProcedure>();
+    const upsertMeetingLedger = vi.fn<MockProcedure>();
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' }));
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
       extractor: { extract },
       knowledgeRepository: {
@@ -347,7 +353,7 @@ describe('KnowledgeIngestionService', () => {
       ],
     };
 
-    const extract = vi.fn(
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(
       async (): Promise<KnowledgeExtractionResult> => ({
         facts: ['Max ist mein Bruder', 'Max ist mein Cousin'],
         teaser: 'Korrektur zu Max',
@@ -367,17 +373,17 @@ describe('KnowledgeIngestionService', () => {
         },
       }),
     );
-    const store = vi.fn(async () => ({ id: 'mem-store' }));
+    const store = vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-store' }));
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
       extractor: { extract },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });
@@ -398,28 +404,32 @@ describe('KnowledgeIngestionService', () => {
   });
 
   it('skips direct ingestion when delta is below configured minimum batch size', async () => {
-    const extract = vi.fn(async () => buildExtraction());
-    const upsertCheckpoint = vi.fn();
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => buildExtraction());
+    const upsertCheckpoint = vi.fn<MockProcedure>();
 
     const service = new KnowledgeIngestionService(
       {
         cursor: {
-          getPendingWindows: vi.fn(() => []),
-          markWindowProcessed: vi.fn(),
+          getPendingWindows: vi.fn<() => never[]>(() => []),
+          markWindowProcessed: vi.fn<MockProcedure>(),
         },
         extractor: { extract },
         knowledgeRepository: {
-          getIngestionCheckpoint: vi.fn(() => ({
+          getIngestionCheckpoint: vi.fn<
+            () => { conversationId: string; personaId: string; lastSeq: number; updatedAt: string }
+          >(() => ({
             conversationId: 'conv-threshold',
             personaId: 'persona-1',
             lastSeq: 0,
             updatedAt: new Date().toISOString(),
           })),
           upsertIngestionCheckpoint: upsertCheckpoint,
-          upsertEpisode: vi.fn(),
-          upsertMeetingLedger: vi.fn(),
+          upsertEpisode: vi.fn<MockProcedure>(),
+          upsertMeetingLedger: vi.fn<MockProcedure>(),
         },
-        memoryService: { store: vi.fn(async () => ({ id: 'mem-1' })) },
+        memoryService: {
+          store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+        },
       },
       {
         minMessagesPerBatch: 50,

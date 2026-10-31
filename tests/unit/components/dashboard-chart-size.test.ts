@@ -48,7 +48,7 @@ describe('Dashboard chart sizing', () => {
     );
 
     expect(html).toContain('No behavior signals yet');
-    expect(html).not.toContain('role="img"');
+    expect(html).not.toContain('Personality Matrix:');
     expect(html).toContain('0 pending tasks');
     expect(html).not.toContain('Cron Scheduler Active');
   });

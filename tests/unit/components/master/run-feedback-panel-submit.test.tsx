@@ -23,7 +23,7 @@ function createDeferred<T>() {
 
 describe('RunFeedbackPanel submit behavior', () => {
   it('shows success only after server-confirmed submit', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: true as const }));
+    const onSubmit = vi.fn<() => Promise<{ ok: true }>>(async () => ({ ok: true as const }));
     render(<RunFeedbackPanel runId="run-1" loading={false} onSubmit={onSubmit} />);
 
     selectRating(5);
@@ -36,7 +36,10 @@ describe('RunFeedbackPanel submit behavior', () => {
   });
 
   it('keeps form visible and shows inline error on failed submit', async () => {
-    const onSubmit = vi.fn(async () => ({ ok: false as const, error: 'Server down' }));
+    const onSubmit = vi.fn<() => Promise<{ ok: false; error: string }>>(async () => ({
+      ok: false as const,
+      error: 'Server down',
+    }));
     render(<RunFeedbackPanel runId="run-2" loading={false} onSubmit={onSubmit} />);
 
     selectRating(4);
@@ -51,7 +54,7 @@ describe('RunFeedbackPanel submit behavior', () => {
 
   it('prevents duplicate submits while one request is in flight', async () => {
     const deferred = createDeferred<{ ok: true }>();
-    const onSubmit = vi.fn(() => deferred.promise);
+    const onSubmit = vi.fn<() => Promise<{ ok: true }>>(() => deferred.promise);
     render(<RunFeedbackPanel runId="run-3" loading={false} onSubmit={onSubmit} />);
 
     selectRating(3);

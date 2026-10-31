@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 type RuntimeGlobals = typeof globalThis & {
   __taskWorkspaceCleanupRuntime?: unknown;
@@ -25,7 +26,7 @@ describe('workspaceCleanupRuntime', () => {
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'true';
     process.env.TASK_WORKSPACES_CLEANUP_INTERVAL_MS = '1000';
 
-    const cleanupMock = vi.fn(() => ({
+    const cleanupMock = vi.fn<MockProcedure>(() => ({
       scanned: 0,
       removed: 0,
       kept: 0,
@@ -41,7 +42,7 @@ describe('workspaceCleanupRuntime', () => {
     }));
 
     vi.doMock('@/lib/db', () => ({
-      queryAll: vi.fn(() => []),
+      queryAll: vi.fn<() => never[]>(() => []),
     }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({
       cleanupOrphanTaskWorkspaces: cleanupMock,
@@ -65,10 +66,10 @@ describe('workspaceCleanupRuntime', () => {
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'true';
     process.env.TASK_WORKSPACES_CLEANUP_INTERVAL_MS = '250';
 
-    const cleanupMock = vi.fn();
+    const cleanupMock = vi.fn<MockProcedure>();
 
     vi.doMock('@/lib/db', () => ({
-      queryAll: vi.fn(() => []),
+      queryAll: vi.fn<() => never[]>(() => []),
     }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({
       cleanupOrphanTaskWorkspaces: cleanupMock,
@@ -84,12 +85,12 @@ describe('workspaceCleanupRuntime', () => {
 
   it('returns an empty report if cleanup run fails', async () => {
     vi.doMock('@/lib/db', () => ({
-      queryAll: vi.fn(() => {
+      queryAll: vi.fn<() => never>(() => {
         throw new Error('db unavailable');
       }),
     }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({
-      cleanupOrphanTaskWorkspaces: vi.fn(),
+      cleanupOrphanTaskWorkspaces: vi.fn<MockProcedure>(),
     }));
 
     const runtimeModule = await import('@/server/tasks/workspaceCleanupRuntime');
@@ -128,7 +129,7 @@ describe('parseBooleanEnv via isCleanupEnabled / shouldRunStartupCleanup', () =>
     delete process.env.TASK_WORKSPACES_CLEANUP_ENABLED;
     // Default fallback is true — cleanup should run
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'false';
-    const cleanupMock = vi.fn(() => ({
+    const cleanupMock = vi.fn<MockProcedure>(() => ({
       scanned: 0,
       removed: 0,
       kept: 0,
@@ -142,7 +143,7 @@ describe('parseBooleanEnv via isCleanupEnabled / shouldRunStartupCleanup', () =>
         removeFailed: 0,
       },
     }));
-    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn(() => []) }));
+    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn<() => never[]>(() => []) }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({ cleanupOrphanTaskWorkspaces: cleanupMock }));
 
     const m = await import('@/server/tasks/workspaceCleanupRuntime');
@@ -158,7 +159,7 @@ describe('parseBooleanEnv via isCleanupEnabled / shouldRunStartupCleanup', () =>
     vi.useFakeTimers();
     process.env.TASK_WORKSPACES_CLEANUP_ENABLED = 'invalid';
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'false';
-    const cleanupMock = vi.fn(() => ({
+    const cleanupMock = vi.fn<MockProcedure>(() => ({
       scanned: 0,
       removed: 0,
       kept: 0,
@@ -172,7 +173,7 @@ describe('parseBooleanEnv via isCleanupEnabled / shouldRunStartupCleanup', () =>
         removeFailed: 0,
       },
     }));
-    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn(() => []) }));
+    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn<() => never[]>(() => []) }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({ cleanupOrphanTaskWorkspaces: cleanupMock }));
 
     const m = await import('@/server/tasks/workspaceCleanupRuntime');
@@ -185,8 +186,8 @@ describe('parseBooleanEnv via isCleanupEnabled / shouldRunStartupCleanup', () =>
   it('parseBooleanEnv("false", true) → false (overrides fallback)', async () => {
     vi.useFakeTimers();
     process.env.TASK_WORKSPACES_CLEANUP_ENABLED = 'false';
-    const cleanupMock = vi.fn();
-    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn(() => []) }));
+    const cleanupMock = vi.fn<MockProcedure>();
+    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn<() => never[]>(() => []) }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({ cleanupOrphanTaskWorkspaces: cleanupMock }));
 
     const m = await import('@/server/tasks/workspaceCleanupRuntime');
@@ -213,7 +214,7 @@ describe('resolveCleanupIntervalMs', () => {
     process.env.TASK_WORKSPACES_CLEANUP_ENABLED = 'true';
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'false';
     process.env.TASK_WORKSPACES_CLEANUP_INTERVAL_MS = '500';
-    const cleanupMock = vi.fn(() => ({
+    const cleanupMock = vi.fn<MockProcedure>(() => ({
       scanned: 0,
       removed: 0,
       kept: 0,
@@ -227,7 +228,7 @@ describe('resolveCleanupIntervalMs', () => {
         removeFailed: 0,
       },
     }));
-    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn(() => []) }));
+    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn<() => never[]>(() => []) }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({ cleanupOrphanTaskWorkspaces: cleanupMock }));
 
     const m = await import('@/server/tasks/workspaceCleanupRuntime');
@@ -242,7 +243,7 @@ describe('resolveCleanupIntervalMs', () => {
     process.env.TASK_WORKSPACES_CLEANUP_ENABLED = 'true';
     process.env.TASK_WORKSPACES_CLEANUP_STARTUP = 'false';
     process.env.TASK_WORKSPACES_CLEANUP_INTERVAL_MS = 'not-a-number';
-    const cleanupMock = vi.fn(() => ({
+    const cleanupMock = vi.fn<MockProcedure>(() => ({
       scanned: 0,
       removed: 0,
       kept: 0,
@@ -256,7 +257,7 @@ describe('resolveCleanupIntervalMs', () => {
         removeFailed: 0,
       },
     }));
-    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn(() => []) }));
+    vi.doMock('@/lib/db', () => ({ queryAll: vi.fn<() => never[]>(() => []) }));
     vi.doMock('@/server/tasks/taskWorkspace', () => ({ cleanupOrphanTaskWorkspaces: cleanupMock }));
 
     const m = await import('@/server/tasks/workspaceCleanupRuntime');

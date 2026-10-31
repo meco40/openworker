@@ -535,8 +535,7 @@ git commit -m "feat: llm-basierte event-extraktion mit speaker-attribution und z
 
 ```typescript
 export type DeduplicationVerdict =
-  | { action: 'merge'; existingEventId: string; newSources: number[] }
-  | { action: 'create' };
+  { action: 'merge'; existingEventId: string; newSources: number[] } | { action: 'create' };
 
 export function deduplicateEvent(
   candidate: ExtractedEvent,
@@ -794,10 +793,7 @@ export type KnowledgeQueryIntent = 'meeting_recall' | 'negotiation_recall' | 'ge
 
 // NACHHER:
 export type KnowledgeQueryIntent =
-  | 'meeting_recall'
-  | 'negotiation_recall'
-  | 'general_recall'
-  | 'count_recall';
+  'meeting_recall' | 'negotiation_recall' | 'general_recall' | 'count_recall';
 ```
 
 ```typescript
@@ -4988,13 +4984,7 @@ git commit -m "feat: emotionaler zustand und beziehungs-tracking fuer roleplay-p
 
 ```typescript
 export type ProjectStatus =
-  | 'idea'
-  | 'design'
-  | 'in_progress'
-  | 'deployed'
-  | 'maintenance'
-  | 'paused'
-  | 'abandoned';
+  'idea' | 'design' | 'in_progress' | 'deployed' | 'maintenance' | 'paused' | 'abandoned';
 
 export interface ProjectState {
   entityId: string; // FK → project Entity

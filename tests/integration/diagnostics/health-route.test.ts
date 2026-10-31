@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -9,7 +10,7 @@ afterEach(() => {
 describe('GET /api/health', () => {
   it('returns 401 when user context is unavailable', async () => {
     vi.doMock('../../../src/server/auth/userContext', () => ({
-      resolveRequestUserContext: vi.fn().mockResolvedValue(null),
+      resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(null),
     }));
 
     const { GET } = await import('../../../app/api/health/route');
@@ -22,14 +23,14 @@ describe('GET /api/health', () => {
   });
 
   it('returns health report for authenticated or legacy-local context', async () => {
-    const runHealthCommand = vi.fn().mockResolvedValue({
+    const runHealthCommand = vi.fn<MockProcedure>().mockResolvedValue({
       status: 'ok',
       checks: [],
       summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
       generatedAt: '2026-02-11T00:00:00.000Z',
     });
     vi.doMock('../../../src/server/auth/userContext', () => ({
-      resolveRequestUserContext: vi.fn().mockResolvedValue({
+      resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue({
         userId: 'legacy-local-user',
         authenticated: false,
       }),
@@ -53,7 +54,7 @@ describe('GET /api/health', () => {
     vi.doUnmock('../../../src/server/auth/userContext');
     vi.doUnmock('../../../src/commands/healthCommand');
     vi.doMock('../../../src/auth', () => ({
-      auth: vi.fn().mockResolvedValue(null),
+      auth: vi.fn<MockProcedure>().mockResolvedValue(null),
     }));
 
     const { GET } = await import('../../../app/api/health/route');

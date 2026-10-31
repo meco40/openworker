@@ -65,14 +65,7 @@ export type KnowledgeRetrievalServiceLike = {
 };
 
 export type SubagentAction =
-  | 'list'
-  | 'spawn'
-  | 'kill'
-  | 'steer'
-  | 'log'
-  | 'info'
-  | 'help'
-  | 'profiles';
+  'list' | 'spawn' | 'kill' | 'steer' | 'log' | 'info' | 'help' | 'profiles';
 
 export type SubagentDispatchContext = {
   conversation: Conversation;

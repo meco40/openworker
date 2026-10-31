@@ -38,7 +38,9 @@ describe('master idempotency ledger', () => {
       contract: 'contract',
     });
 
-    const execute = vi.fn(async () => ({ messageId: 'gmail-1' }));
+    const execute = vi.fn<() => Promise<{ messageId: string }>>(async () => ({
+      messageId: 'gmail-1',
+    }));
     const first = await orchestrator.executeSideEffect({
       scope,
       runId: run.id,

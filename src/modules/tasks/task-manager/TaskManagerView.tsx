@@ -200,14 +200,13 @@ const TaskManagerView: React.FC = () => {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {loading && tasks.length === 0 && (
-            <div
-              role="status"
+            <output
               aria-live="polite"
               className="flex flex-1 flex-col items-center justify-center gap-3"
             >
               <Spinner size="md" />
               <span className="text-xs text-zinc-600">Loading tasks…</span>
-            </div>
+            </output>
           )}
           {error && !loading && (
             <div className="m-4">

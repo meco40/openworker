@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMem0Client, type Mem0ClientConfig } from '@/server/memory/mem0';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function okResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -26,7 +27,7 @@ const BASE_CONFIG: Mem0ClientConfig = {
 describe('mem0Client retry', () => {
   it('retries transient HTTP 500 and succeeds on second attempt', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(errorResponse(500, 'connection pool exhausted'))
       .mockResolvedValueOnce(
         okResponse([{ id: 'mem-1', memory: 'ok', score: null, metadata: {} }]),
@@ -47,7 +48,7 @@ describe('mem0Client retry', () => {
 
   it('retries HTTP 502 and 503 as transient errors', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(errorResponse(502, 'bad gateway'))
       .mockResolvedValueOnce(errorResponse(503, 'service unavailable'))
       .mockResolvedValueOnce(
@@ -68,7 +69,9 @@ describe('mem0Client retry', () => {
   });
 
   it('does not retry client errors like HTTP 400 or 404', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(errorResponse(400, 'bad request'));
+    const fetchMock = vi
+      .fn<MockProcedure>()
+      .mockResolvedValueOnce(errorResponse(400, 'bad request'));
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
 
@@ -86,7 +89,7 @@ describe('mem0Client retry', () => {
 
   it('gives up after max retries and throws the last error', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockImplementation(() => Promise.resolve(errorResponse(500, 'pool exhausted')));
 
     const client = createMem0Client(BASE_CONFIG, fetchMock as unknown as typeof fetch);
@@ -105,7 +108,9 @@ describe('mem0Client retry', () => {
   });
 
   it('defaults to zero retries when maxRetries is not configured', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(errorResponse(500, 'pool exhausted'));
+    const fetchMock = vi
+      .fn<MockProcedure>()
+      .mockResolvedValueOnce(errorResponse(500, 'pool exhausted'));
 
     const client = createMem0Client(
       { baseUrl: 'http://mem0.local', apiPath: '/v1' },
@@ -126,18 +131,20 @@ describe('mem0Client retry', () => {
 
   it('retries one timed-out write request and succeeds on the next attempt', async () => {
     let attempts = 0;
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      attempts += 1;
-      if (attempts === 1) {
-        const signal = init?.signal;
-        return await new Promise<Response>((_resolve, reject) => {
-          const onAbort = () =>
-            reject(new DOMException('The operation was aborted.', 'AbortError'));
-          signal?.addEventListener('abort', onAbort, { once: true });
-        });
-      }
-      return okResponse([{ id: 'mem-timeout-1', memory: 'ok', score: null, metadata: {} }]);
-    });
+    const fetchMock = vi.fn<(_url: string, init?: RequestInit) => Promise<Response>>(
+      async (_url: string, init?: RequestInit) => {
+        attempts += 1;
+        if (attempts === 1) {
+          const signal = init?.signal;
+          return await new Promise<Response>((_resolve, reject) => {
+            const onAbort = () =>
+              reject(new DOMException('The operation was aborted.', 'AbortError'));
+            signal?.addEventListener('abort', onAbort, { once: true });
+          });
+        }
+        return okResponse([{ id: 'mem-timeout-1', memory: 'ok', score: null, metadata: {} }]);
+      },
+    );
 
     const client = createMem0Client(
       {
@@ -164,13 +171,16 @@ describe('mem0Client retry', () => {
   });
 
   it('does not retry timed-out read requests', async () => {
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const signal = init?.signal;
-      return await new Promise<Response>((_resolve, reject) => {
-        const onAbort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
-        signal?.addEventListener('abort', onAbort, { once: true });
-      });
-    });
+    const fetchMock = vi.fn<(_url: string, init?: RequestInit) => Promise<Response>>(
+      async (_url: string, init?: RequestInit) => {
+        const signal = init?.signal;
+        return await new Promise<Response>((_resolve, reject) => {
+          const onAbort = () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          signal?.addEventListener('abort', onAbort, { once: true });
+        });
+      },
+    );
 
     const client = createMem0Client(
       {

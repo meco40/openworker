@@ -86,8 +86,7 @@ export class ProjectQueries {
       `,
       )
       .get(normalizedUserId, personaId, normalized, normalized) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? toPersonaProjectRecord(row) : null;
   }
 
@@ -131,8 +130,7 @@ export class ProjectQueries {
     const conversation = this.db
       .prepare('SELECT id, persona_id FROM conversations WHERE id = ? AND user_id = ? LIMIT 1')
       .get(conversationId, normalizedUserId) as
-      | { id: string; persona_id: string | null }
-      | undefined;
+      { id: string; persona_id: string | null } | undefined;
     if (!conversation) {
       throw new Error('Conversation not found.');
     }

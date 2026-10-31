@@ -124,7 +124,7 @@ const TurnTimeline: React.FC<TurnTimelineProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-1" role="list" aria-label="Turn timeline">
+    <div className="flex flex-col gap-1">
       {/* Inline error (non-blocking — show above turns if any loaded) */}
       {error && (
         <div className="mb-1">
@@ -132,11 +132,13 @@ const TurnTimeline: React.FC<TurnTimelineProps> = ({
         </div>
       )}
 
-      {turns.map((turn) => (
-        <div key={turn.seq} role="listitem">
-          <TurnCard turn={turn} isSelected={selectedSeq === turn.seq} onSelect={onSelect} />
-        </div>
-      ))}
+      <ul className="flex flex-col gap-1" aria-label="Turn timeline">
+        {turns.map((turn) => (
+          <li key={turn.seq}>
+            <TurnCard turn={turn} isSelected={selectedSeq === turn.seq} onSelect={onSelect} />
+          </li>
+        ))}
+      </ul>
 
       {/* Load more */}
       {hasMore && (

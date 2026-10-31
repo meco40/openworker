@@ -5,9 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SessionsView from '@/modules/ops/components/SessionsView';
 import { useOpsSessions, type UseOpsSessionsResult } from '@/modules/ops/hooks/useOpsSessions';
 import { ChannelType } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 vi.mock('@/modules/ops/hooks/useOpsSessions', () => ({
-  useOpsSessions: vi.fn(),
+  useOpsSessions: vi.fn<MockProcedure>(),
 }));
 
 const mockedUseOpsSessions = vi.mocked(useOpsSessions);
@@ -27,17 +28,17 @@ function buildState(partial: Partial<UseOpsSessionsResult> = {}): UseOpsSessions
     createDraft: '',
     renameDraftById: {},
     actions: {
-      refresh: vi.fn(async () => {}),
-      setQuery: vi.fn(),
-      setLimit: vi.fn(),
-      setActiveMinutes: vi.fn(),
-      setIncludeGlobalRequested: vi.fn(),
-      setIncludeUnknown: vi.fn(),
-      setCreateDraft: vi.fn(),
-      setRenameDraft: vi.fn(),
-      createSession: vi.fn(async () => {}),
-      renameSession: vi.fn(async () => {}),
-      deleteSession: vi.fn(async () => {}),
+      refresh: vi.fn<() => Promise<void>>(async () => {}),
+      setQuery: vi.fn<MockProcedure>(),
+      setLimit: vi.fn<MockProcedure>(),
+      setActiveMinutes: vi.fn<MockProcedure>(),
+      setIncludeGlobalRequested: vi.fn<MockProcedure>(),
+      setIncludeUnknown: vi.fn<MockProcedure>(),
+      setCreateDraft: vi.fn<MockProcedure>(),
+      setRenameDraft: vi.fn<MockProcedure>(),
+      createSession: vi.fn<() => Promise<void>>(async () => {}),
+      renameSession: vi.fn<() => Promise<void>>(async () => {}),
+      deleteSession: vi.fn<() => Promise<void>>(async () => {}),
     },
     ...partial,
   };

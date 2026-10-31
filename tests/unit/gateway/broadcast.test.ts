@@ -10,6 +10,7 @@ import {
   broadcastToSubscribed,
   broadcastToUser,
 } from '@/server/gateway/broadcast';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockSocket = WebSocket & {
   send: ReturnType<typeof vi.fn>;
@@ -21,8 +22,8 @@ function makeMockSocket(overrides: Partial<MockSocket> = {}): MockSocket {
     readyState: 1,
     OPEN: 1,
     bufferedAmount: 0,
-    send: vi.fn(),
-    close: vi.fn(),
+    send: vi.fn<MockProcedure>(),
+    close: vi.fn<MockProcedure>(),
     ...overrides,
   } as unknown as MockSocket;
 }
@@ -142,7 +143,7 @@ describe('gateway broadcast', () => {
   it('swallows close errors when closing slow consumers', () => {
     const slowSocket = makeMockSocket({
       bufferedAmount: MAX_BUFFERED_BYTES + 1,
-      close: vi.fn(() => {
+      close: vi.fn<() => never>(() => {
         throw new Error('close failed');
       }),
     });
@@ -154,10 +155,10 @@ describe('gateway broadcast', () => {
 
   it('closes socket on send errors and swallows close failures', () => {
     const unstableSocket = makeMockSocket({
-      send: vi.fn(() => {
+      send: vi.fn<() => never>(() => {
         throw new Error('send failed');
       }),
-      close: vi.fn(() => {
+      close: vi.fn<() => never>(() => {
         throw new Error('close failed');
       }),
     });

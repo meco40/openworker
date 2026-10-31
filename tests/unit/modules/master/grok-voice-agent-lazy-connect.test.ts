@@ -13,7 +13,7 @@ describe('useGrokVoiceAgent lazy connect contract', () => {
     expect(source).not.toMatch(/unmountedRef\.current = false;\r?\n\s*connect\(\);/);
 
     // Connection is established on demand for mic and text submit.
-    const connectCalls = source.match(/await realtime\.connect\(\);/g) ?? [];
+    const connectCalls = source.match(/await requireRealtime\(\)\.connect\(\);/g) ?? [];
     expect(connectCalls.length).toBeGreaterThanOrEqual(2);
   });
 });

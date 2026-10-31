@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('triggerAutomatedTaskTest', () => {
   const originalEnv = { ...process.env };
@@ -17,7 +18,9 @@ describe('triggerAutomatedTaskTest', () => {
   it('is disabled by default in test environment', async () => {
     delete process.env.TASK_AUTOTEST_HTTP_TRIGGER;
 
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const autoTestingModule = await import('@/server/tasks/autoTesting');
@@ -30,7 +33,9 @@ describe('triggerAutomatedTaskTest', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
 
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const autoTestingModule = await import('@/server/tasks/autoTesting');
@@ -45,7 +50,9 @@ describe('triggerAutomatedTaskTest', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
 
-    const fetchSpy = vi.fn(async () => new Response('{"error":"Task not found"}', { status: 404 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{"error":"Task not found"}', { status: 404 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -66,7 +73,7 @@ describe('triggerAutomatedTaskTest', () => {
     process.env.PORT = '3000';
 
     const error = Object.assign(new Error('aborted'), { code: 'ECONNRESET' });
-    const fetchSpy = vi.fn(async () => {
+    const fetchSpy = vi.fn<() => Promise<never>>(async () => {
       throw error;
     });
     global.fetch = fetchSpy as typeof fetch;
@@ -98,7 +105,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
 
   it('treats "false" as disabled (parseBooleanEnv false branch)', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'false';
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-false');
@@ -107,7 +116,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
 
   it('treats "0" as disabled', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = '0';
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-zero');
@@ -116,7 +127,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
 
   it('treats "off" as disabled', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'off';
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-off');
@@ -126,7 +139,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
   it('treats "on" as enabled (parseBooleanEnv true branch)', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'on';
     process.env.PORT = '3000';
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-on');
@@ -138,7 +153,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
   it('treats "yes" as enabled', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'yes';
     process.env.PORT = '3000';
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-yes');
@@ -150,7 +167,9 @@ describe('parseBooleanEnv (via isAutoTestHttpTriggerEnabled)', () => {
   it('treats unknown value as null → falls back to NODE_ENV check', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'maybe';
     vi.stubEnv('NODE_ENV', 'test'); // disabled in test env
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
     const m = await import('@/server/tasks/autoTesting');
     m.triggerAutomatedTaskTest('task-bool-unknown');
@@ -173,7 +192,7 @@ describe('isExpectedAbort — error code variants', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
     const error = Object.assign(new Error('connection aborted'), { code: 'ECONNABORTED' });
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw error;
     }) as typeof fetch;
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -189,7 +208,7 @@ describe('isExpectedAbort — error code variants', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
     const error = Object.assign(new Error('aborted'), { code: 'ABORT_ERR' });
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw error;
     }) as typeof fetch;
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -205,7 +224,7 @@ describe('isExpectedAbort — error code variants', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
     const error = new Error('socket hang up');
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw error;
     }) as typeof fetch;
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -221,7 +240,7 @@ describe('isExpectedAbort — error code variants', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
     const error = new Error('network failure');
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw error;
     }) as typeof fetch;
     vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -239,7 +258,7 @@ describe('isExpectedAbort — error code variants', () => {
   it('treats error with non-object value as non-abort', async () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw 'string-error';
     }) as typeof fetch;
     vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -255,7 +274,7 @@ describe('isExpectedAbort — error code variants', () => {
     process.env.TASK_AUTOTEST_HTTP_TRIGGER = 'true';
     process.env.PORT = '3000';
     const error = new Error('fetch failed', { cause: { code: 'ABORT_ERR' } });
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<never>>(async () => {
       throw error;
     }) as typeof fetch;
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
@@ -289,7 +308,7 @@ describe('triggerAutomatedTaskTest — in-flight dedup', () => {
     });
     let fetchCallCount = 0;
 
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<Response>>(async () => {
       fetchCallCount += 1;
       resolveFirst();
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -331,12 +350,12 @@ describe('discoverHtmlFiles — MAX_DISCOVERED_HTML_FILES limit', () => {
       // ensureTaskDeliverablesFromProjectDir which calls it internally.
       // We need to mock DB calls.
       vi.doMock('@/lib/db', () => ({
-        queryAll: vi.fn(() => []),
-        run: vi.fn(),
+        queryAll: vi.fn<() => never[]>(() => []),
+        run: vi.fn<MockProcedure>(),
       }));
       vi.doMock('@/lib/config', () => ({
-        getMissionControlUrl: vi.fn(() => 'http://localhost:3000'),
-        getProjectsPath: vi.fn(() => tmpDir),
+        getMissionControlUrl: vi.fn<() => string>(() => 'http://localhost:3000'),
+        getProjectsPath: vi.fn<() => string>(() => tmpDir),
       }));
 
       const m = await import('@/server/tasks/autoTesting');

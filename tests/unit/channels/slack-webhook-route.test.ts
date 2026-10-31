@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const handleInbound = vi.fn(async () => ({
-  userMsg: { id: 'u1' },
-  agentMsg: { id: 'a1' },
-}));
+const handleInbound = vi.fn<() => Promise<{ userMsg: { id: string }; agentMsg: { id: string } }>>(
+  async () => ({
+    userMsg: { id: 'u1' },
+    agentMsg: { id: 'a1' },
+  }),
+);
 
 vi.mock('../../../src/server/channels/messages/runtime', () => ({
   getMessageService: () => ({

@@ -125,18 +125,18 @@ während der Migration kompatibel.
 
 ### Neue Bestandteile
 
-| Datei                                                           | Inhalt                                                                                        |
+| Datei | Inhalt |
 | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------ | -------- | ---------------------------------- |
-| `src/server/world-model/mode.ts`                                | Rollout-Modi `off                                                                             | shadow | required | canonical` + Legacy-Flag-Ableitung |
-| `src/server/world-model/services/followUpPolicy.ts`             | Reine Zustell-Policy für Open Loops (Status, Attempts, Ruhezeiten, Budget, Kanal, Aktivitaet) |
-| `src/server/world-model/services/openLoopService.ts`            | `deliverDueOpenLoops`, atomare Outbox-Enqueue, `resolveOpenLoopAsAnswered`                    |
-| `src/server/world-model/services/standingIntentCompiler.ts`     | NL -> validierter Standing Intent (Template `Wenn X antwortet`)                               |
-| `src/server/world-model/services/standingIntentDispatcher.ts`   | Match -> idempotente Folgeaktion (`proactive.intent.fired`)                                   |
-| `src/server/world-model/runtime/heartbeatRuntime.ts`            | Reconciliation-Herzschlag (overdue Open Loops)                                                |
-| `src/server/world-model/runtime/prospectiveRuntime.ts`          | Scheduler-Takt: Zustellung + Heartbeat                                                        |
-| `src/server/world-model/services/notificationPolicy.ts`         | Kanalübergreifende Benachrichtigungspolitik (Ruhezeiten, Budget, Kanalpraeferenz)             |
-| `src/server/world-model/services/responseCorrelationService.ts` | Antwort -> Kandidat (Kanal/Konversation/Zeitfenster)                                          |
-| `src/server/world-model/services/clarificationService.ts`       | Rueckfrage bei Mehrdeutigkeit statt stiller Zuordnung                                         |
+| `src/server/world-model/mode.ts` | Rollout-Modi `off                                                                             | shadow | required | canonical` + Legacy-Flag-Ableitung |
+| `src/server/world-model/services/followUpPolicy.ts` | Reine Zustell-Policy für Open Loops (Status, Attempts, Ruhezeiten, Budget, Kanal, Aktivitaet) |
+| `src/server/world-model/services/openLoopService.ts` | `deliverDueOpenLoops`, atomare Outbox-Enqueue, `resolveOpenLoopAsAnswered` |
+| `src/server/world-model/services/standingIntentCompiler.ts` | NL -> validierter Standing Intent (Template `Wenn X antwortet`) |
+| `src/server/world-model/services/standingIntentDispatcher.ts` | Match -> idempotente Folgeaktion (`proactive.intent.fired`) |
+| `src/server/world-model/runtime/heartbeatRuntime.ts` | Reconciliation-Herzschlag (overdue Open Loops) |
+| `src/server/world-model/runtime/prospectiveRuntime.ts` | Scheduler-Takt: Zustellung + Heartbeat |
+| `src/server/world-model/services/notificationPolicy.ts` | Kanalübergreifende Benachrichtigungspolitik (Ruhezeiten, Budget, Kanalpraeferenz) |
+| `src/server/world-model/services/responseCorrelationService.ts` | Antwort -> Kandidat (Kanal/Konversation/Zeitfenster) |
+| `src/server/world-model/services/clarificationService.ts` | Rueckfrage bei Mehrdeutigkeit statt stiller Zuordnung |
 
 ### Verhalten
 

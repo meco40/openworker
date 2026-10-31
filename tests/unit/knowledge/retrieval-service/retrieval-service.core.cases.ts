@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 import { makeMessage } from './retrieval-service.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('KnowledgeRetrievalService', () => {
   it('retrieves in staged order and returns evidence references', async () => {
@@ -9,7 +10,7 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => {
+        listMeetingLedger: vi.fn<MockProcedure>(() => {
           calls.push('ledger');
           return [
             {
@@ -31,7 +32,7 @@ describe('KnowledgeRetrievalService', () => {
             },
           ];
         }),
-        listEpisodes: vi.fn(() => {
+        listEpisodes: vi.fn<MockProcedure>(() => {
           calls.push('episodes');
           return [
             {
@@ -52,7 +53,7 @@ describe('KnowledgeRetrievalService', () => {
             },
           ];
         }),
-        insertRetrievalAudit: vi.fn(() => ({
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-1',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -66,7 +67,7 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => {
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => {
           calls.push('semantic');
           return {
             context: '[Type: fact] 8% Rabatt vereinbart',
@@ -75,7 +76,7 @@ describe('KnowledgeRetrievalService', () => {
         }),
       },
       messageRepository: {
-        listMessages: vi.fn(() => {
+        listMessages: vi.fn<MockProcedure>(() => {
           calls.push('evidence');
           return [makeMessage(1, 'Start'), makeMessage(2, 'Wir vereinbaren 8% Rabatt')];
         }),
@@ -101,8 +102,8 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 80,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => [
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<MockProcedure>(() => [
           {
             id: 'ep-long',
             userId: 'user-1',
@@ -120,7 +121,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: new Date().toISOString(),
           },
         ]),
-        insertRetrievalAudit: vi.fn(() => ({
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-1',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -134,10 +135,13 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: longText, matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: longText,
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [makeMessage(1, longText)]),
+        listMessages: vi.fn<MockProcedure>(() => [makeMessage(1, longText)]),
       },
     });
 

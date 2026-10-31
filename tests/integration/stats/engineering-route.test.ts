@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type StatsGlobals = typeof globalThis & {
   __masterRepository?: unknown;
@@ -10,7 +11,7 @@ type StatsGlobals = typeof globalThis & {
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 

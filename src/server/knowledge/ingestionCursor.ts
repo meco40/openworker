@@ -115,9 +115,7 @@ export class KnowledgeIngestionCursor {
           id: m.id,
           content: String(m.content || ''),
           personaAtMessage: (m as unknown as Record<string, unknown>).personaId as
-            | string
-            | null
-            | undefined,
+            string | null | undefined,
         })),
         personaId,
       );

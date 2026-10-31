@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Spinner, ErrorBanner } from './ui-helpers';
+import { useEscapeKey } from '@/components/shared/useEscapeKey';
 
 interface PipelineOption {
   id: string;
@@ -29,7 +30,7 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
 }) => {
   const [models, setModels] = useState<PipelineOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
 
   // Load pipeline options when modal opens
@@ -54,27 +55,18 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
     }
   }, [open]);
 
+  useEscapeKey(open, onClose);
+
   if (!open) return null;
 
   const handleStart = async () => {
     await onStartReplay(selectedModel || undefined);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
-  };
-
   const succeeded = !!lastReplayConversationId && !error;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="replay-modal-title"
-      aria-describedby="replay-modal-desc"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onKeyDown={handleKeyDown}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         aria-hidden="true"
@@ -83,9 +75,13 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
       />
 
       {/* Dialog panel */}
-      <div
+      <dialog
         ref={dialogRef}
-        className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/60 bg-zinc-900 shadow-2xl shadow-black/60"
+        open
+        aria-modal="true"
+        aria-labelledby="replay-modal-title"
+        aria-describedby="replay-modal-desc"
+        className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/60 bg-zinc-900 text-inherit shadow-2xl shadow-black/60"
       >
         {/* Header */}
         <div className="flex items-start justify-between border-b border-zinc-800 px-5 py-4">
@@ -241,7 +237,7 @@ const ReplayModal: React.FC<ReplayModalProps> = ({
             </button>
           )}
         </div>
-      </div>
+      </dialog>
     </div>
   );
 };

@@ -76,12 +76,15 @@ export function usePersonaSelection(
     [onPersonaFilePatched, selectedId],
   );
 
+  // Deselecting clears the loaded persona during render.
+  if (!selectedId && selectedPersona !== null) {
+    setSelectedPersona(null);
+  }
+
   useEffect(() => {
-    if (selectedId) {
-      loadPersona(selectedId);
-    } else {
-      setSelectedPersona(null);
-    }
+    if (!selectedId) return;
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() => loadPersona(selectedId));
   }, [selectedId, loadPersona]);
 
   return {

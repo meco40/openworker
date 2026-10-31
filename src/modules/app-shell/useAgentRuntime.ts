@@ -34,11 +34,13 @@ export function useAgentRuntime({
   const chatRef = useRef<GatewayChat | null>(null);
   const { activePersona } = usePersona();
 
+  // A disabled runtime carries no ClawHub prompt (cleared during render).
+  if (!enabled && clawHubPromptBlock !== '') {
+    setClawHubPromptBlock('');
+  }
+
   useEffect(() => {
-    if (!enabled) {
-      setClawHubPromptBlock('');
-      return;
-    }
+    if (!enabled) return;
 
     let disposed = false;
 

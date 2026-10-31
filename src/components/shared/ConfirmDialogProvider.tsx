@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useEscapeKey } from '@/components/shared/useEscapeKey';
 
 type ConfirmTone = 'default' | 'danger';
 
@@ -177,6 +178,9 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     };
   }, []);
 
+  const cancelActive = useCallback(() => settleActive(false), [settleActive]);
+  useEscapeKey(active !== null, cancelActive);
+
   const value = useMemo<ConfirmDialogApi>(
     () => ({
       confirm,
@@ -196,18 +200,12 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => settleActive(false)}
           />
-          <div
-            role="dialog"
+          <dialog
+            open
             aria-modal="true"
             aria-labelledby={`confirm-dialog-title-${active.id}`}
             aria-describedby={`confirm-dialog-description-${active.id}`}
-            className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/70 bg-zinc-900 p-5 shadow-2xl"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                settleActive(false);
-              }
-            }}
+            className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/70 bg-zinc-900 p-5 text-inherit shadow-2xl"
           >
             <h2
               id={`confirm-dialog-title-${active.id}`}
@@ -245,7 +243,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
                 {active.options.confirmLabel ?? 'Bestaetigen'}
               </button>
             </div>
-          </div>
+          </dialog>
         </div>
       ) : null}
     </ConfirmDialogContext.Provider>

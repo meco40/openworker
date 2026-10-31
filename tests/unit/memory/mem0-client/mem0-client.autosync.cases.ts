@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMem0Client } from '@/server/memory/mem0';
 import { getMem0SyncMocks, registerMem0ClientCleanup } from './mem0-client.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('mem0Client', () => {
   registerMem0ClientCleanup();
@@ -11,7 +12,7 @@ describe('mem0Client', () => {
     mem0SyncMocks.syncMem0EmbedderFromModelHub.mockResolvedValue({ ok: true });
 
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ detail: 'Mem0 runtime is not configured.' }), {
           status: 503,
@@ -60,7 +61,7 @@ describe('mem0Client', () => {
     mem0SyncMocks.syncMem0EmbedderFromModelHub.mockResolvedValue({ ok: true });
 
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({

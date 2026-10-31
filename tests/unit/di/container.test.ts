@@ -63,7 +63,9 @@ describe('di/container', () => {
     clearContainer();
 
     expect(hasService('test.service')).toBe(false);
-    expect(() => resolveService('test.service')).toThrow();
+    expect(() => resolveService('test.service')).toThrow(
+      'No service registered for key: test.service',
+    );
   });
 
   it('registerService replaces an existing factory', () => {

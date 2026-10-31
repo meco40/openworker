@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createServerEventBus } from '@/server/events/eventBus';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('InMemoryServerEventBus', () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
@@ -28,7 +29,7 @@ describe('InMemoryServerEventBus', () => {
 
     it('does nothing when subscriber set is empty after unsubscribe', () => {
       const bus = createServerEventBus();
-      const handler = vi.fn();
+      const handler = vi.fn<MockProcedure>();
       const unsub = bus.subscribe('master.updated', handler);
       unsub(); // Remove only subscriber — set becomes empty
       bus.publish('master.updated', {
@@ -42,8 +43,8 @@ describe('InMemoryServerEventBus', () => {
 
     it('calls all subscribers when event is published', () => {
       const bus = createServerEventBus();
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
+      const handler1 = vi.fn<MockProcedure>();
+      const handler2 = vi.fn<MockProcedure>();
       bus.subscribe('master.updated', handler1);
       bus.subscribe('master.updated', handler2);
 
@@ -61,10 +62,10 @@ describe('InMemoryServerEventBus', () => {
 
     it('logs error but continues calling remaining listeners when one throws', () => {
       const bus = createServerEventBus();
-      const throwingHandler = vi.fn(() => {
+      const throwingHandler = vi.fn<() => never>(() => {
         throw new Error('handler boom');
       });
-      const goodHandler = vi.fn();
+      const goodHandler = vi.fn<MockProcedure>();
 
       bus.subscribe('master.updated', throwingHandler);
       bus.subscribe('master.updated', goodHandler);
@@ -88,7 +89,7 @@ describe('InMemoryServerEventBus', () => {
   describe('subscribe / unsubscribe', () => {
     it('returns an unsubscribe function that stops future deliveries', () => {
       const bus = createServerEventBus();
-      const handler = vi.fn();
+      const handler = vi.fn<MockProcedure>();
       const unsub = bus.subscribe('master.updated', handler);
 
       bus.publish('master.updated', {
@@ -111,7 +112,7 @@ describe('InMemoryServerEventBus', () => {
 
     it('calling unsubscribe when no Map entry exists does not throw', () => {
       const bus = createServerEventBus();
-      const handler = vi.fn();
+      const handler = vi.fn<MockProcedure>();
       const unsub = bus.subscribe('master.updated', handler);
       // Force-clear all subscribers so the Map entry is gone
       bus.clearAllSubscribers();
@@ -121,7 +122,7 @@ describe('InMemoryServerEventBus', () => {
 
     it('deletes the event key from the Map when the last subscriber unsubscribes', () => {
       const bus = createServerEventBus();
-      const handler = vi.fn();
+      const handler = vi.fn<MockProcedure>();
       const unsub = bus.subscribe('master.updated', handler);
       unsub();
 
@@ -139,8 +140,8 @@ describe('InMemoryServerEventBus', () => {
 
     it('handles multiple event types independently', () => {
       const bus = createServerEventBus();
-      const masterHandler = vi.fn();
-      const summaryHandler = vi.fn();
+      const masterHandler = vi.fn<MockProcedure>();
+      const summaryHandler = vi.fn<MockProcedure>();
 
       bus.subscribe('master.updated', masterHandler);
       bus.subscribe('chat.summary.refreshed', summaryHandler);
@@ -160,8 +161,8 @@ describe('InMemoryServerEventBus', () => {
   describe('clearAllSubscribers', () => {
     it('removes all subscribers for all events', () => {
       const bus = createServerEventBus();
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
+      const handler1 = vi.fn<MockProcedure>();
+      const handler2 = vi.fn<MockProcedure>();
 
       bus.subscribe('master.updated', handler1);
       bus.subscribe('chat.summary.refreshed', handler2);

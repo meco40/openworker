@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('xAI adapter tool mapping', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('xAI adapter tool mapping', () => {
   });
 
   it('maps OpenAI tools to xAI Responses API function tools with top-level name', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(
         JSON.stringify({
           output: [
@@ -26,11 +27,11 @@ describe('xAI adapter tool mapping', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
-    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 180_000);
+    const resolveModelHubGatewayTimeoutMs = vi.fn<() => number>(() => 180_000);
 
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
-      fetchJsonOk: vi.fn(),
+      fetchJsonOk: vi.fn<MockProcedure>(),
       resolveModelHubGatewayTimeoutMs,
     }));
 
@@ -87,7 +88,7 @@ describe('xAI adapter tool mapping', () => {
   });
 
   it('maps Graphiti max_tokens to xAI Responses max_output_tokens', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(JSON.stringify({ output: [], model: 'grok-4', usage: {} }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -96,8 +97,8 @@ describe('xAI adapter tool mapping', () => {
 
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
-      fetchJsonOk: vi.fn(),
-      resolveModelHubGatewayTimeoutMs: vi.fn(() => 180_000),
+      fetchJsonOk: vi.fn<MockProcedure>(),
+      resolveModelHubGatewayTimeoutMs: vi.fn<() => number>(() => 180_000),
     }));
 
     const { default: adapter } = await import('@/server/model-hub/Models/xai');
@@ -131,7 +132,7 @@ describe('xAI adapter tool mapping', () => {
   });
 
   it('maps Graphiti JSON response formats to xAI Responses text.format', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(JSON.stringify({ output: [], model: 'grok-4', usage: {} }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -140,8 +141,8 @@ describe('xAI adapter tool mapping', () => {
 
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
-      fetchJsonOk: vi.fn(),
-      resolveModelHubGatewayTimeoutMs: vi.fn(() => 180_000),
+      fetchJsonOk: vi.fn<MockProcedure>(),
+      resolveModelHubGatewayTimeoutMs: vi.fn<() => number>(() => 180_000),
     }));
 
     const { default: adapter } = await import('@/server/model-hub/Models/xai');

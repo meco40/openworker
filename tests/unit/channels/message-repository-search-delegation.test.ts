@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('SqliteMessageRepository.searchMessages delegation', () => {
   afterEach(() => {
@@ -23,7 +24,7 @@ describe('SqliteMessageRepository.searchMessages delegation', () => {
         seq: 1,
       },
     ];
-    const searchMessages = vi.fn(() => delegatedResult);
+    const searchMessages = vi.fn<MockProcedure>(() => delegatedResult);
 
     (
       repo as unknown as { searchQueries: { searchMessages: typeof searchMessages } }

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type SecuritySnapshot = {
   checks: Array<{ id: string; status: 'ok' | 'warning' | 'critical'; detail: string }>;
@@ -49,23 +50,28 @@ describe('runHealthCommand', () => {
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-        const url = typeof input === 'string' ? input : input.toString();
-        const pathname = new URL(url).pathname;
-        if (
-          String(init?.method || 'GET').toUpperCase() === 'POST' &&
-          pathname.endsWith('/v2/memories')
-        ) {
-          return new Response(JSON.stringify({ memories: [], total: 0, page: 1, page_size: 25 }), {
+      vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+        async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const pathname = new URL(url).pathname;
+          if (
+            String(init?.method || 'GET').toUpperCase() === 'POST' &&
+            pathname.endsWith('/v2/memories')
+          ) {
+            return new Response(
+              JSON.stringify({ memories: [], total: 0, page: 1, page_size: 25 }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            );
+          }
+          return new Response(JSON.stringify({ ok: true }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
           });
-        }
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }) as unknown as typeof fetch,
+        },
+      ) as unknown as typeof fetch,
     );
     vi.doMock('../../../src/server/security/status', () => ({
       buildSecurityStatusSnapshot: (): SecuritySnapshot => ({
@@ -79,7 +85,7 @@ describe('runHealthCommand', () => {
 
     const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({
-      fetchImpl: vi.fn().mockResolvedValue(
+      fetchImpl: vi.fn<MockProcedure>().mockResolvedValue(
         new Response(JSON.stringify({ ok: false }), {
           status: 503,
           headers: { 'Content-Type': 'application/json' },
@@ -95,7 +101,7 @@ describe('runHealthCommand', () => {
   it('skips optional bridge checks when bridge URL exists but channel is not paired', async () => {
     process.env.WHATSAPP_BRIDGE_URL = 'http://bridge.local';
 
-    const fetchMock = vi.fn().mockResolvedValue(
+    const fetchMock = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -135,7 +141,7 @@ describe('runHealthCommand', () => {
 
     const { runHealthCommand } = await import('@/commands/healthCommand');
     const report = await runHealthCommand({
-      fetchImpl: vi.fn().mockRejectedValue(timeoutError),
+      fetchImpl: vi.fn<MockProcedure>().mockRejectedValue(timeoutError),
       timeoutMs: 25,
     });
 

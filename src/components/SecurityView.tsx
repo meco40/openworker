@@ -98,7 +98,8 @@ const SecurityView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void refreshStatus();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(refreshStatus);
   }, [refreshStatus]);
 
   const localChecks = useMemo(() => buildCommandSecurityChecks(commands), [commands]);

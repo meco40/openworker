@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 let mockConfig: {
   enabled: boolean;
@@ -7,8 +8,8 @@ let mockConfig: {
   graphitiShadowEnabled: boolean;
   mode: 'off' | 'shadow' | 'required' | 'canonical';
 };
-const insertObservationWithResult = vi.fn();
-const matchIntent = vi.fn();
+const insertObservationWithResult = vi.fn<MockProcedure>();
+const matchIntent = vi.fn<MockProcedure>();
 
 let bridgeChatMessages: typeof import('@/server/world-model/bridge').bridgeChatMessages;
 
@@ -45,10 +46,10 @@ describe('bridgeChatMessages', () => {
       getWorldModelConfig: () => mockConfig,
     }));
     vi.doMock('@/server/world-model/db', () => ({
-      getWorldModelDb: () => ({ query: vi.fn() }),
+      getWorldModelDb: () => ({ query: vi.fn<MockProcedure>() }),
       runWithWorldModelScope: (_scope: unknown, callback: () => Promise<unknown>) => callback(),
       withWorldModelTransaction: async (callback: (db: unknown) => Promise<unknown>) =>
-        callback({ query: vi.fn() }),
+        callback({ query: vi.fn<MockProcedure>() }),
     }));
     vi.doMock('@/server/world-model/repositories/observationRepository', () => ({
       insertObservationWithResult: (...args: unknown[]) => insertObservationWithResult(...args),
@@ -57,7 +58,7 @@ describe('bridgeChatMessages', () => {
       matchStandingIntents: (...args: unknown[]) => matchIntent(...args),
     }));
     vi.doMock('@/server/world-model/repositories/outboxRepository', () => ({
-      enqueueOutboxEvent: vi.fn(async () => ({ id: 'outbox-1' })),
+      enqueueOutboxEvent: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'outbox-1' })),
     }));
 
     bridgeChatMessages = (await import('@/server/world-model/bridge')).bridgeChatMessages;

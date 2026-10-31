@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ModelHubRepository } from '@/server/model-hub/repository';
 import { encryptSecret } from '@/server/model-hub/crypto';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const dispatchMock = vi.fn();
+const dispatchMock = vi.fn<MockProcedure>();
 
 beforeEach(() => {
   vi.resetModules();
@@ -21,18 +22,18 @@ beforeEach(() => {
 
 function createMockRepository(overrides: Partial<ModelHubRepository> = {}): ModelHubRepository {
   return {
-    listPipelineModels: vi.fn().mockReturnValue([]),
-    getAccountRecordById: vi.fn().mockReturnValue(null),
-    updatePipelineModelStatus: vi.fn(),
-    updatePipelineModelPriority: vi.fn(),
-    listAccounts: vi.fn().mockReturnValue([]),
-    createAccount: vi.fn(),
-    deleteAccount: vi.fn(),
-    updateAccountCredentials: vi.fn(),
-    setHealthStatus: vi.fn(),
-    addPipelineModel: vi.fn(),
-    removePipelineModel: vi.fn(),
-    replacePipeline: vi.fn(),
+    listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([]),
+    getAccountRecordById: vi.fn<MockProcedure>().mockReturnValue(null),
+    updatePipelineModelStatus: vi.fn<MockProcedure>(),
+    updatePipelineModelPriority: vi.fn<MockProcedure>(),
+    listAccounts: vi.fn<MockProcedure>().mockReturnValue([]),
+    createAccount: vi.fn<MockProcedure>(),
+    deleteAccount: vi.fn<MockProcedure>(),
+    updateAccountCredentials: vi.fn<MockProcedure>(),
+    setHealthStatus: vi.fn<MockProcedure>(),
+    addPipelineModel: vi.fn<MockProcedure>(),
+    removePipelineModel: vi.fn<MockProcedure>(),
+    replacePipeline: vi.fn<MockProcedure>(),
     ...overrides,
   };
 }
@@ -58,7 +59,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
     };
 
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([
         {
           id: 'm1',
           profileId: 'p1',
@@ -72,7 +73,7 @@ describe('ModelHubService reasoning effort dispatch', () => {
           reasoningEffort: 'xhigh',
         },
       ]),
-      getAccountRecordById: vi.fn().mockReturnValue(account),
+      getAccountRecordById: vi.fn<MockProcedure>().mockReturnValue(account),
     });
 
     const { ModelHubService } = await import('@/server/model-hub/service');

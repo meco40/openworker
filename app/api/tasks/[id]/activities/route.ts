@@ -127,8 +127,7 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
     const id = crypto.randomUUID();
 
     const task = db.prepare('SELECT id, assigned_agent_id FROM tasks WHERE id = ?').get(taskId) as
-      | { id: string; assigned_agent_id: string | null }
-      | undefined;
+      { id: string; assigned_agent_id: string | null } | undefined;
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
@@ -138,8 +137,7 @@ export const POST = withUserContext<{ id: string }>(async ({ request, params, us
     let resolvedAgentId: string | null = null;
     if (agent_id) {
       const existingAgent = db.prepare('SELECT id FROM agents WHERE id = ?').get(agent_id) as
-        | { id: string }
-        | undefined;
+        { id: string } | undefined;
       resolvedAgentId = existingAgent?.id ?? task.assigned_agent_id ?? null;
     }
 

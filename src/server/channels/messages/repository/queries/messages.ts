@@ -71,8 +71,7 @@ export class MessageQueries {
           )
           .get(id, normalizedUserId) as Record<string, unknown> | undefined)
       : (this.db.prepare('SELECT * FROM messages WHERE id = ? LIMIT 1').get(id) as
-          | Record<string, unknown>
-          | undefined);
+          Record<string, unknown> | undefined);
     return row ? toMessage(row) : null;
   }
 
@@ -228,8 +227,7 @@ export class MessageQueries {
     const update = this.db.transaction(() => {
       for (const id of ids) {
         const row = this.db.prepare('SELECT metadata FROM messages WHERE id = ?').get(id) as
-          | { metadata?: string | null }
-          | undefined;
+          { metadata?: string | null } | undefined;
         if (!row) continue;
         let metadata: Record<string, unknown> = {};
         if (row.metadata) {

@@ -46,7 +46,11 @@ describe('whatsapp webhook route', () => {
   });
 
   it('accepts account-scoped secrets and forwards scoped chat ids to message service', async () => {
-    const handleInbound = vi.fn(async (..._args: unknown[]) => ({
+    const handleInbound = vi.fn<
+      (
+        ..._args: unknown[]
+      ) => Promise<{ userMsg: Record<string, unknown>; agentMsg: Record<string, unknown> }>
+    >(async (..._args: unknown[]) => ({
       userMsg: {},
       agentMsg: {},
     }));
@@ -91,7 +95,11 @@ describe('whatsapp webhook route', () => {
   });
 
   it('blocks senders outside allowlist and stores attachment metadata for allowed senders', async () => {
-    const handleInbound = vi.fn(async (..._args: unknown[]) => ({
+    const handleInbound = vi.fn<
+      (
+        ..._args: unknown[]
+      ) => Promise<{ userMsg: Record<string, unknown>; agentMsg: Record<string, unknown> }>
+    >(async (..._args: unknown[]) => ({
       userMsg: {},
       agentMsg: {},
     }));
@@ -150,8 +158,7 @@ describe('whatsapp webhook route', () => {
     await POST(allowedRequest);
     expect(handleInbound).toHaveBeenCalledTimes(1);
     const attachments = handleInbound.mock.calls[0][7] as
-      | Array<{ storagePath?: string }>
-      | undefined;
+      Array<{ storagePath?: string }> | undefined;
     expect(Array.isArray(attachments)).toBe(true);
     expect(attachments?.length).toBe(1);
     expect(String(attachments?.[0]?.storagePath || '')).not.toHaveLength(0);

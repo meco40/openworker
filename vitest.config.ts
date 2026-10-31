@@ -10,6 +10,13 @@ export default defineConfig({
     testTimeout: 20_000,
     hookTimeout: 20_000,
     maxWorkers: 4,
+    server: {
+      deps: {
+        // @google/genai 2 lists its `browser` export condition before `node`. Externalized,
+        // the mock id and the id Node loads differ, and vi.mock('@google/genai') misses.
+        inline: ['@google/genai'],
+      },
+    },
     projects: [
       {
         extends: true,
@@ -186,7 +193,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      '@': path.resolve(import.meta.dirname, 'src'),
     },
   },
 });

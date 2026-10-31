@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const deliverTelegram = vi.fn();
-const handleTelegramModelCommand = vi.fn();
-const deleteMessageWithSideEffects = vi.fn();
-const getConversationByExternalChat = vi.fn();
-const listMessages = vi.fn();
+const deliverTelegram = vi.fn<MockProcedure>();
+const handleTelegramModelCommand = vi.fn<MockProcedure>();
+const deleteMessageWithSideEffects = vi.fn<MockProcedure>();
+const getConversationByExternalChat = vi.fn<MockProcedure>();
+const listMessages = vi.fn<MockProcedure>();
 
 vi.mock('../../../src/server/channels/outbound/telegram', () => ({
   deliverTelegram,

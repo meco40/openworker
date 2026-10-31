@@ -32,7 +32,9 @@ describe('Mission Control planning route session key', () => {
   });
 
   it('creates a unique planning session key per start instead of reusing task-id-only key', async () => {
-    const callMock = vi.fn(async () => ({
+    const callMock = vi.fn<
+      () => Promise<{ userMsgId: string; agentMsgId: string; conversationId: string }>
+    >(async () => ({
       userMsgId: 'msg-user',
       agentMsgId: 'msg-agent',
       conversationId: 'conv-1',

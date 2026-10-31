@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  getWorldModelDb: vi.fn(),
-  runWithWorldModelScope: vi.fn(),
-  getWorldModelConfig: vi.fn(),
-  getConfiguredEmbeddingProvider: vi.fn(),
+  query: vi.fn<MockProcedure>(),
+  getWorldModelDb: vi.fn<MockProcedure>(),
+  runWithWorldModelScope: vi.fn<MockProcedure>(),
+  getWorldModelConfig: vi.fn<MockProcedure>(),
+  getConfiguredEmbeddingProvider: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -26,6 +26,7 @@ import {
   startEmbeddingWorker,
   type EmbeddingTarget,
 } from '@/server/world-model/embeddings/embeddingWorker';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -318,9 +319,9 @@ describe('processEmbeddingBatch', () => {
   });
 
   it('does not query the database or generate vectors while World Model is disabled', async () => {
-    await expect(processEmbeddingBatch([target], { generateEmbedding: vi.fn() })).resolves.toEqual(
-      [],
-    );
+    await expect(
+      processEmbeddingBatch([target], { generateEmbedding: vi.fn<MockProcedure>() }),
+    ).resolves.toEqual([]);
 
     expect(mocks.getWorldModelDb).not.toHaveBeenCalled();
     expect(mocks.getConfiguredEmbeddingProvider).not.toHaveBeenCalled();
@@ -329,7 +330,7 @@ describe('processEmbeddingBatch', () => {
   it('stores a generated vector with the target scope and default model metadata', async () => {
     mocks.getWorldModelConfig.mockReturnValue({ enabled: true, e2eEnabled: false });
     mocks.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
-    const generateEmbedding = vi.fn().mockResolvedValue([0.25, -0.5]);
+    const generateEmbedding = vi.fn<MockProcedure>().mockResolvedValue([0.25, -0.5]);
     const targetWithoutWorkspace = {
       ...target,
       scope: { userId: 'user-1', personaId: 'assistant' },
@@ -373,7 +374,7 @@ describe('processEmbeddingBatch', () => {
     const provider = {
       model: 'provider-model',
       modelVersion: 'provider-version',
-      generateEmbedding: vi.fn().mockResolvedValue([1, 2, 3]),
+      generateEmbedding: vi.fn<MockProcedure>().mockResolvedValue([1, 2, 3]),
     };
     mocks.getConfiguredEmbeddingProvider.mockReturnValue(provider);
     mocks.query.mockImplementation(async (_sql: string, values?: unknown[]) => ({
@@ -423,7 +424,10 @@ describe('processEmbeddingBatch', () => {
   it('rejects empty or non-finite vectors and continues the rest of the batch', async () => {
     mocks.getWorldModelConfig.mockReturnValue({ enabled: true, e2eEnabled: false });
     mocks.query.mockResolvedValue({ rows: [] });
-    const generateEmbedding = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([Number.NaN]);
+    const generateEmbedding = vi
+      .fn<MockProcedure>()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([Number.NaN]);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await expect(
@@ -487,7 +491,9 @@ describe('runEmbeddingWorkerOnce', () => {
     }));
 
     await expect(
-      runEmbeddingWorkerOnce({ generateEmbedding: vi.fn().mockResolvedValue([0.5]) }),
+      runEmbeddingWorkerOnce({
+        generateEmbedding: vi.fn<MockProcedure>().mockResolvedValue([0.5]),
+      }),
     ).resolves.toEqual({
       collected: 1,
       processed: 1,
@@ -548,7 +554,7 @@ describe('startEmbeddingWorker', () => {
     const error = new Error('scope discovery unavailable');
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.useFakeTimers();
-    const scopeProvider = vi.fn().mockRejectedValue(error);
+    const scopeProvider = vi.fn<MockProcedure>().mockRejectedValue(error);
     const worker = startEmbeddingWorker({}, 100, scopeProvider);
 
     await vi.advanceTimersByTimeAsync(200);

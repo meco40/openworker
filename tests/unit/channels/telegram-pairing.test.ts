@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CredentialStore } from '@/server/channels/credentials/credentialStore';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const startTelegramPolling = vi.fn(async () => {});
-const stopTelegramPolling = vi.fn();
-const syncTelegramNativeCommands = vi.fn(async () => {});
+const startTelegramPolling = vi.fn<() => Promise<void>>(async () => {});
+const stopTelegramPolling = vi.fn<MockProcedure>();
+const syncTelegramNativeCommands = vi.fn<() => Promise<void>>(async () => {});
 
 vi.mock('../../../src/server/channels/pairing/telegramPolling', () => ({
   startTelegramPolling,

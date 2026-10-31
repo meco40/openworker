@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ searchGraphitiFacts: vi.fn() }));
+const mocks = vi.hoisted(() => ({ searchGraphitiFacts: vi.fn<MockProcedure>() }));
 
 vi.mock('@/server/world-model/graphiti/client', () => ({
   searchGraphitiFacts: mocks.searchGraphitiFacts,
@@ -13,6 +13,7 @@ import {
   rankGraphitiFacts,
   searchGraphitiFactsWithRerank,
 } from '@/server/world-model/graphiti/retrieval';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 beforeEach(() => {
   vi.clearAllMocks();

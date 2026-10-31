@@ -145,15 +145,16 @@ export function useProviders(): UseProvidersReturn {
     }
   }, []);
 
-  useEffect(() => {
-    if (!selectedConnectProvider) return;
+  // Keep the connect form valid for the selected provider (adjusted during render;
+  // both conditions are false after one update).
+  if (selectedConnectProvider) {
     if (!availableAuthMethods.includes(connectAuthMethod)) {
       setConnectAuthMethod((availableAuthMethods[0] ?? 'api_key') as 'none' | 'api_key' | 'oauth');
     }
     if (!connectLabel.trim()) {
       setConnectLabel(`${selectedConnectProvider.name} Account`);
     }
-  }, [availableAuthMethods, connectAuthMethod, connectLabel, selectedConnectProvider]);
+  }
 
   async function connectProviderAccount() {
     if (!selectedConnectProvider) return;

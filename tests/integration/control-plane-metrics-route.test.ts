@@ -56,7 +56,7 @@ describe('GET /api/control-plane/metrics', () => {
       string,
       Array<{ id: string; content: string; metadata: Record<string, unknown> }>
     >();
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
       async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         const url = typeof input === 'string' ? input : input.toString();
         const parsed = new URL(url);
@@ -275,10 +275,12 @@ describe('GET /api/control-plane/metrics', () => {
       );
       return {
         ...actual,
-        resolveRequestUserContext: vi.fn(async () => ({
-          userId: scopedUserId,
-          authenticated: true,
-        })),
+        resolveRequestUserContext: vi.fn<() => Promise<{ userId: string; authenticated: boolean }>>(
+          async () => ({
+            userId: scopedUserId,
+            authenticated: true,
+          }),
+        ),
       };
     });
 
@@ -338,10 +340,12 @@ describe('GET /api/control-plane/metrics', () => {
       );
       return {
         ...actual,
-        resolveRequestUserContext: vi.fn(async () => ({
-          userId: 'legacy-local-user',
-          authenticated: false,
-        })),
+        resolveRequestUserContext: vi.fn<() => Promise<{ userId: string; authenticated: boolean }>>(
+          async () => ({
+            userId: 'legacy-local-user',
+            authenticated: false,
+          }),
+        ),
       };
     });
 

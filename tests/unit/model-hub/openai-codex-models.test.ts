@@ -89,7 +89,7 @@ describe('openai-codex model fetching', () => {
 
   it('dispatches codex requests to chatgpt backend with codex headers', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       const sse = [
         'data: {"type":"response.output_text.delta","delta":"hello"}',
         '',
@@ -153,7 +153,7 @@ describe('openai-codex model fetching', () => {
 
   it('preserves whitespace across codex output_text deltas', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       const sse = [
         'data: {"type":"response.output_text.delta","delta":"Ich"}',
         '',
@@ -201,7 +201,7 @@ describe('openai-codex model fetching', () => {
 
   it('sends image attachments as input_image content for codex responses', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       const sse = [
         'data: {"type":"response.output_text.delta","delta":"gesehen"}',
         '',

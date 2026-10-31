@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const deliverTelegram = vi.fn();
-const editTelegramMessage = vi.fn();
-const answerTelegramCallbackQuery = vi.fn();
-const setModelOverride = vi.fn();
-const getOrCreateConversation = vi.fn();
-const listPipeline = vi.fn();
+const deliverTelegram = vi.fn<MockProcedure>();
+const editTelegramMessage = vi.fn<MockProcedure>();
+const answerTelegramCallbackQuery = vi.fn<MockProcedure>();
+const setModelOverride = vi.fn<MockProcedure>();
+const getOrCreateConversation = vi.fn<MockProcedure>();
+const listPipeline = vi.fn<MockProcedure>();
 
 vi.mock('../../../src/server/channels/outbound/telegram', () => ({
   deliverTelegram,

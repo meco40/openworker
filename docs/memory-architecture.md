@@ -1208,12 +1208,7 @@ const result = await knowledgeRetrieval.buildContext({
 ```typescript
 // Core types
 type MemoryType =
-  | 'fact'
-  | 'preference'
-  | 'avoidance'
-  | 'lesson'
-  | 'personality_trait'
-  | 'workflow_pattern';
+  'fact' | 'preference' | 'avoidance' | 'lesson' | 'personality_trait' | 'workflow_pattern';
 
 interface MemoryNode {
   id: string;

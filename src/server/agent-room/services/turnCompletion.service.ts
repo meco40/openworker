@@ -13,14 +13,13 @@ import {
   stripLeadingSpeakerPrefix,
   stripTrailingOtherSpeakerTurns,
 } from '@/server/agent-room/prompt';
+import { deriveConflictRadar } from './conflictRadar.service';
 import {
-  deriveConflictRadar,
   pushArtifactSnapshot,
   buildArtifactWithNewTurn,
   clampConsensusScore,
-  getAgentSessionEntry,
-  updatePhaseBufferSessions,
-} from '@/server/agent-room/services';
+} from './swarmArtifact.service';
+import { getAgentSessionEntry, updatePhaseBufferSessions } from './agentSession.service';
 import { resolveSwarmUnits, resolveSpeakerPersonaId } from './swarmResolution.service';
 
 const REPLAY_LIMIT = 2000;

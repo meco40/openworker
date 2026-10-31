@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Sidebar from '@/components/Sidebar';
 import { View } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('Sidebar mobile navigation', () => {
   it('opens with visible labels, closes with Escape, and restores trigger focus', () => {
@@ -52,7 +53,7 @@ describe('Sidebar mobile navigation', () => {
   });
 
   it('navigates, closes the drawer, and moves focus to main content', () => {
-    const onViewChange = vi.fn();
+    const onViewChange = vi.fn<MockProcedure>();
     const main = document.createElement('main');
     main.id = 'main';
     main.tabIndex = -1;

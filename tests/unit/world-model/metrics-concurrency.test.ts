@@ -5,7 +5,7 @@ import type { WorldModelQueryExecutor } from '@/server/world-model/db';
 describe('collectWorldModelMetrics', () => {
   it('starts all independent metric queries concurrently', async () => {
     const resolvers: Array<(value: unknown) => void> = [];
-    const query = vi.fn(
+    const query = vi.fn<() => Promise<unknown>>(
       () =>
         new Promise((resolve) => {
           resolvers.push(resolve);

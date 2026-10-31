@@ -94,13 +94,22 @@ describe('AuthUserStore', () => {
   });
 
   it.each([
-    { email: 'admin@example.test', password: '' },
-    { email: '', password: 'unique-bootstrap-password' },
-    { email: 'admin@example.test', password: 'admin1234' },
-  ])('rejects incomplete or publicly known bootstrap credentials', (credentials) => {
+    {
+      credentials: { email: 'admin@example.test', password: '' },
+      message: 'Set both AUTH_DEFAULT_EMAIL and AUTH_DEFAULT_PASSWORD.',
+    },
+    {
+      credentials: { email: '', password: 'unique-bootstrap-password' },
+      message: 'Set both AUTH_DEFAULT_EMAIL and AUTH_DEFAULT_PASSWORD.',
+    },
+    {
+      credentials: { email: 'admin@example.test', password: 'admin1234' },
+      message: 'The public default admin password is unsafe; choose a unique password.',
+    },
+  ])('rejects incomplete or publicly known bootstrap credentials', ({ credentials, message }) => {
     const dbPath = path.join(os.tmpdir(), `auth-user-store-${crypto.randomUUID()}.db`);
     tempDbPaths.push(dbPath);
-    withAuthEnv(credentials, () => expect(() => new AuthUserStore(dbPath)).toThrow());
+    withAuthEnv(credentials, () => expect(() => new AuthUserStore(dbPath)).toThrow(message));
   });
 
   it('blocks an old default password and recovers that account with explicit credentials', () => {

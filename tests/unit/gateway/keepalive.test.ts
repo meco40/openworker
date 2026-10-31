@@ -4,6 +4,7 @@ import type { WebSocket } from 'ws';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import { getClientRegistry } from '@/server/gateway/client-registry';
 import { runGatewayKeepaliveSweep } from '@/server/gateway/keepalive';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockSocket = WebSocket & {
   ping: ReturnType<typeof vi.fn>;
@@ -14,8 +15,8 @@ function makeMockSocket(overrides: Partial<MockSocket> = {}): MockSocket {
   return {
     OPEN: 1,
     readyState: 1,
-    ping: vi.fn(),
-    terminate: vi.fn(),
+    ping: vi.fn<MockProcedure>(),
+    terminate: vi.fn<MockProcedure>(),
     ...overrides,
   } as unknown as MockSocket;
 }

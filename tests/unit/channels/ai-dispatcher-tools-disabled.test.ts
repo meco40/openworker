@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 
-const buildActiveSkillsPromptSectionMock = vi.hoisted(() => vi.fn(() => 'ACTIVE SKILLS BLOCK'));
+const buildActiveSkillsPromptSectionMock = vi.hoisted(() =>
+  vi.fn<() => string>(() => 'ACTIVE SKILLS BLOCK'),
+);
 
 vi.mock('@/server/channels/messages/service/dispatchers/skillsPrompt', () => ({
   buildActiveSkillsPromptSection: buildActiveSkillsPromptSectionMock,
@@ -35,6 +37,7 @@ vi.mock('@/server/skills/skillRepository', () => ({
 }));
 
 import { dispatchToAI } from '@/server/channels/messages/service/dispatchers/aiDispatcher';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('dispatchToAI toolsDisabled behavior', () => {
   const conversation = {
@@ -62,25 +65,29 @@ describe('dispatchToAI toolsDisabled behavior', () => {
   function createDeps() {
     return {
       contextBuilder: {
-        buildGatewayMessages: vi.fn(() => [{ role: 'user', content: 'hello' }]),
+        buildGatewayMessages: vi.fn<() => { role: string; content: string }[]>(() => [
+          { role: 'user', content: 'hello' },
+        ]),
       },
       recallService: {
-        buildRecallContext: vi.fn(async () => null),
+        buildRecallContext: vi.fn<() => Promise<null>>(async () => null),
       },
       summaryService: {
-        maybeRefreshConversationSummary: vi.fn(async () => {}),
+        maybeRefreshConversationSummary: vi.fn<() => Promise<void>>(async () => {}),
       },
       toolManager: {
-        resolveToolContext: vi.fn(async () => ({
+        resolveToolContext: vi.fn<MockProcedure>(async () => ({
           tools: [{ type: 'function', function: { name: 'shell_execute' } }],
           installedFunctionNames: new Set<string>(['shell_execute']),
           functionToSkillId: new Map<string, string>([['shell_execute', 'shell-access']]),
         })),
       },
-      resolveChatModelRouting: vi.fn(() => ({ modelHubProfileId: 'p1' })),
+      resolveChatModelRouting: vi.fn<() => { modelHubProfileId: string }>(() => ({
+        modelHubProfileId: 'p1',
+      })),
       runModelToolLoop: runModelToolLoopMock,
       activeRequests: new Map<string, AbortController>(),
-      resolveConversationWorkspaceCwd: vi.fn(),
+      resolveConversationWorkspaceCwd: vi.fn<MockProcedure>(),
     };
   }
 

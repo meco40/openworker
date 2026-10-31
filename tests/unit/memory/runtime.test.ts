@@ -12,6 +12,7 @@ import {
   recoverMemoryRuntimeNow,
   setMemoryRuntimeReadyStateForTests,
 } from '@/server/memory/runtime';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type GlobalSingletons = typeof globalThis & {
   __mem0Client?: Mem0Client | null;
@@ -170,7 +171,7 @@ describe('memory runtime configuration', () => {
   });
 
   it('verifies mem0 connectivity through listMemories', async () => {
-    const listMemories = vi.fn().mockResolvedValue({
+    const listMemories = vi.fn<MockProcedure>().mockResolvedValue({
       memories: [],
       total: 0,
       page: 1,
@@ -192,7 +193,7 @@ describe('memory runtime configuration', () => {
 
   it('throws a clear error when mem0 connectivity probe fails', async () => {
     globals.__mem0Client = {
-      listMemories: vi.fn().mockRejectedValue(new Error('connection refused')),
+      listMemories: vi.fn<MockProcedure>().mockRejectedValue(new Error('connection refused')),
     } as unknown as Mem0Client;
 
     await expect(assertMemoryRuntimeReady()).rejects.toThrow(/connectivity check failed/i);
@@ -201,7 +202,7 @@ describe('memory runtime configuration', () => {
 
   it('includes non-Error probe failures in the connectivity message', async () => {
     globals.__mem0Client = {
-      listMemories: vi.fn().mockRejectedValue('provider offline'),
+      listMemories: vi.fn<MockProcedure>().mockRejectedValue('provider offline'),
     } as unknown as Mem0Client;
 
     await expect(assertMemoryRuntimeReady()).rejects.toThrow(
@@ -212,7 +213,7 @@ describe('memory runtime configuration', () => {
   it('continues startup in development when mem0 stays unavailable', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     globals.__mem0Client = {
-      listMemories: vi.fn().mockRejectedValue(new Error('connection refused')),
+      listMemories: vi.fn<MockProcedure>().mockRejectedValue(new Error('connection refused')),
     } as unknown as Mem0Client;
 
     await expect(
@@ -232,7 +233,7 @@ describe('memory runtime configuration', () => {
 
   it('retries and throws in production when mem0 stays unavailable', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const listMemories = vi.fn().mockRejectedValue(new Error('connection refused'));
+    const listMemories = vi.fn<MockProcedure>().mockRejectedValue(new Error('connection refused'));
     globals.__mem0Client = {
       listMemories,
     } as unknown as Mem0Client;
@@ -256,7 +257,7 @@ describe('memory runtime configuration', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
     const listMemories = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockRejectedValueOnce(new Error('temporary timeout'))
       .mockResolvedValue({
         memories: [],
@@ -290,7 +291,7 @@ describe('memory runtime configuration', () => {
   it('uses startup defaults when no options are supplied', async () => {
     setEnv('NODE_ENV', 'development');
     globals.__mem0Client = {
-      listMemories: vi.fn().mockResolvedValue({
+      listMemories: vi.fn<MockProcedure>().mockResolvedValue({
         memories: [],
         total: 0,
         page: 1,
@@ -304,7 +305,7 @@ describe('memory runtime configuration', () => {
   it('reports non-Error startup failures and continues in development', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     globals.__mem0Client = {
-      listMemories: vi.fn().mockRejectedValue('provider offline'),
+      listMemories: vi.fn<MockProcedure>().mockRejectedValue('provider offline'),
     } as unknown as Mem0Client;
 
     await expect(
@@ -321,7 +322,7 @@ describe('memory runtime configuration', () => {
 
   it('uses the production retry default and fails closed after all attempts', async () => {
     setEnv('NODE_ENV', 'test');
-    const listMemories = vi.fn().mockRejectedValue(new Error('connection refused'));
+    const listMemories = vi.fn<MockProcedure>().mockRejectedValue(new Error('connection refused'));
     globals.__mem0Client = { listMemories } as unknown as Mem0Client;
 
     await expect(
@@ -356,7 +357,7 @@ describe('memory runtime configuration', () => {
     expect(getMemoryRuntimeReadyState()).toBeNull();
     globals.__mem0Client = {
       provider: 'sqlite',
-      listMemories: vi.fn(),
+      listMemories: vi.fn<MockProcedure>(),
     } as unknown as Mem0Client;
     globals.__memoryService = undefined;
 
@@ -366,7 +367,7 @@ describe('memory runtime configuration', () => {
 
   it('recovers a degraded runtime after Mem0 becomes reachable without a restart', async () => {
     setMemoryRuntimeReadyStateForTests(false);
-    const listMemories = vi.fn().mockResolvedValue({
+    const listMemories = vi.fn<MockProcedure>().mockResolvedValue({
       memories: [],
       total: 0,
       page: 1,
@@ -388,7 +389,9 @@ describe('memory runtime configuration', () => {
       page: number;
       pageSize: number;
     }) => void;
-    const listMemories = vi.fn(
+    const listMemories = vi.fn<
+      () => Promise<{ memories: []; total: number; page: number; pageSize: number }>
+    >(
       () =>
         new Promise<{ memories: []; total: number; page: number; pageSize: number }>((resolve) => {
           releaseProbe = resolve;

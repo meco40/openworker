@@ -4,19 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
 function mockUserContext(context: MockUserContext): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
 describe('project delete + conversation delete flow', () => {
   let repo: SqliteMessageRepository;
   let personasRootPath = '';
-  const emitInboxUpdated = vi.fn();
+  const emitInboxUpdated = vi.fn<MockProcedure>();
 
   beforeEach(() => {
     vi.resetModules();
@@ -49,7 +50,7 @@ describe('project delete + conversation delete flow', () => {
     }));
 
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
     vi.doMock('../../../src/server/channels/inbox/events', async () => {
       const actual = await vi.importActual<

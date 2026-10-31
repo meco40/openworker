@@ -51,9 +51,10 @@ export function useAgentRoomRuntime() {
   const clientRef = useRef<AgentV2GatewayClient | null>(null);
   const gatewayClient = useGatewayClient() as AgentV2GatewayClient;
 
-  if (!clientRef.current && gatewayClient) {
-    clientRef.current = gatewayClient;
-  }
+  // Declared before the sub-hooks, so their effects (which read the ref) run after it.
+  useEffect(() => {
+    clientRef.current = gatewayClient ?? null;
+  }, [gatewayClient]);
 
   const sessionToSwarmRef = useRef<Map<string, string>>(new Map());
   const commandToInfoRef = useRef<Map<string, { personaId: string; phase: string }>>(new Map());
@@ -161,6 +162,14 @@ export function useAgentRoomRuntime() {
     [],
   );
 
+  /** Registers the view's agent event listener; `null` removes it. */
+  const setAgentEventHandler = useCallback(
+    (handler: ((event: AgentV2EventEnvelope) => void) | null) => {
+      onAgentEventRef.current = handler;
+    },
+    [],
+  );
+
   return {
     swarms,
     selectedSwarmId,
@@ -186,6 +195,6 @@ export function useAgentRoomRuntime() {
     lookupSwarmBySessionId,
     getCommandInfo,
     rehydrateSwarm,
-    onAgentEventRef,
+    setAgentEventHandler,
   };
 }

@@ -130,8 +130,7 @@ export class SkillRuntimeConfigStore {
   getValue(id: string): string | null {
     ensureKnownFieldId(id);
     const row = this.db.prepare('SELECT value FROM skill_runtime_config WHERE id = ?').get(id) as
-      | { value: string }
-      | undefined;
+      { value: string } | undefined;
     return row?.value ?? null;
   }
 

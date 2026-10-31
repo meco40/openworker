@@ -2,18 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EventRecord, ObservationInput } from '@/server/world-model/types';
 
 const mocks = vi.hoisted(() => ({
-  client: { query: vi.fn() },
-  withWorldModelTransaction: vi.fn(),
-  getEventById: vi.fn(),
-  insertEvent: vi.fn(),
-  insertEventTransition: vi.fn(),
-  listEventTimeline: vi.fn(),
-  updateEventStatus: vi.fn(),
-  insertObservationWithResult: vi.fn(),
-  enqueueOutboxEvent: vi.fn(),
-  getOpenLoopByKey: vi.fn(),
-  insertOpenLoop: vi.fn(),
-  updateOpenLoopStatus: vi.fn(),
+  client: { query: vi.fn<MockProcedure>() },
+  withWorldModelTransaction: vi.fn<MockProcedure>(),
+  getEventById: vi.fn<MockProcedure>(),
+  insertEvent: vi.fn<MockProcedure>(),
+  insertEventTransition: vi.fn<MockProcedure>(),
+  listEventTimeline: vi.fn<MockProcedure>(),
+  updateEventStatus: vi.fn<MockProcedure>(),
+  insertObservationWithResult: vi.fn<MockProcedure>(),
+  enqueueOutboxEvent: vi.fn<MockProcedure>(),
+  getOpenLoopByKey: vi.fn<MockProcedure>(),
+  insertOpenLoop: vi.fn<MockProcedure>(),
+  updateOpenLoopStatus: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -47,6 +47,7 @@ import {
   planEvent,
   resolveEventOpenLoop,
 } from '@/server/world-model/services/eventService';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const observation: ObservationInput = {
   userId: 'user-1',

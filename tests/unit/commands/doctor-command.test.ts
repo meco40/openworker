@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LogRepository } from '@/logging/logRepository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockHealthCheck = {
   id: string;
@@ -13,7 +14,7 @@ type MockHealthCheck = {
 
 function mockHealth(checks: MockHealthCheck[], status: 'ok' | 'degraded' | 'critical' = 'ok') {
   return {
-    runHealthCommand: vi.fn().mockResolvedValue({
+    runHealthCommand: vi.fn<MockProcedure>().mockResolvedValue({
       status,
       checks,
       summary: { ok: 0, warning: 0, critical: 0, skipped: 0 },

@@ -31,10 +31,7 @@ interface AnthropicToolResultBlock {
 }
 
 type AnthropicContentBlock =
-  | AnthropicTextBlock
-  | AnthropicImageBlock
-  | AnthropicToolUseBlock
-  | AnthropicToolResultBlock;
+  AnthropicTextBlock | AnthropicImageBlock | AnthropicToolUseBlock | AnthropicToolResultBlock;
 
 // Tool definition for Anthropic
 interface AnthropicTool {

@@ -178,7 +178,7 @@ function ResponsePanel({
   if (!transcript && !aiResponse) return null;
 
   return (
-    <div className="scrollbar-thin scrollbar-thumb-white/10 max-h-40 w-full max-w-lg space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-4 text-sm backdrop-blur-md">
+    <div className="max-h-40 w-full max-w-lg scrollbar-thin scrollbar-thumb-white/10 space-y-3 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-4 text-sm backdrop-blur-md">
       {transcript && (
         <div className="flex gap-2.5">
           <span className="mt-0.5 shrink-0 text-cyan-400">

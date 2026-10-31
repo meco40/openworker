@@ -5,13 +5,14 @@ import {
   retrieveContext,
   type RetrievalContextResult,
 } from '@/server/world-model/retrieval';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const mocks = vi.hoisted(() => ({
-  searchAssertions: vi.fn().mockResolvedValue([]),
-  searchTasks: vi.fn().mockResolvedValue([]),
-  searchRelations: vi.fn().mockResolvedValue([]),
-  searchOpenLoops: vi.fn().mockResolvedValue([]),
-  searchGraphitiFactsWithRerank: vi.fn().mockResolvedValue([]),
+  searchAssertions: vi.fn<MockProcedure>().mockResolvedValue([]),
+  searchTasks: vi.fn<MockProcedure>().mockResolvedValue([]),
+  searchRelations: vi.fn<MockProcedure>().mockResolvedValue([]),
+  searchOpenLoops: vi.fn<MockProcedure>().mockResolvedValue([]),
+  searchGraphitiFactsWithRerank: vi.fn<MockProcedure>().mockResolvedValue([]),
 }));
 
 let mockConfig: {
@@ -20,11 +21,11 @@ let mockConfig: {
   graphitiRecallEnabled: boolean;
   graphitiBackendEnabled: boolean;
 };
-const findStructured = vi.fn();
-const fullText = vi.fn();
-const getEmbeddingProvider = vi.fn();
-const generateEmbeddingOnce = vi.fn();
-const vectorSearch = vi.fn();
+const findStructured = vi.fn<MockProcedure>();
+const fullText = vi.fn<MockProcedure>();
+const getEmbeddingProvider = vi.fn<MockProcedure>();
+const generateEmbeddingOnce = vi.fn<MockProcedure>();
+const vectorSearch = vi.fn<MockProcedure>();
 
 vi.mock('@/server/world-model/config', () => ({
   getWorldModelConfig: () => mockConfig,
@@ -171,7 +172,7 @@ describe('retrieveContext', () => {
     const provider = {
       model: 'embed-test',
       modelVersion: '1',
-      generateEmbedding: vi.fn(),
+      generateEmbedding: vi.fn<MockProcedure>(),
     };
     getEmbeddingProvider.mockReturnValue(provider);
     generateEmbeddingOnce.mockResolvedValue([0.1, 0.2]);
@@ -273,7 +274,11 @@ describe('retrieveContext', () => {
 
   it('keeps canonical results when embedding generation or vector search fails', async () => {
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const provider = { model: 'embed-test', modelVersion: '1', generateEmbedding: vi.fn() };
+    const provider = {
+      model: 'embed-test',
+      modelVersion: '1',
+      generateEmbedding: vi.fn<MockProcedure>(),
+    };
     getEmbeddingProvider.mockReturnValue(provider);
     generateEmbeddingOnce.mockRejectedValueOnce(new Error('embedding unavailable'));
     fullText.mockResolvedValue([

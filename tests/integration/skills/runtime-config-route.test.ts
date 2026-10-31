@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SkillRuntimeConfigStore } from '@/server/skills/runtimeConfig';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
 function mockUserContext(context: MockUserContext): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 

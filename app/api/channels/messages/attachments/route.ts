@@ -49,7 +49,7 @@ export const GET = withUserContext(async ({ request, userContext }) => {
       return NextResponse.json({ ok: false, error: 'Attachment file missing' }, { status: 404 });
     }
 
-    return new Response(buffer, {
+    return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': attachment.mimeType || 'application/octet-stream',

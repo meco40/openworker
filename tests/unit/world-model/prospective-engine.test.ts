@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Observation, StandingIntentRecord } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 let matchStandingIntents: typeof import('@/server/world-model/services/prospectiveEngine').matchStandingIntents;
 
-const listArmed = vi.fn();
-const registerFire = vi.fn();
-const transactionDb = { query: vi.fn() };
+const listArmed = vi.fn<MockProcedure>();
+const registerFire = vi.fn<MockProcedure>();
+const transactionDb = { query: vi.fn<MockProcedure>() };
 
 vi.mock('@/server/world-model/db', () => ({
   withWorldModelTransaction: (callback: (db: typeof transactionDb) => Promise<unknown>) =>
@@ -14,7 +15,9 @@ vi.mock('@/server/world-model/db', () => ({
 }));
 
 vi.mock('@/server/world-model/services/standingIntentDispatcher', () => ({
-  dispatchStandingIntentAction: vi.fn(async () => ({
+  dispatchStandingIntentAction: vi.fn<
+    () => Promise<{ dispatched: boolean; outboxEventId: string; created: boolean }>
+  >(async () => ({
     dispatched: true,
     outboxEventId: 'outbox-1',
     created: true,
@@ -24,9 +27,9 @@ vi.mock('@/server/world-model/services/standingIntentDispatcher', () => ({
 vi.mock('@/server/world-model/repositories/prospectiveRepository', () => ({
   listArmedStandingIntents: (...args: unknown[]) => listArmed(...args),
   registerStandingIntentFire: (...args: unknown[]) => registerFire(...args),
-  listDueOpenLoops: vi.fn(async () => []),
-  listOverdueOpenLoops: vi.fn(async () => []),
-  updateOpenLoopStatus: vi.fn(async () => {}),
+  listDueOpenLoops: vi.fn<() => Promise<never[]>>(async () => []),
+  listOverdueOpenLoops: vi.fn<() => Promise<never[]>>(async () => []),
+  updateOpenLoopStatus: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 function intent(partial: Partial<StandingIntentRecord>): StandingIntentRecord {

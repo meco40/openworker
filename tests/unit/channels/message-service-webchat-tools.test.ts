@@ -20,10 +20,10 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
   })),
 );
 
-const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
-const broadcastToUserMock = vi.hoisted(() => vi.fn());
+const deliverOutboundMock = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => {}));
+const broadcastToUserMock = vi.hoisted(() => vi.fn<MockProcedure>());
 const memoryRecallMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
     context: '',
     matches: [],
   })),
@@ -47,8 +47,8 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
     recallDetailed: memoryRecallMock,
-    store: vi.fn(async () => ({ id: 'mem-1' })),
-    updateFeedback: vi.fn(async () => {}),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+    updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
   }),
 }));
 
@@ -93,6 +93,7 @@ vi.mock('@/skills/definitions', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(personaId: string | null): MessageRepository {
   let seq = 0;

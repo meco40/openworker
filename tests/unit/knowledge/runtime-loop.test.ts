@@ -8,7 +8,7 @@ describe('KnowledgeRuntimeLoop', () => {
 
   it('invokes ingestion periodically when enabled', async () => {
     vi.useFakeTimers();
-    const runIngestion = vi.fn(async () => {});
+    const runIngestion = vi.fn<() => Promise<void>>(async () => {});
 
     const loop = new KnowledgeRuntimeLoop({
       enabled: true,
@@ -26,7 +26,7 @@ describe('KnowledgeRuntimeLoop', () => {
 
   it('does not run when disabled by feature flags', async () => {
     vi.useFakeTimers();
-    const runIngestion = vi.fn(async () => {});
+    const runIngestion = vi.fn<() => Promise<void>>(async () => {});
 
     const loop = new KnowledgeRuntimeLoop({
       enabled: false,
@@ -42,7 +42,7 @@ describe('KnowledgeRuntimeLoop', () => {
 
   it('supports graceful shutdown and prevents further ticks', async () => {
     vi.useFakeTimers();
-    const runIngestion = vi.fn(async () => {});
+    const runIngestion = vi.fn<() => Promise<void>>(async () => {});
 
     const loop = new KnowledgeRuntimeLoop({
       enabled: true,

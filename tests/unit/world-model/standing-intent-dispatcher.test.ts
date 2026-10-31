@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Observation, StandingIntentRecord } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type Mocks = {
   enqueueOutboxEvent: ReturnType<typeof vi.fn>;
@@ -12,9 +13,9 @@ let mocks: Mocks;
 beforeEach(() => {
   vi.resetModules();
   mocks = {
-    enqueueOutboxEvent: vi.fn().mockResolvedValue({ id: 'outbox-1', created: true }),
-    insertOpenLoop: vi.fn().mockResolvedValue({ id: 'loop-1' }),
-    executeAction: vi.fn().mockResolvedValue({ succeeded: true }),
+    enqueueOutboxEvent: vi.fn<MockProcedure>().mockResolvedValue({ id: 'outbox-1', created: true }),
+    insertOpenLoop: vi.fn<MockProcedure>().mockResolvedValue({ id: 'loop-1' }),
+    executeAction: vi.fn<MockProcedure>().mockResolvedValue({ succeeded: true }),
   };
   vi.doMock('@/server/world-model/repositories/outboxRepository', () => ({
     enqueueOutboxEvent: mocks.enqueueOutboxEvent,
@@ -64,7 +65,7 @@ describe('standing intent dispatcher', () => {
   it('enqueues a scoped, idempotent outbox event for a fired intent', async () => {
     const { dispatchStandingIntentAction } =
       await import('@/server/world-model/services/standingIntentDispatcher');
-    const db = { query: vi.fn() };
+    const db = { query: vi.fn<MockProcedure>() };
 
     await expect(dispatchStandingIntentAction({ intent, observation }, db)).resolves.toEqual({
       dispatched: true,
@@ -187,7 +188,7 @@ describe('standing intent dispatcher', () => {
   it('routes fired payloads to the handler and requires a registered action handler', async () => {
     const { buildIntentFiredHandler } =
       await import('@/server/world-model/services/standingIntentDispatcher');
-    const onAction = vi.fn();
+    const onAction = vi.fn<MockProcedure>();
     const event = {
       id: 'outbox-1',
       eventType: 'proactive.intent.fired',
@@ -220,7 +221,7 @@ describe('standing intent dispatcher', () => {
   it('falls back to the aggregate id and omits empty or missing payload fields', async () => {
     const { buildIntentFiredHandler } =
       await import('@/server/world-model/services/standingIntentDispatcher');
-    const onAction = vi.fn();
+    const onAction = vi.fn<MockProcedure>();
     await buildIntentFiredHandler(onAction)({
       id: 'outbox-2',
       eventType: 'proactive.intent.fired',

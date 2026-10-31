@@ -7,7 +7,7 @@ describe('kimi model fetching', () => {
 
   it('returns provider default model when remote models endpoint is empty', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,7 +14,7 @@ describe('requestControlPlaneMetrics', () => {
     });
     const metrics = { uptimeMs: 42 };
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockReturnValueOnce(firstResponse)
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ ok: true, metrics }), {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type TestGlobals = typeof globalThis & {
   __channelHealthMonitorHandle?: { stop: () => void };
@@ -49,13 +50,16 @@ describe('channel health monitor', () => {
   });
 
   it('attempts webhook refresh after repeated failures and marks account connected on success', async () => {
-    const registerBridgeWebhook = vi.fn(async () => ({ ok: true }));
-    const probeBridgeHealth = vi.fn(async () => ({ ok: false, status: 503 }));
-    const listBridgeAccounts = vi.fn(() => [
-      { accountId: 'sales', pairingStatus: 'connected', peerName: null, lastSeenAt: null },
-    ]);
-    const upsertBridgeAccount = vi.fn();
-    const resolveBridgeAccountSecret = vi.fn(() => 'secret');
+    const registerBridgeWebhook = vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
+    const probeBridgeHealth = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+      ok: false,
+      status: 503,
+    }));
+    const listBridgeAccounts = vi.fn<
+      () => { accountId: string; pairingStatus: string; peerName: null; lastSeenAt: null }[]
+    >(() => [{ accountId: 'sales', pairingStatus: 'connected', peerName: null, lastSeenAt: null }]);
+    const upsertBridgeAccount = vi.fn<MockProcedure>();
+    const resolveBridgeAccountSecret = vi.fn<() => string>(() => 'secret');
 
     vi.doMock('../../../src/server/channels/pairing/bridge', () => ({
       registerBridgeWebhook,

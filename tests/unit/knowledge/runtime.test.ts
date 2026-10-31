@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type RuntimeGlobals = typeof globalThis & {
   __messageRepository?: unknown;
@@ -62,9 +63,9 @@ describe('knowledge runtime', () => {
   });
 
   it('creates and caches repository singletons', async () => {
-    const repositoryConstructor = vi.fn();
+    const repositoryConstructor = vi.fn<MockProcedure>();
     class SqliteKnowledgeRepository {
-      listEpisodes = vi.fn(() => []);
+      listEpisodes = vi.fn<() => never[]>(() => []);
       constructor() {
         repositoryConstructor();
       }
@@ -85,9 +86,9 @@ describe('knowledge runtime', () => {
     const sharedMessageRepository = { shared: true };
     globals.__messageRepository =
       sharedMessageRepository as unknown as RuntimeGlobals['__messageRepository'];
-    const cursorConstructor = vi.fn();
-    const messageRepositoryConstructor = vi.fn();
-    const knowledgeRepositoryConstructor = vi.fn();
+    const cursorConstructor = vi.fn<MockProcedure>();
+    const messageRepositoryConstructor = vi.fn<MockProcedure>();
+    const knowledgeRepositoryConstructor = vi.fn<MockProcedure>();
 
     class KnowledgeIngestionCursor {
       constructor(_messageRepository: unknown, _knowledgeRepository: unknown, _options: unknown) {
@@ -126,8 +127,8 @@ describe('knowledge runtime', () => {
   });
 
   it('creates dedicated sqlite message repository when no shared repository exists', async () => {
-    const cursorConstructor = vi.fn();
-    const messageRepositoryConstructor = vi.fn();
+    const cursorConstructor = vi.fn<MockProcedure>();
+    const messageRepositoryConstructor = vi.fn<MockProcedure>();
 
     class KnowledgeIngestionCursor {
       constructor() {
@@ -234,7 +235,7 @@ describe('knowledge runtime', () => {
     mockKnowledgeConfig({ minMessagesPerBatch: 1 });
 
     const dispatchWithFallback = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce({ ok: true, text: 'model output' })
       .mockResolvedValueOnce({ ok: false, error: 'rate limited' });
     let capturedRunExtractionModel: ((prompt: string) => Promise<string>) | null = null;
@@ -351,8 +352,8 @@ describe('knowledge runtime', () => {
     let capturedOptions: MaintenanceCallbacks | null = null;
 
     class MockKnowledgeRuntimeLoop {
-      start = vi.fn();
-      stop = vi.fn();
+      start = vi.fn<MockProcedure>();
+      stop = vi.fn<MockProcedure>();
       constructor(options: unknown) {
         capturedOptions = options as MaintenanceCallbacks;
       }
@@ -376,19 +377,19 @@ describe('knowledge runtime', () => {
       detectOrphans: () => ({ mem0OrphansFound: 2, knowledgeOrphansFound: 1 }),
     }));
     vi.doMock('../../../src/server/knowledge/sqliteKnowledgeRepository', () => ({
-      SqliteKnowledgeRepository: vi.fn(() => ({
-        listEpisodes: vi.fn(() => []),
+      SqliteKnowledgeRepository: vi.fn<MockProcedure>(() => ({
+        listEpisodes: vi.fn<() => never[]>(() => []),
       })),
     }));
     vi.doMock('../../../src/server/memory/runtime', () => ({
       getMemoryServiceIfReady: () => ({
-        snapshot: vi.fn(async () => []),
+        snapshot: vi.fn<() => Promise<never[]>>(async () => []),
       }),
-      getMemoryService: vi.fn(),
+      getMemoryService: vi.fn<MockProcedure>(),
     }));
 
     globals.__knowledgeRepository = {
-      listEpisodes: vi.fn(() => [
+      listEpisodes: vi.fn<MockProcedure>(() => [
         {
           id: 'ep-1',
           userId: 'user-a',
@@ -406,7 +407,7 @@ describe('knowledge runtime', () => {
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ]),
-      listMeetingLedger: vi.fn(() => []),
+      listMeetingLedger: vi.fn<() => never[]>(() => []),
     } as unknown as RuntimeGlobals['__knowledgeRepository'];
 
     const runtime = await import('@/server/knowledge/runtime');

@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  config: vi.fn(),
-  markOpenLoopAsked: vi.fn(),
-  insertDeliveryReceipt: vi.fn(),
-  getDeliveryReceiptByOutboxEventId: vi.fn(),
-  withWorldModelTransaction: vi.fn(),
-  deliverOutboundWithReceipt: vi.fn(),
-  listChannelBindings: vi.fn(),
+  config: vi.fn<MockProcedure>(),
+  markOpenLoopAsked: vi.fn<MockProcedure>(),
+  insertDeliveryReceipt: vi.fn<MockProcedure>(),
+  getDeliveryReceiptByOutboxEventId: vi.fn<MockProcedure>(),
+  withWorldModelTransaction: vi.fn<MockProcedure>(),
+  deliverOutboundWithReceipt: vi.fn<MockProcedure>(),
+  listChannelBindings: vi.fn<MockProcedure>(),
   listChannelBindingsAvailable: true,
-  executeStandingIntentFollowUp: vi.fn(),
+  executeStandingIntentFollowUp: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/config', () => ({ getWorldModelConfig: mocks.config }));
@@ -45,6 +45,7 @@ import type { ChannelBinding } from '@/server/channels/messages/channelBindings'
 import type { OutboxEvent } from '@/server/world-model/types';
 import type { WorldModelQueryExecutor } from '@/server/world-model/db';
 import { ChannelType } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function binding(overrides: Partial<ChannelBinding> = {}): ChannelBinding {
   return {
@@ -101,7 +102,7 @@ describe('proactive channel delivery', () => {
     });
     mocks.withWorldModelTransaction.mockImplementation(
       async (callback: (db: WorldModelQueryExecutor) => Promise<unknown>) =>
-        callback({ query: vi.fn() }),
+        callback({ query: vi.fn<MockProcedure>() }),
     );
   });
 

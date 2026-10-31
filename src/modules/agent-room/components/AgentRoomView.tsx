@@ -33,7 +33,7 @@ export default function AgentRoomView() {
 
   // Wire runtime event dispatcher to message hook
   useEffect(() => {
-    runtime.onAgentEventRef.current = (event) => {
+    runtime.setAgentEventHandler((event) => {
       if (event.type === 'agent.v2.command.started' && event.commandId) {
         const swarm = runtime.lookupSwarmBySessionId(event.sessionId);
         if (swarm) {
@@ -80,7 +80,8 @@ export default function AgentRoomView() {
         }
       }
       handleMessageEvent(event);
-    };
+    });
+    return () => runtime.setAgentEventHandler(null);
   }, [
     runtime,
     personas,
@@ -224,17 +225,13 @@ export default function AgentRoomView() {
     [confirm, runtime],
   );
 
-  useEffect(() => {
-    if (pageMode !== 'detail') return;
-    if (!runtime.selectedSwarmId) {
-      setPageMode('entry');
-      return;
-    }
-    if (!runtime.selectedSwarm) {
-      setPageMode('entry');
+  // The detail page needs an existing swarm; fall back to the entry page during render.
+  if (pageMode === 'detail' && (!runtime.selectedSwarmId || !runtime.selectedSwarm)) {
+    setPageMode('entry');
+    if (runtime.selectedSwarmId) {
       setNotice('The selected task no longer exists.');
     }
-  }, [pageMode, runtime.selectedSwarm, runtime.selectedSwarmId]);
+  }
 
   return (
     <div className="h-full">

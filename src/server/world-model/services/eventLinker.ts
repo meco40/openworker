@@ -1,13 +1,7 @@
 import type { EventStatus } from '@/server/world-model/types';
 
 export type EventUtteranceKind =
-  | 'proposal'
-  | 'plan'
-  | 'change'
-  | 'cancellation'
-  | 'history'
-  | 'outcome_confirmation'
-  | 'unknown';
+  'proposal' | 'plan' | 'change' | 'cancellation' | 'history' | 'outcome_confirmation' | 'unknown';
 
 export interface EventCandidateHit {
   eventId: string;

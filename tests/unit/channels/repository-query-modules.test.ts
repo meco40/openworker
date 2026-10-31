@@ -4,6 +4,7 @@ import { ContextQueries } from '@/server/channels/messages/repository/queries/co
 import { SearchQueries } from '@/server/channels/messages/repository/queries/search';
 import { DeleteQueries } from '@/server/channels/messages/repository/queries/delete';
 import { ChannelType } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockStatement = {
   get?: ReturnType<typeof vi.fn>;
@@ -13,8 +14,8 @@ type MockStatement = {
 
 function makeDb(prepareImpl: (sql: string) => MockStatement) {
   return {
-    prepare: vi.fn((sql: string) => prepareImpl(sql)),
-    exec: vi.fn(),
+    prepare: vi.fn<(sql: string) => MockStatement>((sql: string) => prepareImpl(sql)),
+    exec: vi.fn<MockProcedure>(),
   };
 }
 
@@ -25,7 +26,7 @@ describe('ContextQueries', () => {
   });
 
   it('returns null when conversation is not visible', () => {
-    const db = makeDb(() => ({ get: vi.fn() }));
+    const db = makeDb(() => ({ get: vi.fn<MockProcedure>() }));
     const queries = new ContextQueries(db as never);
 
     const result = queries.getConversationContext('conv-1', () => null, 'user-a');
@@ -35,7 +36,7 @@ describe('ContextQueries', () => {
   });
 
   it('returns null when context row does not exist', () => {
-    const db = makeDb(() => ({ get: vi.fn() }));
+    const db = makeDb(() => ({ get: vi.fn<MockProcedure>() }));
     const queries = new ContextQueries(db as never);
 
     const result = queries.getConversationContext(
@@ -56,7 +57,14 @@ describe('ContextQueries', () => {
 
   it('maps conversation context row to state', () => {
     const db = makeDb(() => ({
-      get: vi.fn(() => ({
+      get: vi.fn<
+        () => {
+          conversation_id: string;
+          summary_text: string;
+          summary_upto_seq: number;
+          updated_at: string;
+        }
+      >(() => ({
         conversation_id: 'conv-1',
         summary_text: 'Summary',
         summary_upto_seq: 11,
@@ -84,7 +92,7 @@ describe('ContextQueries', () => {
   });
 
   it('throws when upserting context for missing conversation', () => {
-    const db = makeDb(() => ({ run: vi.fn() }));
+    const db = makeDb(() => ({ run: vi.fn<MockProcedure>() }));
     const queries = new ContextQueries(db as never);
 
     expect(() =>
@@ -95,7 +103,7 @@ describe('ContextQueries', () => {
   it('upserts context and returns persisted state', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-02-22T01:00:00.000Z'));
-    const run = vi.fn();
+    const run = vi.fn<MockProcedure>();
     const db = makeDb(() => ({ run }));
     const queries = new ContextQueries(db as never);
 
@@ -123,7 +131,7 @@ describe('ContextQueries', () => {
 
 describe('SearchQueries', () => {
   it('returns empty list for blank query without touching DB', () => {
-    const db = makeDb(() => ({ all: vi.fn() }));
+    const db = makeDb(() => ({ all: vi.fn<MockProcedure>() }));
     const queries = new SearchQueries(db as never);
 
     const result = queries.searchMessages('   ', { userId: 'user-a' });
@@ -133,7 +141,7 @@ describe('SearchQueries', () => {
   });
 
   it('returns empty list for punctuation-only query without touching DB', () => {
-    const db = makeDb(() => ({ all: vi.fn() }));
+    const db = makeDb(() => ({ all: vi.fn<MockProcedure>() }));
     const queries = new SearchQueries(db as never);
 
     const result = queries.searchMessages('???', { userId: 'user-a' });
@@ -143,7 +151,7 @@ describe('SearchQueries', () => {
   });
 
   it('builds filtered query and clamps limit boundaries', () => {
-    const all = vi.fn(() => [
+    const all = vi.fn<MockProcedure>(() => [
       {
         id: 'm-1',
         conversation_id: 'conv-1',
@@ -184,7 +192,7 @@ describe('SearchQueries', () => {
   });
 
   it('uses minimum limit of 1 when limit is <= 0', () => {
-    const all = vi.fn(() => []);
+    const all = vi.fn<() => never[]>(() => []);
     const db = makeDb(() => ({ all }));
     const queries = new SearchQueries(db as never);
 
@@ -197,8 +205,10 @@ describe('SearchQueries', () => {
 
 describe('DeleteQueries', () => {
   it('returns false when conversation is not found for user scope', () => {
-    const db = makeDb(() => ({ run: vi.fn() }));
-    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const db = makeDb(() => ({ run: vi.fn<MockProcedure>() }));
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => `normalized:${userId ?? ''}`,
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteConversation('conv-1', 'user-a', () => null);
@@ -211,11 +221,13 @@ describe('DeleteQueries', () => {
   it('deletes messages, context, knowledge artifacts and conversation', () => {
     const runCalls: Array<{ sql: string; args: unknown[] }> = [];
     const db = makeDb((sql) => ({
-      run: vi.fn((...args: unknown[]) => {
+      run: vi.fn<(...args: unknown[]) => void>((...args: unknown[]) => {
         runCalls.push({ sql, args });
       }),
     }));
-    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => `normalized:${userId ?? ''}`,
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteConversation(
@@ -247,7 +259,7 @@ describe('DeleteQueries', () => {
   it('rebuilds FTS index and retries delete when messages table is malformed', () => {
     let firstDelete = true;
     const db = makeDb((sql) => ({
-      run: vi.fn((...args: unknown[]) => {
+      run: vi.fn<(...args: unknown[]) => unknown[]>((...args: unknown[]) => {
         if (sql === 'DELETE FROM messages WHERE conversation_id = ?' && firstDelete) {
           firstDelete = false;
           throw new Error('database disk image is malformed');
@@ -255,7 +267,9 @@ describe('DeleteQueries', () => {
         return args;
       }),
     }));
-    const normalizeUserId = vi.fn((userId?: string) => userId?.trim() || 'legacy');
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => userId?.trim() || 'legacy',
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteConversation(
@@ -276,13 +290,15 @@ describe('DeleteQueries', () => {
 
   it('rethrows message delete errors that are not corruption-related', () => {
     const db = makeDb((sql) => ({
-      run: vi.fn(() => {
+      run: vi.fn<() => void>(() => {
         if (sql === 'DELETE FROM messages WHERE conversation_id = ?') {
           throw new Error('database locked');
         }
       }),
     }));
-    const normalizeUserId = vi.fn((userId?: string) => userId?.trim() || 'legacy');
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => userId?.trim() || 'legacy',
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     expect(() =>
@@ -302,14 +318,16 @@ describe('DeleteQueries', () => {
   it('swallows missing knowledge-table deletes and still deletes conversation', () => {
     const runCalls: Array<{ sql: string; args: unknown[] }> = [];
     const db = makeDb((sql) => ({
-      run: vi.fn((...args: unknown[]) => {
+      run: vi.fn<(...args: unknown[]) => void>((...args: unknown[]) => {
         runCalls.push({ sql, args });
         if (sql.includes('knowledge_episodes')) {
           throw new Error('no such table: knowledge_episodes');
         }
       }),
     }));
-    const normalizeUserId = vi.fn((userId?: string) => userId?.trim() || 'legacy');
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => userId?.trim() || 'legacy',
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteConversation(
@@ -329,8 +347,10 @@ describe('DeleteQueries', () => {
   });
 
   it('returns false when message is not found for user scope', () => {
-    const db = makeDb(() => ({ run: vi.fn() }));
-    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const db = makeDb(() => ({ run: vi.fn<MockProcedure>() }));
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => `normalized:${userId ?? ''}`,
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteMessage('msg-1', 'user-a', () => null);
@@ -343,7 +363,7 @@ describe('DeleteQueries', () => {
   it('deletes one message and invalidates only the runtime context cache', () => {
     const runCalls: Array<{ sql: string; args: unknown[] }> = [];
     const db = makeDb((sql) => ({
-      run: vi.fn((...args: unknown[]) => {
+      run: vi.fn<(...args: unknown[]) => { changes: number }>((...args: unknown[]) => {
         runCalls.push({ sql, args });
         if (sql.includes('DELETE FROM messages')) {
           return { changes: 1 };
@@ -351,7 +371,9 @@ describe('DeleteQueries', () => {
         return { changes: 0 };
       }),
     }));
-    const normalizeUserId = vi.fn((userId?: string) => `normalized:${userId ?? ''}`);
+    const normalizeUserId = vi.fn<(userId?: string) => string>(
+      (userId?: string) => `normalized:${userId ?? ''}`,
+    );
     const queries = new DeleteQueries(db as never, normalizeUserId);
 
     const deleted = queries.deleteMessage(

@@ -9,7 +9,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 // ─── Mock the API module ──────────────────────────────────────────────────────
 
 vi.mock('@/modules/master/api', () => ({
-  fetchMasterSettings: vi.fn(async () => ({
+  fetchMasterSettings: vi.fn<MockProcedure>(async () => ({
     persona: {
       id: 'master-1',
       name: 'Master',
@@ -35,7 +35,11 @@ vi.mock('@/modules/master/api', () => ({
       'USER.md': 'Master user',
     },
   })),
-  fetchMasterPersonas: vi.fn(async () => [
+  fetchMasterPersonas: vi.fn<
+    () => Promise<
+      { id: string; name: string; slug: string; emoji: string; systemPersonaKey: null }[]
+    >
+  >(async () => [
     {
       id: 'persona-1',
       name: 'Architect',
@@ -44,14 +48,16 @@ vi.mock('@/modules/master/api', () => ({
       systemPersonaKey: null,
     },
   ]),
-  fetchWorkspaces: vi.fn(async () => [{ id: 'main', name: 'Main', slug: 'main' }]),
-  fetchRuns: vi.fn(async () => []),
-  fetchMetrics: vi.fn(async () => null),
-  fetchRunDetail: vi.fn(async () => null),
-  fetchApprovalRequests: vi.fn(async () => []),
-  fetchSubagentSessions: vi.fn(async () => []),
-  fetchReminders: vi.fn(async () => []),
-  createRun: vi.fn(async (input: { title: string; contract: string }) => ({
+  fetchWorkspaces: vi.fn<() => Promise<{ id: string; name: string; slug: string }[]>>(async () => [
+    { id: 'main', name: 'Main', slug: 'main' },
+  ]),
+  fetchRuns: vi.fn<() => Promise<never[]>>(async () => []),
+  fetchMetrics: vi.fn<() => Promise<null>>(async () => null),
+  fetchRunDetail: vi.fn<() => Promise<null>>(async () => null),
+  fetchApprovalRequests: vi.fn<() => Promise<never[]>>(async () => []),
+  fetchSubagentSessions: vi.fn<() => Promise<never[]>>(async () => []),
+  fetchReminders: vi.fn<() => Promise<never[]>>(async () => []),
+  createRun: vi.fn<MockProcedure>(async (input: { title: string; contract: string }) => ({
     id: 'run-new',
     userId: 'u1',
     workspaceId: 'main',
@@ -72,15 +78,19 @@ vi.mock('@/modules/master/api', () => ({
     leaseExpiresAt: null,
     heartbeatAt: null,
   })),
-  postRunAction: vi.fn(async () => ({ exportBundle: { result: 'ok' } })),
-  cancelRun: vi.fn(async () => {}),
-  decideApprovalRequest: vi.fn(async () => ({})),
-  createMasterEventsUrl: vi.fn(() => '/api/master/events?workspaceId=main&personaId=master-1'),
+  postRunAction: vi.fn<() => Promise<{ exportBundle: { result: string } }>>(async () => ({
+    exportBundle: { result: 'ok' },
+  })),
+  cancelRun: vi.fn<() => Promise<void>>(async () => {}),
+  decideApprovalRequest: vi.fn<() => Promise<Record<string, unknown>>>(async () => ({})),
+  createMasterEventsUrl: vi.fn<() => string>(
+    () => '/api/master/events?workspaceId=main&personaId=master-1',
+  ),
   isMasterSystemPersonaDisabledError: (error: unknown) =>
     error instanceof Error && /disabled/i.test(error.message),
-  parseMasterEventMessage: vi.fn((data: string) => JSON.parse(data)),
-  submitFeedback: vi.fn(async () => {}),
-  saveMasterSettings: vi.fn(async () => ({
+  parseMasterEventMessage: vi.fn<MockProcedure>((data: string) => JSON.parse(data)),
+  submitFeedback: vi.fn<() => Promise<void>>(async () => {}),
+  saveMasterSettings: vi.fn<MockProcedure>(async () => ({
     persona: {
       id: 'master-1',
       name: 'Master',
@@ -109,6 +119,7 @@ vi.mock('@/modules/master/api', () => ({
 }));
 
 import type { MasterRun } from '@/modules/master/types';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

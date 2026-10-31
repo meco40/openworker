@@ -3,10 +3,11 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 import { getServerEventBus } from '@/server/events/runtime';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 

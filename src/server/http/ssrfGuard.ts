@@ -36,6 +36,25 @@ function isBlockedIpv4(value: string): boolean {
   );
 }
 
+/** Parses one `::`-separated half of an IPv6 address into 16-bit groups. */
+function parseIpv6Part(part: string): number[] | null {
+  if (!part) return [];
+  const pieces = part.split(':');
+  const result: number[] = [];
+  for (const piece of pieces) {
+    if (piece.includes('.')) {
+      const ipv4 = parseIpv4(piece);
+      if (!ipv4) return null;
+      result.push((ipv4[0] << 8) | ipv4[1], (ipv4[2] << 8) | ipv4[3]);
+    } else if (/^[0-9a-f]{1,4}$/.test(piece)) {
+      result.push(Number.parseInt(piece, 16));
+    } else {
+      return null;
+    }
+  }
+  return result;
+}
+
 function parseIpv6(value: string): number[] | null {
   const normalized = value.toLowerCase().split('%', 1)[0];
   if (!normalized.includes(':')) return null;
@@ -43,26 +62,8 @@ function parseIpv6(value: string): number[] | null {
   const [head, tail, ...extra] = normalized.split('::');
   if (extra.length > 0) return null;
 
-  const parsePart = (part: string): number[] | null => {
-    if (!part) return [];
-    const pieces = part.split(':');
-    const result: number[] = [];
-    for (const piece of pieces) {
-      if (piece.includes('.')) {
-        const ipv4 = parseIpv4(piece);
-        if (!ipv4) return null;
-        result.push((ipv4[0] << 8) | ipv4[1], (ipv4[2] << 8) | ipv4[3]);
-      } else if (/^[0-9a-f]{1,4}$/.test(piece)) {
-        result.push(Number.parseInt(piece, 16));
-      } else {
-        return null;
-      }
-    }
-    return result;
-  };
-
-  const left = parsePart(head);
-  const right = parsePart(tail || '');
+  const left = parseIpv6Part(head);
+  const right = parseIpv6Part(tail || '');
   if (!left || !right) return null;
   if (tail === undefined) {
     return left.length === 8 ? left : null;

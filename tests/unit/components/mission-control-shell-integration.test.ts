@@ -29,7 +29,8 @@ describe('Mission Control removal', () => {
     expect(html).not.toContain('Node: Localhost');
     expect(html).not.toContain('v1.2.4');
     expect(html).toContain('Gateway');
-    expect(html).toContain('role="status"');
+    // The connection indicator is an <output>, whose implicit ARIA role is "status".
+    expect(html).toContain('<output');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('min-h-11');
   });

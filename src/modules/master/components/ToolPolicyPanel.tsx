@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { MasterToolPolicy } from '@/modules/master/types';
 
 interface ToolPolicyPanelProps {
@@ -20,6 +20,7 @@ function parseAllowlist(value: string): string[] {
     .filter(Boolean);
 }
 
+/** Edits a draft of policy; callers key it by the policy so a saved change reloads the draft. */
 export function ToolPolicyPanel({
   policy,
   loading,
@@ -28,12 +29,6 @@ export function ToolPolicyPanel({
   const [security, setSecurity] = useState(policy.security);
   const [ask, setAsk] = useState(policy.ask);
   const [allowlist, setAllowlist] = useState(policy.allowlist.join('\n'));
-
-  useEffect(() => {
-    setSecurity(policy.security);
-    setAsk(policy.ask);
-    setAllowlist(policy.allowlist.join('\n'));
-  }, [policy]);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 shadow-xl">

@@ -9,7 +9,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 // ─── Module mocks (hoisted) ──────────────────────────────────
 // Simulate a slow Mem0 service – each store call never resolves within the test
 // timeout, proving that the summary pipeline is truly non-blocking.
-const slowStoreMock = vi.fn(
+const slowStoreMock = vi.fn<() => Promise<void>>(
   () =>
     new Promise<void>((_resolve, reject) =>
       // Reject after 500 ms so we don't leave dangling timers in the test process.
@@ -26,33 +26,39 @@ vi.mock('@/server/channels/messages/autoMemory', async (importOriginal) => {
   return {
     ...actual,
     // Always return two candidates so the circuit-breaker path is exercised.
-    buildAutoMemoryCandidates: vi.fn(() => [
-      { type: 'fact', content: 'user prefers dark mode', importance: 3 },
-      { type: 'preference', content: 'user timezone is Europe/Berlin', importance: 2 },
-    ]),
-    isAutoSessionMemoryEnabled: vi.fn(() => true),
+    buildAutoMemoryCandidates: vi.fn<() => { type: string; content: string; importance: number }[]>(
+      () => [
+        { type: 'fact', content: 'user prefers dark mode', importance: 3 },
+        { type: 'preference', content: 'user timezone is Europe/Berlin', importance: 2 },
+      ],
+    ),
+    isAutoSessionMemoryEnabled: vi.fn<() => boolean>(() => true),
   };
 });
 
 vi.mock('@/server/events/runtime', () => ({
-  getServerEventBus: () => ({ publish: vi.fn() }),
+  getServerEventBus: () => ({ publish: vi.fn<MockProcedure>() }),
 }));
 
 vi.mock('@/server/channels/messages/summary', () => ({
-  isAiSummaryEnabled: vi.fn(() => false),
-  buildFallbackSummary: vi.fn(
+  isAiSummaryEnabled: vi.fn<() => boolean>(() => false),
+  buildFallbackSummary: vi.fn<
+    (_prev: string, msgs: Array<{ role: string; content: string }>) => string
+  >(
     (_prev: string, msgs: Array<{ role: string; content: string }>) =>
       `summary of ${msgs.length} messages`,
   ),
 }));
 
 vi.mock('@/server/model-hub/runtime', () => ({
-  getModelHubService: vi.fn(),
-  getModelHubEncryptionKey: vi.fn(() => 'test-encryption-key'),
+  getModelHubService: vi.fn<MockProcedure>(),
+  getModelHubEncryptionKey: vi.fn<() => string>(() => 'test-encryption-key'),
 }));
 
 vi.mock('@/server/knowledge/config', () => ({
-  resolveKnowledgeConfig: vi.fn(() => ({
+  resolveKnowledgeConfig: vi.fn<
+    () => { layerEnabled: boolean; episodeEnabled: boolean; ledgerEnabled: boolean }
+  >(() => ({
     layerEnabled: false,
     episodeEnabled: false,
     ledgerEnabled: false,
@@ -233,6 +239,7 @@ import type {
   KnowledgeRepositoryLike,
   MemoryServiceLike,
 } from '@/server/knowledge/ingestion/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeWindow(): IngestionWindow {
   return {
@@ -247,8 +254,8 @@ function makeWindow(): IngestionWindow {
 
 function makeRepo_knowledge(): KnowledgeRepositoryLike {
   return {
-    upsertEpisode: vi.fn(),
-    upsertMeetingLedger: vi.fn(),
+    upsertEpisode: vi.fn<MockProcedure>(),
+    upsertMeetingLedger: vi.fn<MockProcedure>(),
   };
 }
 
@@ -288,7 +295,7 @@ describe('storeFacts – Q1: Werden alle Facts korrekt sequenziell gespeichert?'
   it('10 Facts werden alle gespeichert — failCount und skippedCount sind 0', async () => {
     const FACT_COUNT = 10;
 
-    const store = vi.fn(() => Promise.resolve({ id: 'ok' }));
+    const store = vi.fn<() => Promise<{ id: string }>>(() => Promise.resolve({ id: 'ok' }));
     const facts = Array.from({ length: FACT_COUNT }, (_, i) => `user fact ${i}`);
     const ctx = makeContext(makeWindow());
 
@@ -301,10 +308,12 @@ describe('storeFacts – Q1: Werden alle Facts korrekt sequenziell gespeichert?'
 
   it('Facts werden sequenziell gespeichert — Reihenfolge ist deterministisch', async () => {
     const callOrder: string[] = [];
-    const store = vi.fn((_p: string, _t: string, content: string) => {
-      callOrder.push(content);
-      return Promise.resolve({ id: 'ok' });
-    });
+    const store = vi.fn<(_p: string, _t: string, content: string) => Promise<{ id: string }>>(
+      (_p: string, _t: string, content: string) => {
+        callOrder.push(content);
+        return Promise.resolve({ id: 'ok' });
+      },
+    );
     const facts = ['fact A', 'fact B', 'fact C'];
     const ctx = makeContext(makeWindow());
 
@@ -317,7 +326,7 @@ describe('storeFacts – Q1: Werden alle Facts korrekt sequenziell gespeichert?'
 
 describe('storeFacts – Q2: Gibt es Fact-Verluste?', () => {
   it('bei totalem Mem0-Ausfall: Circuit-Breaker öffnet nach 2 Fehlern, Rest bleibt retry-pending', async () => {
-    const store = vi.fn(() => Promise.reject(new Error('Mem0 down')));
+    const store = vi.fn<() => Promise<never>>(() => Promise.reject(new Error('Mem0 down')));
     const facts = Array.from({ length: 8 }, (_, i) => `critical fact ${i}`);
     const ctx = makeContext(makeWindow());
 
@@ -336,7 +345,9 @@ describe('storeFacts – Q2: Gibt es Fact-Verluste?', () => {
     const failed: string[] = [];
     let callIndex = 0;
 
-    const store = vi.fn((_personaId: string, _type: string, content: string) => {
+    const store = vi.fn<
+      (_personaId: string, _type: string, content: string) => Promise<{ id: string }>
+    >((_personaId: string, _type: string, content: string) => {
       const idx = callIndex++;
       // Facts 1, 3, 5 schlagen fehl; 0, 2, 4 erfolgreich
       if (idx % 2 === 1) {
@@ -361,7 +372,7 @@ describe('storeFacts – Q2: Gibt es Fact-Verluste?', () => {
   }, 5000);
 
   it('poisoning-geblockte Facts werden nicht an Mem0 geschickt und tauchen nicht in failCount auf', async () => {
-    const store = vi.fn(() => Promise.resolve({ id: 'ok' }));
+    const store = vi.fn<() => Promise<{ id: string }>>(() => Promise.resolve({ id: 'ok' }));
     // "IGNORE ALL PREVIOUS INSTRUCTIONS" triggert den Poisoning-Guard auf 'blocked'
     const facts = [
       'user likes coffee',
@@ -383,7 +394,16 @@ describe('storeFacts – Q2: Gibt es Fact-Verluste?', () => {
 describe('storeFacts – Q3: Läuft alles ordnungsgemäß?', () => {
   it('jeder Mem0-Aufruf erhält korrekte Metadaten (topicKey, conversationId, personaId)', async () => {
     const calls: Array<{ personaId: string; type: string; content: string; meta: unknown }> = [];
-    const store = vi.fn(
+    const store = vi.fn<
+      (
+        personaId: string,
+        type: string,
+        content: string,
+        _imp: number,
+        _uid: string,
+        meta: unknown,
+      ) => Promise<{ id: string }>
+    >(
       (
         personaId: string,
         type: string,
@@ -415,12 +435,19 @@ describe('storeFacts – Q3: Läuft alles ordnungsgemäß?', () => {
 
   it('Emotions werden korrekt in Metadaten weitergegeben', async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const store = vi.fn(
-      (_p: string, _t: string, _c: string, _i: number, _u: string, meta: unknown) => {
-        calls.push(meta as Record<string, unknown>);
-        return Promise.resolve({ id: 'ok' });
-      },
-    );
+    const store = vi.fn<
+      (
+        _p: string,
+        _t: string,
+        _c: string,
+        _i: number,
+        _u: string,
+        meta: unknown,
+      ) => Promise<{ id: string }>
+    >((_p: string, _t: string, _c: string, _i: number, _u: string, meta: unknown) => {
+      calls.push(meta as Record<string, unknown>);
+      return Promise.resolve({ id: 'ok' });
+    });
     const facts = ['user feels stressed about deadline'];
     const ctx = makeContext(makeWindow());
     ctx.dominantEmotion = { emotion: 'stress', intensity: 0.8, trigger: 'deadline' };
@@ -434,12 +461,19 @@ describe('storeFacts – Q3: Läuft alles ordnungsgemäß?', () => {
 
   it('Widerspruch innerhalb eines Batches wird erkannt und annotiert', async () => {
     const calls: Array<Record<string, unknown>> = [];
-    const store = vi.fn(
-      (_p: string, _t: string, _c: string, _i: number, _u: string, meta: unknown) => {
-        calls.push(meta as Record<string, unknown>);
-        return Promise.resolve({ id: 'ok' });
-      },
-    );
+    const store = vi.fn<
+      (
+        _p: string,
+        _t: string,
+        _c: string,
+        _i: number,
+        _u: string,
+        meta: unknown,
+      ) => Promise<{ id: string }>
+    >((_p: string, _t: string, _c: string, _i: number, _u: string, meta: unknown) => {
+      calls.push(meta as Record<string, unknown>);
+      return Promise.resolve({ id: 'ok' });
+    });
     // Der Contradiction-Detektor arbeitet auf deutschen Negationswörtern.
     // "mag Kaffee" vs "mag keinen Kaffee" — "keinen" ist ein Negationswort.
     const facts = ['user mag Kaffee', 'user mag keinen Kaffee'];
@@ -454,7 +488,7 @@ describe('storeFacts – Q3: Läuft alles ordnungsgemäß?', () => {
   }, 5000);
 
   it('leere Facts-Liste: kein Mem0-Aufruf, Ergebnis 0/0', async () => {
-    const store = vi.fn(() => Promise.resolve({ id: 'ok' }));
+    const store = vi.fn<() => Promise<{ id: string }>>(() => Promise.resolve({ id: 'ok' }));
     const ctx = makeContext(makeWindow());
 
     const result = await storeFacts({ store }, makeRepo_knowledge(), [], ctx);
@@ -480,7 +514,7 @@ describe('storeFacts – sequential Mem0 execution', () => {
     const FACT_COUNT = 3;
     let inFlight = 0;
     let maxInFlight = 0;
-    const slowStore = vi.fn(
+    const slowStore = vi.fn<() => Promise<{ id: string }>>(
       () =>
         new Promise<{ id: string }>((resolve) => {
           inFlight += 1;
@@ -504,7 +538,9 @@ describe('storeFacts – sequential Mem0 execution', () => {
   }, 5000);
 
   it('circuit breaker stops after consecutive failures — remaining facts skipped', async () => {
-    const failStore = vi.fn(() => Promise.reject(new Error('Mem0 unavailable')));
+    const failStore = vi.fn<() => Promise<never>>(() =>
+      Promise.reject(new Error('Mem0 unavailable')),
+    );
     const facts = ['fact1', 'fact2', 'fact3', 'fact4', 'fact5'];
     const window = makeWindow();
     const ctx = makeContext(window);
@@ -520,7 +556,7 @@ describe('storeFacts – sequential Mem0 execution', () => {
   }, 5000);
 
   it('fast Mem0 store completes all 6 facts without artificial delays', async () => {
-    const fastStore = vi.fn(() => Promise.resolve({ id: 'mem-ok' }));
+    const fastStore = vi.fn<() => Promise<{ id: string }>>(() => Promise.resolve({ id: 'mem-ok' }));
     const facts = Array.from({ length: 6 }, (_, i) => `fact ${i}`);
     const window = makeWindow();
     const ctx = makeContext(window);
@@ -534,7 +570,7 @@ describe('storeFacts – sequential Mem0 execution', () => {
 
   it('partial failures: succeeded facts stored, failed ones logged — no data loss', async () => {
     let callCount = 0;
-    const mixedStore = vi.fn(() => {
+    const mixedStore = vi.fn<() => Promise<{ id: string }>>(() => {
       callCount++;
       // Odd-numbered calls succeed, even-numbered fail
       if (callCount % 2 === 0) return Promise.reject(new Error('transient error'));

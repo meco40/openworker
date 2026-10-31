@@ -4,15 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stopExternalSkillHost } from '@/server/skills/externalSkillHost';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
-const listSkillsMock = vi.hoisted(() => vi.fn());
+const listSkillsMock = vi.hoisted(() => vi.fn<MockProcedure>());
 
 vi.mock('@/server/skills/skillRepository', () => ({
-  getSkillRepository: vi.fn(async () => ({
+  getSkillRepository: vi.fn<MockProcedure>(async () => ({
     listSkills: listSkillsMock,
   })),
 }));
 
 import { dispatchSkill } from '@/server/skills/executeSkill';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('dispatchSkill external handlers', () => {
   const tempDir = path.join(getTestArtifactsRoot(), 'test');

@@ -139,7 +139,8 @@ export function useChannelPairingController({
   }, []);
 
   useEffect(() => {
-    void refreshBridgeAccounts();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(refreshBridgeAccounts);
   }, [refreshBridgeAccounts]);
 
   useEffect(() => {
@@ -147,7 +148,8 @@ export function useChannelPairingController({
       return;
     }
     const selectedAccount = selectedBridgeAccount.whatsapp || 'default';
-    void refreshWhatsAppAllowFrom(selectedAccount);
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() => refreshWhatsAppAllowFrom(selectedAccount));
   }, [activeTab, refreshWhatsAppAllowFrom, selectedBridgeAccount.whatsapp]);
 
   const startPairing = async () => {

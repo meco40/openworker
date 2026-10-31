@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LogRepository } from '@/logging/logRepository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
@@ -44,7 +45,7 @@ describe('logs route access and filtering', () => {
   it('returns 401 when REQUIRE_AUTH is true and no session exists', async () => {
     process.env.REQUIRE_AUTH = 'true';
     vi.doMock('../../../src/auth', () => ({
-      auth: vi.fn().mockResolvedValue(null),
+      auth: vi.fn<MockProcedure>().mockResolvedValue(null),
     }));
 
     const { GET } = await loadRoute();

@@ -159,17 +159,17 @@ const ConversationPicker: React.FC<ConversationPickerProps> = ({
   }
 
   return (
-    <div className="flex flex-col gap-1.5 p-2" role="list" aria-label="Conversations">
+    <ul className="flex flex-col gap-1.5 p-2" aria-label="Conversations">
       {conversations.map((conv) => (
-        <div key={conv.conversationId} role="listitem">
+        <li key={conv.conversationId}>
           <ConversationCard
             conv={conv}
             isSelected={selectedId === conv.conversationId}
             onSelect={onSelect}
           />
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 };
 

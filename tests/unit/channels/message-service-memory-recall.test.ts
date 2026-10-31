@@ -4,19 +4,32 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI response',
-    provider: 'test-provider',
-    model: 'test-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI response',
+      provider: 'test-provider',
+      model: 'test-model',
+    }),
+  ),
 );
 
-const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
-const broadcastToUserMock = vi.hoisted(() => vi.fn());
-const memoryStoreMock = vi.hoisted(() => vi.fn(async () => ({ id: 'mem-1' })));
+const deliverOutboundMock = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => {}));
+const broadcastToUserMock = vi.hoisted(() => vi.fn<MockProcedure>());
+const memoryStoreMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+);
 const memoryRecallDetailedMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<
+    () => Promise<{
+      context: string;
+      matches: {
+        node: { id: string; type: string; content: string };
+        similarity: number;
+        score: number;
+      }[];
+    }>
+  >(async () => ({
     context: 'Herr Meco trinkt den Kaffee immer schwarz.',
     matches: [
       {
@@ -27,7 +40,7 @@ const memoryRecallDetailedMock = vi.hoisted(() =>
     ],
   })),
 );
-const memoryRegisterFeedbackMock = vi.hoisted(() => vi.fn(() => 1));
+const memoryRegisterFeedbackMock = vi.hoisted(() => vi.fn<() => number>(() => 1));
 
 vi.mock('@/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -53,6 +66,7 @@ vi.mock('@/server/memory/runtime', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(
   personaId: string | null,

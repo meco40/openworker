@@ -1,10 +1,5 @@
 export type CronRunStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'dead_letter'
-  | 'skipped';
+  'queued' | 'running' | 'succeeded' | 'failed' | 'dead_letter' | 'skipped';
 
 export interface CronRule {
   id: string;

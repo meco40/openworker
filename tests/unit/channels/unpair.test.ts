@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 // We test the unpairChannel logic by mocking external fetch calls
 // and the credential store.
@@ -8,7 +9,9 @@ describe('unpairChannel', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    mockFetch = vi
+      .fn<MockProcedure>()
+      .mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     vi.stubGlobal('fetch', mockFetch);
   });
 

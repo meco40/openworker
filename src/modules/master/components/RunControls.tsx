@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { MasterRun, ApprovalDecision } from '@/modules/master/types';
 import { RunStatusBadge } from './RunStatusBadge';
 import { ApprovalDecisionForm } from './ApprovalDecisionForm';
@@ -20,12 +20,11 @@ export const RunControls: React.FC<RunControlsProps> = ({
   onCancelRun,
   onSubmitDecision,
 }) => {
-  const [cancelPending, setCancelPending] = useState(false);
-
-  // Reset confirm dialog when the selected run changes
-  useEffect(() => {
-    setCancelPending(false);
-  }, [selectedRun?.id]);
+  // The confirmation belongs to one run, so selecting another run resets it.
+  const [cancelPendingRunId, setCancelPendingRunId] = useState<string | null>(null);
+  const cancelPending = cancelPendingRunId !== null && cancelPendingRunId === selectedRun?.id;
+  const setCancelPending = (pending: boolean) =>
+    setCancelPendingRunId(pending ? (selectedRun?.id ?? null) : null);
 
   const isFinished =
     selectedRun?.status === 'COMPLETED' ||
@@ -188,6 +187,7 @@ export const RunControls: React.FC<RunControlsProps> = ({
             {/* Approval form – only when paused for approval */}
             {selectedRun.pausedForApproval && (
               <ApprovalDecisionForm
+                key={selectedRun.pendingApprovalActionType ?? ''}
                 pendingActionType={selectedRun.pendingApprovalActionType}
                 loading={loading}
                 onSubmit={onSubmitDecision}

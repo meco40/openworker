@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const shellExecuteHandlerMock = vi.hoisted(() => vi.fn(async () => ({ alias: 'exec' })));
-const processManagerHandlerMock = vi.hoisted(() => vi.fn(async () => ({ alias: 'process' })));
+const shellExecuteHandlerMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ alias: string }>>(async () => ({ alias: 'exec' })),
+);
+const processManagerHandlerMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ alias: string }>>(async () => ({ alias: 'process' })),
+);
 
 vi.mock('@/server/skills/handlers/shellExecute', () => ({
   shellExecuteHandler: shellExecuteHandlerMock,

@@ -114,8 +114,7 @@ async function retrieveContextInScope(
     limit,
     timeWindow: plan.timeWindow,
     statusFilter: statusFilterForIntent(plan.intent) as
-      | import('@/server/world-model/types').EventStatus[]
-      | undefined,
+      import('@/server/world-model/types').EventStatus[] | undefined,
     validAsOf: input.asOfValidTime ?? plan.asOfValidTime,
     knownAsOf: input.asOfKnownTime ?? plan.asOfKnownTime,
   }).catch((error) => {

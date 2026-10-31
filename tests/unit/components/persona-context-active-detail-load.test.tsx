@@ -35,47 +35,49 @@ function Probe({ enableDetails }: { enableDetails: boolean }) {
 describe('PersonaContext active detail loading', () => {
   beforeEach(() => {
     localStorage.clear();
-    fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith('/api/personas')) {
-        return new Response(
-          JSON.stringify({
-            personas: [
-              {
+    fetchMock = vi.fn<(input: RequestInfo | URL) => Promise<Response>>(
+      async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/api/personas')) {
+          return new Response(
+            JSON.stringify({
+              personas: [
+                {
+                  id: 'persona-1',
+                  name: 'Architect',
+                  slug: 'architect',
+                  emoji: 'A',
+                  systemPersonaKey: null,
+                },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        if (url.endsWith('/api/personas/persona-1')) {
+          return new Response(
+            JSON.stringify({
+              persona: {
                 id: 'persona-1',
                 name: 'Architect',
                 slug: 'architect',
                 emoji: 'A',
                 systemPersonaKey: null,
+                files: {
+                  'SOUL.md': '',
+                  'AGENTS.md': '',
+                  'USER.md': '',
+                  'TOOLS.md': '',
+                  'HEARTBEAT.md': '',
+                },
               },
-            ],
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      if (url.endsWith('/api/personas/persona-1')) {
-        return new Response(
-          JSON.stringify({
-            persona: {
-              id: 'persona-1',
-              name: 'Architect',
-              slug: 'architect',
-              emoji: 'A',
-              systemPersonaKey: null,
-              files: {
-                'SOUL.md': '',
-                'AGENTS.md': '',
-                'USER.md': '',
-                'TOOLS.md': '',
-                'HEARTBEAT.md': '',
-              },
-            },
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
-      }
-      return new Response(JSON.stringify({ ok: false }), { status: 404 });
-    });
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({ ok: false }), { status: 404 });
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
   });
 

@@ -111,7 +111,9 @@ describe('SqliteMemoryRepository - Full Integration', () => {
         repo.insertNode(testPersonaId, memory, testUserId);
 
         const duplicate = { ...memory, content: 'Second' };
-        expect(() => repo.insertNode(testPersonaId, duplicate, testUserId)).toThrow();
+        expect(() => repo.insertNode(testPersonaId, duplicate, testUserId)).toThrow(
+          'UNIQUE constraint failed',
+        );
       });
     });
 

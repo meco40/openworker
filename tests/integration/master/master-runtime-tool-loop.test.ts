@@ -82,7 +82,9 @@ describe('master runtime tool loop', () => {
       degradedMode: false;
     }>();
     vi.doMock('@/server/skills/executeSkill', () => ({
-      dispatchSkill: vi.fn(() => deferred.promise),
+      dispatchSkill: vi.fn<
+        () => Promise<{ output: string; confidence: number; mode: 'fallback'; degradedMode: false }>
+      >(() => deferred.promise),
     }));
 
     const { getMasterRepository, getMasterExecutionRuntime } =

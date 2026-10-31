@@ -62,7 +62,9 @@ describe('Mission Control task PATCH auto-testing trigger', () => {
   });
 
   it('calls /api/tasks/:id/test when status changes to testing', async () => {
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const { run, queryOne } = await import('@/lib/db');

@@ -3,6 +3,7 @@ import { ChannelType, type Conversation } from '@/shared/domain/types';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-1'): GatewayClient {
   return {
@@ -10,8 +11,8 @@ function makeClient(userId = 'user-1'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-e2e-1',
     userId,
@@ -105,7 +106,7 @@ describe('webui chat.stream persona nexus tool e2e', () => {
     vi.resetModules();
 
     const dispatchWithFallbackMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce({
         ok: true,
         text: '',
@@ -120,23 +121,28 @@ describe('webui chat.stream persona nexus tool e2e', () => {
         model: 'test-model',
       });
 
-    const dispatchSkillMock = vi.fn(async () => ({ stdout: 'nexus-e2e', stderr: '', exitCode: 0 }));
+    const dispatchSkillMock = vi.fn<
+      () => Promise<{ stdout: string; stderr: string; exitCode: number }>
+    >(async () => ({ stdout: 'nexus-e2e', stderr: '', exitCode: 0 }));
 
     vi.doMock('../../../src/server/model-hub/runtime', () => ({
       getModelHubService: () => ({ dispatchWithFallback: dispatchWithFallbackMock }),
       getModelHubEncryptionKey: () => 'test-key',
     }));
     vi.doMock('../../../src/server/channels/outbound/router', () => ({
-      deliverOutbound: vi.fn(async () => {}),
+      deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
     }));
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
     vi.doMock('../../../src/server/memory/runtime', () => ({
       getMemoryService: () => ({
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-        store: vi.fn(async () => ({ id: 'mem-1' })),
-        updateFeedback: vi.fn(async () => {}),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
+        store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+        updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
       }),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', async () => {
@@ -247,7 +253,7 @@ describe('webui chat.stream persona nexus tool e2e', () => {
     vi.resetModules();
 
     const dispatchWithFallbackMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce({
         ok: true,
         text: '',
@@ -267,16 +273,19 @@ describe('webui chat.stream persona nexus tool e2e', () => {
       getModelHubEncryptionKey: () => 'test-key',
     }));
     vi.doMock('../../../src/server/channels/outbound/router', () => ({
-      deliverOutbound: vi.fn(async () => {}),
+      deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
     }));
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
     vi.doMock('../../../src/server/memory/runtime', () => ({
       getMemoryService: () => ({
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-        store: vi.fn(async () => ({ id: 'mem-1' })),
-        updateFeedback: vi.fn(async () => {}),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
+        store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+        updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
       }),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', async () => {

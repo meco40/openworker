@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { SubmitFeedbackInput } from '@/modules/master/api';
 
 interface RunFeedbackPanelProps {
@@ -15,6 +15,8 @@ const POLICY_LABELS: Record<PolicyOption, string> = {
   fast: 'Fast — aggressive, minimise latency',
 };
 
+/** Holds the feedback draft of one run; callers key it by 
+unId so a new run starts empty. */
 export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loading, onSubmit }) => {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -23,16 +25,6 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitInFlightRef = useRef(false);
-
-  useEffect(() => {
-    setRating(0);
-    setHoverRating(0);
-    setPolicy('balanced');
-    setComment('');
-    setSubmitted(false);
-    setSubmitError(null);
-    submitInFlightRef.current = false;
-  }, [runId]);
 
   const handleSubmit = async () => {
     if (rating === 0 || loading || submitInFlightRef.current) return;
@@ -121,7 +113,7 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
           <div className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
             Rating
           </div>
-          <div className="flex gap-2" role="group" aria-label="Star rating">
+          <fieldset className="flex min-w-0 gap-2" aria-label="Star rating">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -139,7 +131,7 @@ export const RunFeedbackPanel: React.FC<RunFeedbackPanelProps> = ({ runId, loadi
                 &#9733;
               </button>
             ))}
-          </div>
+          </fieldset>
           {rating === 0 && (
             <p className="text-[10px] text-zinc-600">Select a star rating to submit feedback.</p>
           )}

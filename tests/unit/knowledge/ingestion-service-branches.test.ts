@@ -5,6 +5,7 @@ import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { EntityLookupResult, KnowledgeEntity } from '@/server/knowledge/entityGraph';
 import type { IngestionWindow } from '@/server/knowledge/ingestionCursor';
 import { KnowledgeIngestionService } from '@/server/knowledge/ingestion/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function createMessage(
   seq: number,
@@ -52,25 +53,27 @@ function buildExtraction(
 
 describe('KnowledgeIngestionService branch coverage', () => {
   it('skips ingestConversationWindow for empty persona, invalid seqs and non-delta windows', async () => {
-    const extract = vi.fn(async () => buildExtraction());
-    const upsertCheckpoint = vi.fn();
+    const extract = vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => buildExtraction());
+    const upsertCheckpoint = vi.fn<MockProcedure>();
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => []),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => never[]>(() => []),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
       extractor: { extract },
       knowledgeRepository: {
-        getIngestionCheckpoint: vi.fn(() => ({
+        getIngestionCheckpoint: vi.fn<
+          () => { conversationId: string; personaId: string; lastSeq: number; updatedAt: string }
+        >(() => ({
           conversationId: 'conv-nodelta',
           personaId: 'persona-1',
           lastSeq: 5,
           updatedAt: new Date().toISOString(),
         })),
         upsertIngestionCheckpoint: upsertCheckpoint,
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
     });
 
@@ -109,19 +112,23 @@ describe('KnowledgeIngestionService branch coverage', () => {
   });
 
   it('processes only delta messages and updates checkpoint on direct ingestion', async () => {
-    const extract = vi.fn(async (_input: unknown) => buildExtraction());
-    const upsertCheckpoint = vi.fn();
-    const upsertEpisode = vi.fn();
-    const upsertMeetingLedger = vi.fn();
+    const extract = vi.fn<(_input: unknown) => Promise<KnowledgeExtractionResult>>(
+      async (_input: unknown) => buildExtraction(),
+    );
+    const upsertCheckpoint = vi.fn<MockProcedure>();
+    const upsertEpisode = vi.fn<MockProcedure>();
+    const upsertMeetingLedger = vi.fn<MockProcedure>();
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => []),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => never[]>(() => []),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
       extractor: { extract },
       knowledgeRepository: {
-        getIngestionCheckpoint: vi.fn(() => ({
+        getIngestionCheckpoint: vi.fn<
+          () => { conversationId: string; personaId: string; lastSeq: number; updatedAt: string }
+        >(() => ({
           conversationId: 'conv-delta',
           personaId: 'persona-1',
           lastSeq: 1,
@@ -252,48 +259,52 @@ describe('KnowledgeIngestionService branch coverage', () => {
     });
 
     const entitiesByName = new Map<string, KnowledgeEntity>();
-    const resolveEntity = vi.fn((text: string): EntityLookupResult | null => {
-      const entity = entitiesByName.get(text.toLowerCase());
-      if (!entity) return null;
-      return {
-        entity,
-        matchedAlias: text,
-        matchType: 'exact_name' as const,
-        confidence: 1,
-      };
-    });
-    const upsertEntity = vi.fn(
-      (input: Omit<KnowledgeEntity, 'createdAt' | 'updatedAt'>): KnowledgeEntity => {
-        const entity = {
-          ...input,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+    const resolveEntity = vi.fn<(text: string) => EntityLookupResult | null>(
+      (text: string): EntityLookupResult | null => {
+        const entity = entitiesByName.get(text.toLowerCase());
+        if (!entity) return null;
+        return {
+          entity,
+          matchedAlias: text,
+          matchType: 'exact_name' as const,
+          confidence: 1,
         };
-        entitiesByName.set(input.canonicalName.toLowerCase(), entity);
-        return entity;
       },
     );
+    const upsertEntity = vi.fn<
+      (input: Omit<KnowledgeEntity, 'createdAt' | 'updatedAt'>) => KnowledgeEntity
+    >((input: Omit<KnowledgeEntity, 'createdAt' | 'updatedAt'>): KnowledgeEntity => {
+      const entity = {
+        ...input,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      entitiesByName.set(input.canonicalName.toLowerCase(), entity);
+      return entity;
+    });
 
-    const upsertEvent = vi.fn();
+    const upsertEvent = vi.fn<MockProcedure>();
     const findOverlappingEvents = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockReturnValueOnce([])
       .mockReturnValueOnce([{ id: 'evt-existing', sourceSeqJson: '[1]' }])
       .mockReturnValueOnce([{ id: 'evt-existing', sourceSeqJson: '[1]' }]);
-    const appendEventSources = vi.fn();
-    const addAlias = vi.fn();
-    const addRelation = vi.fn();
-    const updateEntityProperties = vi.fn();
+    const appendEventSources = vi.fn<MockProcedure>();
+    const addAlias = vi.fn<MockProcedure>();
+    const addRelation = vi.fn<MockProcedure>();
+    const updateEntityProperties = vi.fn<MockProcedure>();
 
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
-      extractor: { extract: vi.fn(async () => extraction) },
+      extractor: {
+        extract: vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => extraction),
+      },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
         upsertEvent,
         findOverlappingEvents,
         appendEventSources,
@@ -302,7 +313,9 @@ describe('KnowledgeIngestionService branch coverage', () => {
         addRelation,
         updateEntityProperties,
         resolveEntity,
-        getEntityWithRelations: vi.fn(() => ({
+        getEntityWithRelations: vi.fn<
+          () => { entity: KnowledgeEntity; aliases: never[]; relations: never[] }
+        >(() => ({
           entity: entitiesByName.get('nata') as KnowledgeEntity,
           aliases: [],
           relations: [],
@@ -365,16 +378,20 @@ describe('KnowledgeIngestionService branch coverage', () => {
       },
     });
 
-    const store = vi.fn(async (..._args: unknown[]) => ({ id: 'mem' }));
+    const store = vi.fn<(..._args: unknown[]) => Promise<{ id: string }>>(
+      async (..._args: unknown[]) => ({ id: 'mem' }),
+    );
     const service = new KnowledgeIngestionService({
       cursor: {
-        getPendingWindows: vi.fn(() => [window]),
-        markWindowProcessed: vi.fn(),
+        getPendingWindows: vi.fn<() => IngestionWindow[]>(() => [window]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
       },
-      extractor: { extract: vi.fn(async () => extraction) },
+      extractor: {
+        extract: vi.fn<() => Promise<KnowledgeExtractionResult>>(async () => extraction),
+      },
       knowledgeRepository: {
-        upsertEpisode: vi.fn(),
-        upsertMeetingLedger: vi.fn(),
+        upsertEpisode: vi.fn<MockProcedure>(),
+        upsertMeetingLedger: vi.fn<MockProcedure>(),
       },
       memoryService: { store },
     });

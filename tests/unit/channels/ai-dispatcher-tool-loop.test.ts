@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { MAX_TOOL_ROUNDS } from '@/server/channels/messages/service/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const dispatchWithFallbackMock = vi.hoisted(() => vi.fn());
+const dispatchWithFallbackMock = vi.hoisted(() => vi.fn<MockProcedure>());
 
 async function loadRunModelToolLoop() {
   vi.resetModules();
@@ -31,8 +32,11 @@ describe('runModelToolLoop', () => {
   };
 
   const toolManager = {
-    executeToolFunctionCall: vi.fn(async () => ({ kind: 'ok' as const, output: 'tool-output' })),
-    buildApprovalMetadata: vi.fn(),
+    executeToolFunctionCall: vi.fn<() => Promise<{ kind: 'ok'; output: string }>>(async () => ({
+      kind: 'ok' as const,
+      output: 'tool-output',
+    })),
+    buildApprovalMetadata: vi.fn<MockProcedure>(),
   };
 
   const toolContext = {

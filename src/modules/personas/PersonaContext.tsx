@@ -36,7 +36,7 @@ function isMasterSystemPersona(persona: PersonaSummary | null | undefined): bool
 // ─── Provider ────────────────────────────────────────────────
 export function PersonaProvider({ children }: { children: React.ReactNode }) {
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
-  const [activePersonaId, setActivePersonaIdState] = useState<string | null>(null);
+  const [storedActivePersonaId, setActivePersonaIdState] = useState<string | null>(null);
   const [activePersona, setActivePersona] = useState<PersonaWithFiles | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataEnabled, setDataEnabled] = useState(false);
@@ -145,18 +145,26 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
     if (!dataEnabled) {
       return;
     }
-    void refreshPersonas();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(refreshPersonas);
   }, [refreshPersonas, dataEnabled]);
+
+  // The master system persona is never an active chat persona; hide it during render.
+  const storedIsMasterSystemPersona =
+    storedActivePersonaId !== null &&
+    isMasterSystemPersona(personas.find((persona) => persona.id === storedActivePersonaId));
+  const activePersonaId = storedIsMasterSystemPersona ? null : storedActivePersonaId;
+
+  // Without the inputs for details there is no loaded persona (cleared during render).
+  const canLoadActivePersona =
+    dataEnabled && activePersonaDetailsEnabled && activePersonaId !== null;
+  if (!canLoadActivePersona && activePersona !== null) {
+    setActivePersona(null);
+  }
 
   // Fetch full persona when activePersonaId changes
   useEffect(() => {
-    if (!dataEnabled || !activePersonaDetailsEnabled) {
-      setActivePersona(null);
-      return;
-    }
-
-    if (!activePersonaId) {
-      setActivePersona(null);
+    if (!dataEnabled || !activePersonaDetailsEnabled || !activePersonaId) {
       return;
     }
 
@@ -174,16 +182,10 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   }, [activePersonaDetailsEnabled, activePersonaId, dataEnabled, loadPersonaById]);
 
   useEffect(() => {
-    if (!activePersonaId) {
-      return;
-    }
-    const selectedPersona = personas.find((persona) => persona.id === activePersonaId);
-    if (isMasterSystemPersona(selectedPersona)) {
-      setActivePersona(null);
-      setActivePersonaIdState(null);
+    if (storedIsMasterSystemPersona) {
       localStorage.removeItem('betaclaw-active-persona');
     }
-  }, [activePersonaId, personas]);
+  }, [storedIsMasterSystemPersona]);
 
   const setActivePersonaId = useCallback(
     (id: string | null) => {
@@ -202,11 +204,15 @@ export function PersonaProvider({ children }: { children: React.ReactNode }) {
   );
 
   // Restore from localStorage on mount
+  // localStorage is unavailable during the static prerender, so restore after mount;
+  // the update runs after the effect returns.
   useEffect(() => {
-    const stored = localStorage.getItem('betaclaw-active-persona');
-    if (stored) {
-      setActivePersonaIdState(stored);
-    }
+    void Promise.resolve().then(() => {
+      const stored = localStorage.getItem('betaclaw-active-persona');
+      if (stored) {
+        setActivePersonaIdState(stored);
+      }
+    });
   }, []);
 
   const value = React.useMemo<PersonaContextValue>(

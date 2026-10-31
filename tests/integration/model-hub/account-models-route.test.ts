@@ -34,7 +34,7 @@ describe('model-hub account models route', () => {
     resetSingletons();
 
     const originalFetch = global.fetch;
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<Response>>(async () => {
       return new Response('unauthorized', { status: 401 });
     }) as unknown as typeof fetch;
 

@@ -101,7 +101,10 @@ export function useMemory(options: UseMemoryOptions) {
   // Load memory when dependencies change
   useEffect(() => {
     if (!selectedPersonaId) return;
-    void loadMemory(selectedPersonaId, { page, pageSize, query: debouncedQuery, type: typeFilter });
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() =>
+      loadMemory(selectedPersonaId, { page, pageSize, query: debouncedQuery, type: typeFilter }),
+    );
   }, [debouncedQuery, loadMemory, page, pageSize, selectedPersonaId, typeFilter]);
 
   const clearError = useCallback(() => {

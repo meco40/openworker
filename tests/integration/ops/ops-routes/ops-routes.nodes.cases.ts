@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mockUserContext, registerOpsRouteLifecycleHooks } from './ops-routes.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('ops routes', () => {
   registerOpsRouteLifecycleHooks();
@@ -7,7 +8,7 @@ describe('ops routes', () => {
   it('returns node summary from health/doctor, channel state and automation metrics', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
-    const listApprovedCommands = vi.fn().mockReturnValue([
+    const listApprovedCommands = vi.fn<MockProcedure>().mockReturnValue([
       {
         fingerprint: 'fp-a',
         command: 'echo hello',
@@ -15,13 +16,13 @@ describe('ops routes', () => {
       },
     ]);
 
-    const runHealthCommand = vi.fn().mockResolvedValue({
+    const runHealthCommand = vi.fn<MockProcedure>().mockResolvedValue({
       status: 'ok',
       checks: [{ id: 'db', status: 'ok' }],
       summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
       generatedAt: '2026-02-20T10:00:00.000Z',
     });
-    const runDoctorCommand = vi.fn().mockResolvedValue({
+    const runDoctorCommand = vi.fn<MockProcedure>().mockResolvedValue({
       status: 'degraded',
       checks: [{ id: 'db', status: 'ok' }],
       findings: [{ id: 'bridge', severity: 'warning' }],
@@ -135,7 +136,7 @@ describe('ops routes', () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
     vi.doMock('../../../../src/commands/healthCommand', () => ({
-      runHealthCommand: vi.fn().mockResolvedValue({
+      runHealthCommand: vi.fn<MockProcedure>().mockResolvedValue({
         status: 'ok',
         checks: [],
         summary: { ok: 0, warning: 0, critical: 0, skipped: 0 },
@@ -143,7 +144,7 @@ describe('ops routes', () => {
       }),
     }));
     vi.doMock('../../../../src/commands/doctorCommand', () => ({
-      runDoctorCommand: vi.fn().mockResolvedValue({
+      runDoctorCommand: vi.fn<MockProcedure>().mockResolvedValue({
         status: 'ok',
         checks: [],
         findings: [],
@@ -152,7 +153,7 @@ describe('ops routes', () => {
       }),
     }));
     vi.doMock('../../../../src/server/gateway/exec-approval-manager', () => ({
-      listApprovedCommands: vi.fn().mockReturnValue([]),
+      listApprovedCommands: vi.fn<MockProcedure>().mockReturnValue([]),
     }));
     vi.doMock('../../../../src/server/personas/personaRepository', () => ({
       getPersonaRepository: () => ({
@@ -166,7 +167,7 @@ describe('ops routes', () => {
         pendingExpiresAt: null,
         hasPending: false,
       }),
-      rejectTelegramPendingPairingRequest: vi.fn().mockReturnValue(false),
+      rejectTelegramPendingPairingRequest: vi.fn<MockProcedure>().mockReturnValue(false),
     }));
     vi.doMock('../../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
@@ -213,23 +214,25 @@ describe('ops routes', () => {
   it('applies nodes mutation actions and returns updated snapshots', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
-    const approveCommand = vi.fn();
-    const revokeCommand = vi.fn().mockReturnValue(true);
-    const clearApprovedCommands = vi.fn();
-    const pairChannel = vi.fn().mockResolvedValue({
+    const approveCommand = vi.fn<MockProcedure>();
+    const revokeCommand = vi.fn<MockProcedure>().mockReturnValue(true);
+    const clearApprovedCommands = vi.fn<MockProcedure>();
+    const pairChannel = vi.fn<MockProcedure>().mockResolvedValue({
       status: 'connected',
       peerName: 'Ops Bridge',
       transport: 'webhook',
       accountId: 'default',
     });
-    const unpairChannel = vi.fn().mockImplementation(async () => {});
-    const upsertBridgeAccount = vi.fn().mockReturnValue('default');
-    const normalizeBridgeAccountId = vi.fn((value?: string) => value || 'default');
-    const rejectTelegramPendingPairingRequest = vi.fn().mockReturnValue(true);
-    const updateChannelBindingPersona = vi.fn();
+    const unpairChannel = vi.fn<MockProcedure>().mockImplementation(async () => {});
+    const upsertBridgeAccount = vi.fn<MockProcedure>().mockReturnValue('default');
+    const normalizeBridgeAccountId = vi.fn<(value?: string) => string>(
+      (value?: string) => value || 'default',
+    );
+    const rejectTelegramPendingPairingRequest = vi.fn<MockProcedure>().mockReturnValue(true);
+    const updateChannelBindingPersona = vi.fn<MockProcedure>();
 
     vi.doMock('../../../../src/commands/healthCommand', () => ({
-      runHealthCommand: vi.fn().mockResolvedValue({
+      runHealthCommand: vi.fn<MockProcedure>().mockResolvedValue({
         status: 'ok',
         checks: [],
         summary: { ok: 1, warning: 0, critical: 0, skipped: 0 },
@@ -237,7 +240,7 @@ describe('ops routes', () => {
       }),
     }));
     vi.doMock('../../../../src/commands/doctorCommand', () => ({
-      runDoctorCommand: vi.fn().mockResolvedValue({
+      runDoctorCommand: vi.fn<MockProcedure>().mockResolvedValue({
         status: 'ok',
         checks: [],
         findings: [],
@@ -279,7 +282,7 @@ describe('ops routes', () => {
       }),
     }));
     vi.doMock('../../../../src/server/gateway/exec-approval-manager', () => ({
-      listApprovedCommands: vi.fn().mockReturnValue([]),
+      listApprovedCommands: vi.fn<MockProcedure>().mockReturnValue([]),
       approveCommand,
       revokeCommand,
       clearApprovedCommands,

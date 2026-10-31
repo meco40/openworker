@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const mockGetCredential = vi.fn();
-const mockSnapshot = vi.fn();
-const mockListLogs = vi.fn();
-const mockExecFile = vi.fn();
+const mockGetCredential = vi.fn<MockProcedure>();
+const mockSnapshot = vi.fn<MockProcedure>();
+const mockListLogs = vi.fn<MockProcedure>();
+const mockExecFile = vi.fn<MockProcedure>();
 
 vi.mock('@/server/channels/credentials', () => ({
   getCredentialStore: () => ({
@@ -144,9 +145,9 @@ describe('health check helper branch coverage', () => {
     expect(unpaired.details).toMatchObject({ paired: false });
 
     mockGetCredential.mockReturnValue('connected');
-    const okFetch = vi.fn().mockResolvedValue({
+    const okFetch = vi.fn<MockProcedure>().mockResolvedValue({
       ok: true,
-      json: vi.fn().mockRejectedValue(new Error('bad json')),
+      json: vi.fn<MockProcedure>().mockRejectedValue(new Error('bad json')),
     });
     const ok = await mod.runBridgeHealthCheck('bridge', 'whatsapp', 'WHATSAPP_BRIDGE_URL', {
       fetchImpl: okFetch,
@@ -154,7 +155,7 @@ describe('health check helper branch coverage', () => {
     });
     expect(ok.status).toBe('ok');
 
-    const warningFetch = vi.fn().mockResolvedValue({
+    const warningFetch = vi.fn<MockProcedure>().mockResolvedValue({
       ok: false,
       status: 503,
     });
@@ -165,7 +166,7 @@ describe('health check helper branch coverage', () => {
     expect(warning.message).toContain('503');
 
     const timeoutFetch = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockRejectedValue(Object.assign(new Error('timed out'), { name: 'AbortError' }));
     const timeout = await mod.runBridgeHealthCheck('bridge', 'whatsapp', 'WHATSAPP_BRIDGE_URL', {
       fetchImpl: timeoutFetch,
@@ -173,7 +174,7 @@ describe('health check helper branch coverage', () => {
     });
     expect(timeout.status).toBe('critical');
 
-    const genericFetch = vi.fn().mockRejectedValue(new Error('bridge offline'));
+    const genericFetch = vi.fn<MockProcedure>().mockRejectedValue(new Error('bridge offline'));
     const generic = await mod.runBridgeHealthCheck('bridge', 'whatsapp', 'WHATSAPP_BRIDGE_URL', {
       fetchImpl: genericFetch,
     });

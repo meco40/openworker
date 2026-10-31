@@ -185,201 +185,203 @@ export default function NewSwarmModal({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="new-swarm-title"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4"
-    >
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-xl rounded-xl border border-zinc-800 bg-[#0c111f] p-5 text-zinc-200"
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
+      <dialog
+        open
+        aria-modal="true"
+        aria-labelledby="new-swarm-title"
+        className="relative w-full max-w-xl bg-transparent text-inherit"
       >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 id="new-swarm-title" className="text-base font-semibold text-white">
-              New Swarm
-            </h2>
-            <p className="mt-1 text-xs text-zinc-400">
-              Create a new agent swarm from existing personas.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-zinc-400 hover:text-zinc-200"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Template picker */}
-        <div className="mb-4">
-          <div className="mb-2 text-xs font-semibold text-zinc-400 uppercase">Quick Template</div>
-          <div className="flex flex-wrap gap-2">
-            {SWARM_TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => {
-                  setSelectedTemplate(tpl.id);
-                  setTitle(tpl.title);
-                  setTask(tpl.task);
-                }}
-                className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs transition-colors ${
-                  selectedTemplate === tpl.id
-                    ? 'border-cyan-500/70 bg-cyan-500/20 text-cyan-100'
-                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
-                }`}
-              >
-                <span>{tpl.icon}</span>
-                <span>{tpl.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Suggested roles for selected template */}
-        {selectedTemplate &&
-          (() => {
-            const tpl = SWARM_TEMPLATES.find((t) => t.id === selectedTemplate);
-            if (!tpl?.suggestedRoles.length) return null;
-            return (
-              <div className="mb-4 rounded border border-cyan-900/40 bg-cyan-950/20 p-3">
-                <div className="mb-1.5 text-[10px] font-semibold text-cyan-400/80 uppercase">
-                  Suggested Roles for {tpl.label}
-                </div>
-                <div className="space-y-1">
-                  {tpl.suggestedRoles.map((sr) => (
-                    <div key={sr.role} className="flex items-baseline gap-2 text-[11px]">
-                      <span className="shrink-0 rounded bg-cyan-500/15 px-1.5 py-0.5 font-mono text-cyan-300">
-                        {sr.role}
-                      </span>
-                      <span className="text-zinc-400">{sr.description}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-        <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
-          Title
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-            placeholder="Research Mission"
-          />
-        </label>
-
-        <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
-          Task
-          <textarea
-            value={task}
-            onChange={(event) => setTask(event.target.value)}
-            className="mt-1 min-h-24 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-            placeholder="Beschreibe die Aufgabe für den Schwarm."
-          />
-        </label>
-
-        <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
-          Lead Persona
-          <select
-            value={leadPersonaId}
-            onChange={(event) => {
-              const nextLead = event.target.value;
-              setLeadPersonaId(nextLead);
-              setSelectedUnitIds((previous) => {
-                const defaults = availablePersonas
-                  .map((persona) => persona.id)
-                  .filter((personaId) => personaId !== nextLead);
-                const filtered = previous.filter((id) => id !== nextLead);
-                return Array.from(
-                  new Set([
-                    ...defaults,
-                    ...defaultUnitsFromPersona(nextLead).map((unit) => unit.personaId),
-                    ...filtered,
-                  ]),
-                );
-              });
-            }}
-            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-          >
-            <option value="">Select Persona</option>
-            {availablePersonas.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.emoji} {persona.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="mb-4 rounded border border-zinc-800 bg-zinc-950/50 p-3">
-          <div className="mb-2 text-xs font-semibold text-zinc-400 uppercase">Swarm Units</div>
-          {availablePersonas.length === 0 && (
-            <div className="text-xs text-amber-300">
-              Keine Personas verfügbar. Bitte zuerst Personas anlegen.
+        <form
+          onSubmit={handleSubmit}
+          className="w-full rounded-xl border border-zinc-800 bg-[#0c111f] p-5 text-zinc-200"
+        >
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <h2 id="new-swarm-title" className="text-base font-semibold text-white">
+                New Swarm
+              </h2>
+              <p className="mt-1 text-xs text-zinc-400">
+                Create a new agent swarm from existing personas.
+              </p>
             </div>
-          )}
-          {availablePersonas.length > 0 && (
-            <div className="grid max-h-40 grid-cols-1 gap-2 overflow-auto pr-1">
-              {availablePersonas.map((persona) => {
-                const checked =
-                  selectedUnitIds.includes(persona.id) || persona.id === leadPersonaId;
-                return (
-                  <label
-                    key={persona.id}
-                    className="flex cursor-pointer items-center gap-2 rounded border border-zinc-800 px-2 py-1.5 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleUnit(persona.id)}
-                      disabled={persona.id === leadPersonaId}
-                    />
-                    <span>
-                      {persona.emoji} {persona.name}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* Options toggles */}
-        <div className="mb-4 flex flex-wrap gap-4">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+          {/* Template picker */}
+          <div className="mb-4">
+            <div className="mb-2 text-xs font-semibold text-zinc-400 uppercase">Quick Template</div>
+            <div className="flex flex-wrap gap-2">
+              {SWARM_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplate(tpl.id);
+                    setTitle(tpl.title);
+                    setTask(tpl.task);
+                  }}
+                  className={`flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs transition-colors ${
+                    selectedTemplate === tpl.id
+                      ? 'border-cyan-500/70 bg-cyan-500/20 text-cyan-100'
+                      : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
+                  }`}
+                >
+                  <span>{tpl.icon}</span>
+                  <span>{tpl.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Suggested roles for selected template */}
+          {selectedTemplate &&
+            (() => {
+              const tpl = SWARM_TEMPLATES.find((t) => t.id === selectedTemplate);
+              if (!tpl?.suggestedRoles.length) return null;
+              return (
+                <div className="mb-4 rounded border border-cyan-900/40 bg-cyan-950/20 p-3">
+                  <div className="mb-1.5 text-[10px] font-semibold text-cyan-400/80 uppercase">
+                    Suggested Roles for {tpl.label}
+                  </div>
+                  <div className="space-y-1">
+                    {tpl.suggestedRoles.map((sr) => (
+                      <div key={sr.role} className="flex items-baseline gap-2 text-[11px]">
+                        <span className="shrink-0 rounded bg-cyan-500/15 px-1.5 py-0.5 font-mono text-cyan-300">
+                          {sr.role}
+                        </span>
+                        <span className="text-zinc-400">{sr.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+          <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
+            Title
             <input
-              type="checkbox"
-              checked={pauseBetweenPhases}
-              onChange={(e) => setPauseBetweenPhases(e.target.checked)}
-              className="rounded"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+              placeholder="Research Mission"
             />
-            <span>⏸ Pause Between Phases</span>
           </label>
-        </div>
 
-        {error && <div className="mb-3 text-xs text-rose-300">{error}</div>}
+          <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
+            Task
+            <textarea
+              value={task}
+              onChange={(event) => setTask(event.target.value)}
+              className="mt-1 min-h-24 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+              placeholder="Beschreibe die Aufgabe für den Schwarm."
+            />
+          </label>
 
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-900"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={creating || availablePersonas.length === 0}
-            className="rounded border border-cyan-500/50 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-50"
-          >
-            {creating ? 'Deploying...' : 'Deploy Agents'}
-          </button>
-        </div>
-      </form>
+          <label className="mb-3 block text-xs font-semibold text-zinc-400 uppercase">
+            Lead Persona
+            <select
+              value={leadPersonaId}
+              onChange={(event) => {
+                const nextLead = event.target.value;
+                setLeadPersonaId(nextLead);
+                setSelectedUnitIds((previous) => {
+                  const defaults = availablePersonas
+                    .map((persona) => persona.id)
+                    .filter((personaId) => personaId !== nextLead);
+                  const filtered = previous.filter((id) => id !== nextLead);
+                  return Array.from(
+                    new Set([
+                      ...defaults,
+                      ...defaultUnitsFromPersona(nextLead).map((unit) => unit.personaId),
+                      ...filtered,
+                    ]),
+                  );
+                });
+              }}
+              className="mt-1 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
+            >
+              <option value="">Select Persona</option>
+              {availablePersonas.map((persona) => (
+                <option key={persona.id} value={persona.id}>
+                  {persona.emoji} {persona.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="mb-4 rounded border border-zinc-800 bg-zinc-950/50 p-3">
+            <div className="mb-2 text-xs font-semibold text-zinc-400 uppercase">Swarm Units</div>
+            {availablePersonas.length === 0 && (
+              <div className="text-xs text-amber-300">
+                Keine Personas verfügbar. Bitte zuerst Personas anlegen.
+              </div>
+            )}
+            {availablePersonas.length > 0 && (
+              <div className="grid max-h-40 grid-cols-1 gap-2 overflow-auto pr-1">
+                {availablePersonas.map((persona) => {
+                  const checked =
+                    selectedUnitIds.includes(persona.id) || persona.id === leadPersonaId;
+                  return (
+                    <label
+                      key={persona.id}
+                      className="flex cursor-pointer items-center gap-2 rounded border border-zinc-800 px-2 py-1.5 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleUnit(persona.id)}
+                        disabled={persona.id === leadPersonaId}
+                      />
+                      <span>
+                        {persona.emoji} {persona.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Options toggles */}
+          <div className="mb-4 flex flex-wrap gap-4">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+              <input
+                type="checkbox"
+                checked={pauseBetweenPhases}
+                onChange={(e) => setPauseBetweenPhases(e.target.checked)}
+                className="rounded"
+              />
+              <span>⏸ Pause Between Phases</span>
+            </label>
+          </div>
+
+          {error && <div className="mb-3 text-xs text-rose-300">{error}</div>}
+
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-900"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={creating || availablePersonas.length === 0}
+              className="rounded border border-cyan-500/50 bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-50"
+            >
+              {creating ? 'Deploying...' : 'Deploy Agents'}
+            </button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }

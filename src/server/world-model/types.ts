@@ -1,29 +1,11 @@
 export type Modality =
-  | 'reported'
-  | 'planned'
-  | 'expected'
-  | 'inferred'
-  | 'observed'
-  | 'confirmed'
-  | 'denied';
+  'reported' | 'planned' | 'expected' | 'inferred' | 'observed' | 'confirmed' | 'denied';
 
 export type EventStatus =
-  | 'proposed'
-  | 'planned'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled'
-  | 'no_show'
-  | 'unknown';
+  'proposed' | 'planned' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' | 'unknown';
 
 export type TaskStatus =
-  | 'proposed'
-  | 'planned'
-  | 'in_progress'
-  | 'waiting'
-  | 'completed'
-  | 'cancelled'
-  | 'failed';
+  'proposed' | 'planned' | 'in_progress' | 'waiting' | 'completed' | 'cancelled' | 'failed';
 
 export type OpenLoopType =
   | 'clarification'
@@ -34,13 +16,7 @@ export type OpenLoopType =
   | 'promised_follow_up';
 
 export type OpenLoopStatus =
-  | 'open'
-  | 'scheduled'
-  | 'asked'
-  | 'answered'
-  | 'resolved'
-  | 'cancelled'
-  | 'expired';
+  'open' | 'scheduled' | 'asked' | 'answered' | 'resolved' | 'cancelled' | 'expired';
 
 export type StandingIntentStatus = 'armed' | 'cooldown' | 'done' | 'cancelled' | 'expired';
 
@@ -186,5 +162,4 @@ export interface OutboxEvent extends OutboxEventInput {
 }
 
 export type StandingIntentFireResult =
-  | { matched: true; intent: StandingIntentRecord; observation: Observation }
-  | { matched: false };
+  { matched: true; intent: StandingIntentRecord; observation: Observation } | { matched: false };

@@ -41,8 +41,7 @@ export function createOrGetRun(db: SqliteDb, input: CreateAutomationRunInput): A
 
 export function getRun(db: SqliteDb, runId: string): AutomationRun | null {
   const row = db.prepare('SELECT * FROM automation_runs WHERE id = ?').get(runId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   return row ? toRun(row) : null;
 }
 

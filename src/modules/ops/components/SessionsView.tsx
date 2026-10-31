@@ -156,6 +156,7 @@ const SessionsView: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <input
+                          aria-label={`Session ${session.id} umbenennen`}
                           value={renameValue}
                           onChange={(event) =>
                             state.actions.setRenameDraft(session.id, event.target.value)

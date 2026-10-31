@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const getTokenMock = vi.fn();
+const getTokenMock = vi.fn<MockProcedure>();
 
 vi.mock('next-auth/jwt', () => ({
   getToken: getTokenMock,

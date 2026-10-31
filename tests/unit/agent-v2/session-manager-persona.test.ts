@@ -1,34 +1,41 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('AgentV2SessionManager persona binding', () => {
   it('binds selected persona to conversation before session create', async () => {
     vi.resetModules();
 
-    const setPersonaId = vi.fn();
+    const setPersonaId = vi.fn<MockProcedure>();
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageService: () => ({
-        getConversation: vi.fn(() => ({
+        getConversation: vi.fn<() => { id: string; userId: string; personaId: null }>(() => ({
           id: 'conv-1',
           userId: 'user-1',
           personaId: null,
         })),
-        getOrCreateConversation: vi.fn(() => ({
-          id: 'conv-1',
-          userId: 'user-1',
-          personaId: null,
-        })),
+        getOrCreateConversation: vi.fn<() => { id: string; userId: string; personaId: null }>(
+          () => ({
+            id: 'conv-1',
+            userId: 'user-1',
+            personaId: null,
+          }),
+        ),
         setPersonaId,
       }),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
-      getPersonaRepository: () => ({ getPersona: vi.fn(() => ({ id: 'persona-1' })) }),
+      getPersonaRepository: () => ({
+        getPersona: vi.fn<() => { id: string }>(() => ({ id: 'persona-1' })),
+      }),
     }));
 
     const now = '2026-02-24T00:00:00.000Z';
     const repository = {
-      recoverRunningCommandsOnStartup: vi.fn(() => ({ recoveredCommands: 0 })),
-      pruneExpiredEvents: vi.fn(),
-      createSession: vi.fn(() => ({
+      recoverRunningCommandsOnStartup: vi.fn<() => { recoveredCommands: number }>(() => ({
+        recoveredCommands: 0,
+      })),
+      pruneExpiredEvents: vi.fn<MockProcedure>(),
+      createSession: vi.fn<MockProcedure>(() => ({
         session: {
           id: 'session-1',
           userId: 'user-1',
@@ -45,21 +52,21 @@ describe('AgentV2SessionManager persona binding', () => {
         },
         events: [],
       })),
-      appendEvent: vi.fn(),
-      hasQueuedAbort: vi.fn(() => false),
-      countQueuedCommands: vi.fn(() => 0),
-      enqueueCommand: vi.fn(),
-      startNextQueuedCommand: vi.fn(),
-      completeCommand: vi.fn(),
-      getSession: vi.fn(),
-      listSessions: vi.fn(() => []),
-      replayEvents: vi.fn(() => []),
-      close: vi.fn(),
+      appendEvent: vi.fn<MockProcedure>(),
+      hasQueuedAbort: vi.fn<() => boolean>(() => false),
+      countQueuedCommands: vi.fn<() => number>(() => 0),
+      enqueueCommand: vi.fn<MockProcedure>(),
+      startNextQueuedCommand: vi.fn<MockProcedure>(),
+      completeCommand: vi.fn<MockProcedure>(),
+      getSession: vi.fn<MockProcedure>(),
+      listSessions: vi.fn<() => never[]>(() => []),
+      replayEvents: vi.fn<() => never[]>(() => []),
+      close: vi.fn<MockProcedure>(),
     };
     const extensionHost = {
-      refresh: vi.fn(),
-      runHooks: vi.fn(async () => []),
-      stopAll: vi.fn(),
+      refresh: vi.fn<MockProcedure>(),
+      runHooks: vi.fn<() => Promise<never[]>>(async () => []),
+      stopAll: vi.fn<MockProcedure>(),
     };
 
     const { AgentV2SessionManager } = await import('@/server/agent-v2/session');
@@ -85,33 +92,37 @@ describe('AgentV2SessionManager persona binding', () => {
 
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageService: () => ({
-        getConversation: vi.fn(() => ({
+        getConversation: vi.fn<() => { id: string; userId: string; personaId: null }>(() => ({
           id: 'conv-1',
           userId: 'user-1',
           personaId: null,
         })),
-        getOrCreateConversation: vi.fn(() => ({
-          id: 'conv-1',
-          userId: 'user-1',
-          personaId: null,
-        })),
-        setPersonaId: vi.fn(),
+        getOrCreateConversation: vi.fn<() => { id: string; userId: string; personaId: null }>(
+          () => ({
+            id: 'conv-1',
+            userId: 'user-1',
+            personaId: null,
+          }),
+        ),
+        setPersonaId: vi.fn<MockProcedure>(),
       }),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
-      getPersonaRepository: () => ({ getPersona: vi.fn(() => null) }),
+      getPersonaRepository: () => ({ getPersona: vi.fn<() => null>(() => null) }),
     }));
 
     const repository = {
-      recoverRunningCommandsOnStartup: vi.fn(() => ({ recoveredCommands: 0 })),
-      pruneExpiredEvents: vi.fn(),
-      createSession: vi.fn(),
-      close: vi.fn(),
+      recoverRunningCommandsOnStartup: vi.fn<() => { recoveredCommands: number }>(() => ({
+        recoveredCommands: 0,
+      })),
+      pruneExpiredEvents: vi.fn<MockProcedure>(),
+      createSession: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     };
     const extensionHost = {
-      refresh: vi.fn(),
-      runHooks: vi.fn(async () => []),
-      stopAll: vi.fn(),
+      refresh: vi.fn<MockProcedure>(),
+      runHooks: vi.fn<() => Promise<never[]>>(async () => []),
+      stopAll: vi.fn<MockProcedure>(),
     };
     const { AgentV2SessionManager } = await import('@/server/agent-v2/session');
     const manager = new AgentV2SessionManager(repository as never, extensionHost as never);

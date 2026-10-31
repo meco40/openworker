@@ -26,12 +26,7 @@ export const MEMORY_PERSONA_TYPE_LABELS: Record<MemoryPersonaType, string> = {
 
 /** Valid persona file names (analogous to BetaClaw workspace bootstrap files) */
 export type PersonaFileName =
-  | 'SOUL.md'
-  | 'IDENTITY.md'
-  | 'AGENTS.md'
-  | 'USER.md'
-  | 'TOOLS.md'
-  | 'HEARTBEAT.md';
+  'SOUL.md' | 'IDENTITY.md' | 'AGENTS.md' | 'USER.md' | 'TOOLS.md' | 'HEARTBEAT.md';
 
 export const PERSONA_FILE_NAMES: PersonaFileName[] = [
   'SOUL.md',

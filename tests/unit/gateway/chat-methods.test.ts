@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-1'): GatewayClient {
   return {
@@ -9,8 +10,8 @@ function makeClient(userId = 'user-1'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-1',
     userId,
@@ -45,18 +46,18 @@ describe('gateway chat methods', () => {
   it('passes client.userId into chat.history repository lookup', async () => {
     vi.resetModules();
 
-    const listMessages = vi.fn(() => []);
+    const listMessages = vi.fn<() => never[]>(() => []);
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
         listMessages,
-        listConversations: vi.fn(() => []),
+        listConversations: vi.fn<() => never[]>(() => []),
       }),
       getMessageService: () => ({
-        getConversation: vi.fn(() => null),
-        setPersonaId: vi.fn(),
-        handleWebUIMessage: vi.fn(),
-        abortGeneration: vi.fn(() => false),
-        respondToolApproval: vi.fn(),
+        getConversation: vi.fn<() => null>(() => null),
+        setPersonaId: vi.fn<MockProcedure>(),
+        handleWebUIMessage: vi.fn<MockProcedure>(),
+        abortGeneration: vi.fn<() => boolean>(() => false),
+        respondToolApproval: vi.fn<MockProcedure>(),
       }),
     }));
 
@@ -78,18 +79,18 @@ describe('gateway chat methods', () => {
   it('supports client limit for chat.conversations.list with default and max clamp', async () => {
     vi.resetModules();
 
-    const listConversations = vi.fn(() => []);
+    const listConversations = vi.fn<() => never[]>(() => []);
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
         listConversations,
       }),
       getMessageService: () => ({
-        getConversation: vi.fn(() => null),
-        setPersonaId: vi.fn(),
-        handleWebUIMessage: vi.fn(),
-        abortGeneration: vi.fn(() => false),
-        respondToolApproval: vi.fn(),
+        getConversation: vi.fn<() => null>(() => null),
+        setPersonaId: vi.fn<MockProcedure>(),
+        handleWebUIMessage: vi.fn<MockProcedure>(),
+        abortGeneration: vi.fn<() => boolean>(() => false),
+        respondToolApproval: vi.fn<MockProcedure>(),
       }),
     }));
 
@@ -122,22 +123,22 @@ describe('gateway chat methods', () => {
   it('rejects chat.send when requested persona mismatches bound conversation persona', async () => {
     vi.resetModules();
 
-    const setPersonaId = vi.fn();
-    const handleWebUIMessage = vi.fn();
+    const setPersonaId = vi.fn<MockProcedure>();
+    const handleWebUIMessage = vi.fn<MockProcedure>();
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
-        listMessages: vi.fn(() => []),
-        listConversations: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
+        listConversations: vi.fn<() => never[]>(() => []),
       }),
       getMessageService: () => ({
-        getConversation: vi.fn(() => ({
+        getConversation: vi.fn<() => { id: string; personaId: string }>(() => ({
           id: 'conv-1',
           personaId: 'persona-a',
         })),
         setPersonaId,
         handleWebUIMessage,
-        abortGeneration: vi.fn(() => false),
-        respondToolApproval: vi.fn(),
+        abortGeneration: vi.fn<() => boolean>(() => false),
+        respondToolApproval: vi.fn<MockProcedure>(),
       }),
     }));
 
@@ -168,7 +169,7 @@ describe('gateway chat methods', () => {
     vi.resetModules();
     process.env.BETACLAW_CHAT_STREAM_KEEPALIVE_MS = '1000';
 
-    const handleWebUIMessage = vi.fn(
+    const handleWebUIMessage = vi.fn<MockProcedure>(
       async (
         _conversationId: string,
         _content: string,
@@ -187,15 +188,15 @@ describe('gateway chat methods', () => {
 
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
-        listMessages: vi.fn(() => []),
-        listConversations: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
+        listConversations: vi.fn<() => never[]>(() => []),
       }),
       getMessageService: () => ({
-        getConversation: vi.fn(() => null),
-        setPersonaId: vi.fn(),
+        getConversation: vi.fn<() => null>(() => null),
+        setPersonaId: vi.fn<MockProcedure>(),
         handleWebUIMessage,
-        abortGeneration: vi.fn(() => false),
-        respondToolApproval: vi.fn(),
+        abortGeneration: vi.fn<() => boolean>(() => false),
+        respondToolApproval: vi.fn<MockProcedure>(),
       }),
     }));
 

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../../helpers/testArtifacts';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('master runtime persona config', () => {
   const cleanupDirs: string[] = [];
@@ -42,7 +43,7 @@ describe('master runtime persona config', () => {
     process.env.PERSONAS_ROOT_PATH = personasRootPath;
     process.env.PERSONAS_DB_PATH = dbPath;
 
-    const dispatchWithFallback = vi.fn().mockResolvedValue({
+    const dispatchWithFallback = vi.fn<MockProcedure>().mockResolvedValue({
       ok: true,
       text: JSON.stringify({
         capabilities: ['web_search'],

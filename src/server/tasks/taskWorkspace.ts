@@ -59,9 +59,7 @@ function isWithinRoot(candidatePath: string, rootPath: string): boolean {
 }
 
 type WorkspaceMetadataReadResult =
-  | { status: 'ok'; metadata: TaskWorkspaceMetadata }
-  | { status: 'missing' }
-  | { status: 'invalid' };
+  { status: 'ok'; metadata: TaskWorkspaceMetadata } | { status: 'missing' } | { status: 'invalid' };
 
 function isValidIsoTimestamp(value: string): boolean {
   const parsed = Date.parse(value);

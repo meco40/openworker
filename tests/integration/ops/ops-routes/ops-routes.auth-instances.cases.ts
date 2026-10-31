@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mockUserContext, registerOpsRouteLifecycleHooks } from './ops-routes.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('ops routes', () => {
   registerOpsRouteLifecycleHooks();
@@ -28,7 +29,7 @@ describe('ops routes', () => {
   it('returns user-scoped websocket instance summaries with clamped limit', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
-    const getByUserId = vi.fn().mockReturnValue([
+    const getByUserId = vi.fn<MockProcedure>().mockReturnValue([
       {
         connId: 'conn-a',
         userId: 'ops-user',

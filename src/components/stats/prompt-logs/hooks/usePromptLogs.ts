@@ -132,7 +132,8 @@ export function usePromptLogs({
   );
 
   useEffect(() => {
-    void fetchPage(undefined, false);
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() => fetchPage(undefined, false));
     return () => {
       abortRef.current?.abort();
     };

@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  db: { query: vi.fn() },
-  getWorldModelDb: vi.fn(),
-  runWithWorldModelScope: vi.fn(),
-  checkGraphitiHealth: vi.fn(),
-  graphitiGroupId: vi.fn(),
-  searchGraphitiFactsWithRerank: vi.fn(),
-  rankGraphitiFacts: vi.fn(),
-  isRelevantRankedGraphitiFact: vi.fn(),
+  db: { query: vi.fn<MockProcedure>() },
+  getWorldModelDb: vi.fn<MockProcedure>(),
+  runWithWorldModelScope: vi.fn<MockProcedure>(),
+  checkGraphitiHealth: vi.fn<MockProcedure>(),
+  graphitiGroupId: vi.fn<MockProcedure>(),
+  searchGraphitiFactsWithRerank: vi.fn<MockProcedure>(),
+  rankGraphitiFacts: vi.fn<MockProcedure>(),
+  isRelevantRankedGraphitiFact: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -26,6 +26,7 @@ vi.mock('@/server/world-model/graphiti/retrieval', () => ({
 }));
 
 import { evaluateGraphitiValue } from '@/server/world-model/graphiti/evaluator';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const scope = { userId: 'user-1', personaId: 'persona-1', workspaceId: 'workspace-1' };
 const originalSearchResults = process.env.GRAPHITI_SEARCH_RESULTS;

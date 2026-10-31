@@ -1,13 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getPersonaWithFiles = vi.fn(() => ({ id: 'persona-1', userId: 'user-1', files: [] }));
+const getPersonaWithFiles = vi.fn<() => { id: string; userId: string; files: never[] }>(() => ({
+  id: 'persona-1',
+  userId: 'user-1',
+  files: [],
+}));
 
 vi.mock('@/server/personas/personaRepository', () => ({
   getPersonaRepository: () => ({ getPersonaWithFiles }),
 }));
 
 vi.mock('@/server/auth/userContext', () => ({
-  resolveRequestUserContext: vi.fn(async () => ({ userId: 'user-1', authenticated: true })),
+  resolveRequestUserContext: vi.fn<() => Promise<{ userId: string; authenticated: boolean }>>(
+    async () => ({ userId: 'user-1', authenticated: true }),
+  ),
 }));
 
 describe('personas route lazy-loading behavior', () => {
@@ -28,7 +34,7 @@ describe('personas route lazy-loading behavior', () => {
   });
 
   it('keeps GET independent from model-hub, memory, channel and knowledge runtimes', async () => {
-    const eagerImport = vi.fn(() => {
+    const eagerImport = vi.fn<() => never>(() => {
       throw new Error('runtime was imported eagerly');
     });
     vi.doMock('@/server/model-hub/runtime', eagerImport);

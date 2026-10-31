@@ -8,14 +8,15 @@ import {
 } from '@/server/gateway/method-router';
 import type { RequestFrame } from '@/server/gateway/protocol';
 import type { GatewayClient } from '@/server/gateway/client-registry';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeMockSocket(): WebSocket {
   return {
     readyState: 1,
     OPEN: 1,
     bufferedAmount: 0,
-    send: vi.fn(),
-    close: vi.fn(),
+    send: vi.fn<MockProcedure>(),
+    close: vi.fn<MockProcedure>(),
   } as unknown as WebSocket;
 }
 
@@ -103,7 +104,7 @@ describe('Method Router', () => {
       capturedCtx = ctx;
     });
 
-    const sendRaw = vi.fn();
+    const sendRaw = vi.fn<MockProcedure>();
     await dispatchMethod(makeFrame('test.ctx', {}, 99), makeClient(), sendRaw);
 
     expect(capturedCtx).not.toBeNull();
@@ -119,7 +120,7 @@ describe('Method Router', () => {
       respond('ok');
     });
 
-    const sendRaw = vi.fn();
+    const sendRaw = vi.fn<MockProcedure>();
     await dispatchMethod({ type: 'req', id: '1', method: 'test.noparams' }, makeClient(), sendRaw);
 
     expect(capturedParams).toEqual({});

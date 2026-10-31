@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PromptDispatchRepository } from '@/server/stats/promptDispatchRepository';
 import { TokenUsageRepository } from '@/server/stats/tokenUsageRepository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type GlobalSingletons = typeof globalThis & {
   __promptDispatchRepository?: PromptDispatchRepository;
@@ -72,7 +73,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       decryptSecret: () => 'sk-test',
     }));
     vi.doMock('../../../src/server/stats/openRouterPricing', () => ({
-      getOpenRouterModelPricing: vi.fn().mockResolvedValue({
+      getOpenRouterModelPricing: vi.fn<MockProcedure>().mockResolvedValue({
         promptPricePerTokenUsd: 0.000001,
         completionPricePerTokenUsd: 0.000002,
       }),
@@ -118,7 +119,7 @@ describe('dispatchGatewayRequest prompt logging', () => {
       decryptSecret: () => 'xai-test',
     }));
     vi.doMock('../../../src/server/stats/xaiPricing', () => ({
-      getXaiModelPricing: vi.fn().mockResolvedValue({
+      getXaiModelPricing: vi.fn<MockProcedure>().mockResolvedValue({
         promptPricePerTokenUsd: 0.0000002,
         completionPricePerTokenUsd: 0.0000005,
         requestPriceUsd: 0,

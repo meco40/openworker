@@ -4,7 +4,7 @@ import type { Conversation } from '@/shared/domain/types';
 import type { MessageRepository, StoredMessage } from '@/server/channels/messages/repository';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async (_profileId: string, _key: string, request: { tools?: unknown[] }) => {
+  vi.fn<MockProcedure>(async (_profileId: string, _key: string, request: { tools?: unknown[] }) => {
     return {
       ok: true,
       text: request.tools ? 'unexpected-tools-enabled' : 'roleplay-no-tools',
@@ -14,9 +14,13 @@ const dispatchWithFallbackMock = vi.hoisted(() =>
   }),
 );
 const dispatchSkillMock = vi.hoisted(() =>
-  vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
+  vi.fn<() => Promise<{ stdout: string; stderr: string; exitCode: number }>>(async () => ({
+    stdout: 'ok',
+    stderr: '',
+    exitCode: 0,
+  })),
 );
-const isCommandApprovedMock = vi.hoisted(() => vi.fn(() => false));
+const isCommandApprovedMock = vi.hoisted(() => vi.fn<() => boolean>(() => false));
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
   getModelHubService: () => ({
@@ -26,18 +30,21 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 }));
 
 vi.mock('../../../src/server/channels/outbound/router', () => ({
-  deliverOutbound: vi.fn(async () => {}),
+  deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock('../../../src/server/gateway/broadcast', () => ({
-  broadcastToUser: vi.fn(),
+  broadcastToUser: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
-    recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-    store: vi.fn(async () => ({ id: 'mem-1' })),
-    updateFeedback: vi.fn(async () => {}),
+    recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+      context: '',
+      matches: [],
+    })),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+    updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
   }),
 }));
 
@@ -91,7 +98,7 @@ vi.mock('../../../src/server/skills/skillRepository', () => ({
 }));
 
 vi.mock('@/skills/definitions', () => ({
-  mapSkillsToTools: vi.fn(() => [
+  mapSkillsToTools: vi.fn<MockProcedure>(() => [
     {
       type: 'function',
       function: {
@@ -120,6 +127,7 @@ vi.mock('../../../src/server/gateway/exec-approval-manager', async () => {
 });
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(): MessageRepository {
   let seq = 0;
@@ -226,8 +234,7 @@ describe('MessageService roleplay persona tool policy', () => {
     expect(dispatchSkillMock).not.toHaveBeenCalled();
     expect(dispatchWithFallbackMock).toHaveBeenCalledTimes(1);
     const call = dispatchWithFallbackMock.mock.calls[0] as
-      | [string, string, { tools?: unknown[] }]
-      | undefined;
+      [string, string, { tools?: unknown[] }] | undefined;
     expect(call?.[2]?.tools).toBeUndefined();
     expect(result.agentMsg.content).toBe('roleplay-no-tools');
   });

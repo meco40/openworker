@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { GatewayStreamChunk } from '@/services/gateway';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 /**
  * Tests for services/gateway.ts — the client-side AI gateway service.
@@ -9,6 +10,14 @@ import type { GatewayStreamChunk } from '@/services/gateway';
  */
 
 // ── Dynamic import so we can mock fetch before the module loads ─
+
+function mockFetch(responseBody: unknown, status = 200) {
+  globalThis.fetch = vi.fn<MockProcedure>().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => responseBody,
+  }) as unknown as typeof fetch;
+}
 
 describe('services/gateway', () => {
   type FetchMockCall = [string, { body?: string } & Record<string, unknown>];
@@ -27,14 +36,6 @@ describe('services/gateway', () => {
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
-
-  function mockFetch(responseBody: unknown, status = 200) {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => responseBody,
-    }) as unknown as typeof fetch;
-  }
 
   async function loadGateway() {
     const mod = await import('@/services/gateway');
@@ -180,7 +181,7 @@ describe('services/gateway', () => {
 
     it('accumulates conversation history across messages', async () => {
       let callCount = 0;
-      globalThis.fetch = vi.fn().mockImplementation(async () => {
+      globalThis.fetch = vi.fn<MockProcedure>().mockImplementation(async () => {
         callCount++;
         return {
           ok: true,

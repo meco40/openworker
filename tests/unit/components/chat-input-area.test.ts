@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Conversation, MessageAttachment } from '@/shared/domain/types';
 import { ChannelType } from '@/shared/domain/types';
 import ChatInputArea from '@/modules/chat/components/ChatInputArea';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildConversation(): Conversation {
   return {
@@ -29,11 +30,11 @@ describe('ChatInputArea', () => {
         fileInputRef: createRef<HTMLInputElement>(),
         textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: true,
-        onInputChange: vi.fn(),
-        onSend: vi.fn(),
-        onAbort: vi.fn(),
-        onFileSelect: vi.fn(),
-        onRemovePendingFile: vi.fn(),
+        onInputChange: vi.fn<MockProcedure>(),
+        onSend: vi.fn<MockProcedure>(),
+        onAbort: vi.fn<MockProcedure>(),
+        onFileSelect: vi.fn<MockProcedure>(),
+        onRemovePendingFile: vi.fn<MockProcedure>(),
       }),
     );
 
@@ -56,12 +57,12 @@ describe('ChatInputArea', () => {
         fileInputRef: createRef<HTMLInputElement>(),
         textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: true,
-        onInputChange: vi.fn(),
-        onSend: vi.fn(),
-        onAbort: vi.fn(),
-        onRemoveQueuedMessage: vi.fn(),
-        onFileSelect: vi.fn(),
-        onRemovePendingFile: vi.fn(),
+        onInputChange: vi.fn<MockProcedure>(),
+        onSend: vi.fn<MockProcedure>(),
+        onAbort: vi.fn<MockProcedure>(),
+        onRemoveQueuedMessage: vi.fn<MockProcedure>(),
+        onFileSelect: vi.fn<MockProcedure>(),
+        onRemovePendingFile: vi.fn<MockProcedure>(),
       }),
     );
 
@@ -81,11 +82,11 @@ describe('ChatInputArea', () => {
         fileInputRef: createRef<HTMLInputElement>(),
         textInputRef: createRef<HTMLTextAreaElement>(),
         isGenerating: false,
-        onInputChange: vi.fn(),
-        onSend: vi.fn(),
-        onAbort: vi.fn(),
-        onFileSelect: vi.fn(),
-        onRemovePendingFile: vi.fn(),
+        onInputChange: vi.fn<MockProcedure>(),
+        onSend: vi.fn<MockProcedure>(),
+        onAbort: vi.fn<MockProcedure>(),
+        onFileSelect: vi.fn<MockProcedure>(),
+        onRemovePendingFile: vi.fn<MockProcedure>(),
       }),
     );
 

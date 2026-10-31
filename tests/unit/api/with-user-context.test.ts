@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const resolveRequestUserContextMock = vi.fn();
+const resolveRequestUserContextMock = vi.fn<MockProcedure>();
 
 vi.mock('@/server/auth/userContext', () => ({
   resolveRequestUserContext: resolveRequestUserContextMock,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { ApprovalDecision } from '@/modules/master/types';
 import { KNOWN_ACTION_TYPES } from '@/modules/master/types';
 
@@ -8,6 +8,7 @@ interface ApprovalDecisionFormProps {
   onSubmit: (actionType: string, decision: ApprovalDecision) => void;
 }
 
+/** Callers key this form by the pending action type, so a new approval resets the selection. */
 export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
   loading,
   pendingActionType,
@@ -19,11 +20,6 @@ export const ApprovalDecisionForm: React.FC<ApprovalDecisionFormProps> = ({
   const decisionControlId = 'approval-decision-select';
   const [actionType, setActionType] = useState<string>(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
   const [decision, setDecision] = useState<ApprovalDecision>('approve_once');
-
-  // Sync actionType whenever pendingActionType changes (including reset to default when cleared)
-  useEffect(() => {
-    setActionType(pendingActionType ?? KNOWN_ACTION_TYPES[0]);
-  }, [pendingActionType]);
 
   return (
     <div className="overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/5">

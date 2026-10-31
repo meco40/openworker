@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mockUserContext, registerOpsRouteLifecycleHooks } from './ops-routes.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('ops routes', () => {
   registerOpsRouteLifecycleHooks();
@@ -7,7 +8,7 @@ describe('ops routes', () => {
   it('returns conversation sessions filtered by query and bounded by clamped limit', async () => {
     mockUserContext({ userId: 'ops-user', authenticated: true });
 
-    const listConversations = vi.fn().mockReturnValue([
+    const listConversations = vi.fn<MockProcedure>().mockReturnValue([
       {
         id: 'conv-1',
         channelType: 'WebChat',
@@ -87,7 +88,7 @@ describe('ops routes', () => {
     const freshIso = new Date(now - 5 * 60_000).toISOString();
     const staleIso = new Date(now - 3 * 60 * 60_000).toISOString();
 
-    const listConversations = vi.fn((userId?: string, limit?: number) => {
+    const listConversations = vi.fn<MockProcedure>((userId?: string, limit?: number) => {
       const own = [
         {
           id: 'conv-1',

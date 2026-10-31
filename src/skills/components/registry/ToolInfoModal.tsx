@@ -25,11 +25,11 @@ export const ToolInfoModal: React.FC<ToolInfoModalProps> = ({ skill, runtimeConf
         aria-label="Close tool info"
         onClick={onClose}
       />
-      <div
-        role="dialog"
+      <dialog
+        open
         aria-modal="true"
         aria-label="Tool info"
-        className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl border border-zinc-700 bg-zinc-900 p-8 shadow-2xl"
+        className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl border border-zinc-700 bg-zinc-900 p-8 text-inherit shadow-2xl"
       >
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -90,7 +90,7 @@ export const ToolInfoModal: React.FC<ToolInfoModalProps> = ({ skill, runtimeConf
             Close
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 };

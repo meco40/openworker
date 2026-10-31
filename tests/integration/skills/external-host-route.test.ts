@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
-const getExternalSkillHostStatusMock = vi.hoisted(() => vi.fn());
-const stopExternalSkillHostMock = vi.hoisted(() => vi.fn());
+const getExternalSkillHostStatusMock = vi.hoisted(() => vi.fn<MockProcedure>());
+const stopExternalSkillHostMock = vi.hoisted(() => vi.fn<MockProcedure>());
 
 function mockUserContext(context: MockUserContext): void {
   vi.doMock('@/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 

@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const embeddingMocks = vi.hoisted(() => ({
-  getConfiguredEmbeddingProvider: vi.fn(),
-  generateEmbeddingOnce: vi.fn(),
+  getConfiguredEmbeddingProvider: vi.fn<MockProcedure>(),
+  generateEmbeddingOnce: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/embeddings/provider', () => ({
@@ -17,6 +17,7 @@ import {
   runWorldModelMigrations,
   withWorldModelTransaction,
 } from '@/server/world-model/db';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const enabled = process.env.WORLD_MODEL_E2E === 'true';
 const marker = `canonical-memory-${Date.now()}`;
@@ -212,7 +213,7 @@ describe.skipIf(!enabled)('canonical PostgreSQL memory', () => {
     const provider = {
       model: 'test-embedding',
       modelVersion: '1',
-      generateEmbedding: vi.fn(),
+      generateEmbedding: vi.fn<MockProcedure>(),
     };
     embeddingMocks.getConfiguredEmbeddingProvider.mockReturnValue(provider);
     embeddingMocks.generateEmbeddingOnce.mockResolvedValue([1, 0]);
@@ -275,7 +276,7 @@ describe.skipIf(!enabled)('canonical PostgreSQL memory', () => {
     embeddingMocks.getConfiguredEmbeddingProvider.mockReturnValue({
       model: 'test-embedding',
       modelVersion: '1',
-      generateEmbedding: vi.fn(),
+      generateEmbedding: vi.fn<MockProcedure>(),
     });
     embeddingMocks.generateEmbeddingOnce.mockResolvedValue([1, 0]);
     vi.spyOn(vector, 'vectorSearch').mockRejectedValue(new Error('vector store unavailable'));

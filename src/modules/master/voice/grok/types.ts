@@ -2,12 +2,7 @@ import type { FaceState } from '../../components/master-face-three/types';
 import type { MasterAvatarAudioListener } from '../../types';
 
 export type VoiceAgentStatus =
-  | 'idle'
-  | 'listening'
-  | 'thinking'
-  | 'speaking'
-  | 'error'
-  | 'unsupported';
+  'idle' | 'listening' | 'thinking' | 'speaking' | 'error' | 'unsupported';
 
 export interface UseGrokVoiceAgentOptions {
   personaId?: string;

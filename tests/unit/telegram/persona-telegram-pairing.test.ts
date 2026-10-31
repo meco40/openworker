@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PersonaTelegramBotRegistry } from '@/server/telegram/personaTelegramBotRegistry';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const pollerMocks = vi.hoisted(() => ({
-  startPersonaBotPolling: vi.fn(async () => {}),
-  stopPersonaBotPolling: vi.fn(),
+  startPersonaBotPolling: vi.fn<() => Promise<void>>(async () => {}),
+  stopPersonaBotPolling: vi.fn<MockProcedure>(),
 }));
-const syncTelegramNativeCommands = vi.hoisted(() => vi.fn(async () => {}));
+const syncTelegramNativeCommands = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => {}));
 
 vi.mock('@/server/telegram/personaTelegramPoller', () => pollerMocks);
 vi.mock('@/server/channels/telegram/nativeCommands', () => ({

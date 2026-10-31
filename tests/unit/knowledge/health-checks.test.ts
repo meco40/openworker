@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Hoist mock functions
-const mockGetKnowledgeStats = vi.hoisted(() => vi.fn());
-const mockResolveKnowledgeConfig = vi.hoisted(() => vi.fn());
+const mockGetKnowledgeStats = vi.hoisted(() => vi.fn<MockProcedure>());
+const mockResolveKnowledgeConfig = vi.hoisted(() => vi.fn<MockProcedure>());
 
 vi.mock('../../../src/server/knowledge/runtime', () => ({
   getKnowledgeRepository: () => ({
@@ -16,6 +16,7 @@ vi.mock('../../../src/server/knowledge/config', () => ({
 }));
 
 import { runKnowledgeLayerCheck } from '@/commands/health/checks/coreChecks';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('Knowledge health check', () => {
   it('returns ok when knowledge layer is enabled and stats are healthy', () => {

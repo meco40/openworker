@@ -5,9 +5,9 @@ import { buildPersonalityMatrix } from '@/lib/personalityMatrix';
 
 const PersonalityRadar = dynamic(() => import('@/components/dashboard/PersonalityRadar'), {
   loading: () => (
-    <div role="status" className="flex h-64 items-center justify-center text-[11px] text-zinc-500">
+    <output className="flex h-64 items-center justify-center text-[11px] text-zinc-500">
       Loading behavior signals…
-    </div>
+    </output>
   ),
 });
 
@@ -177,13 +177,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state, scheduledTasks, metricsSta
           </div>
           {hasPersonalityData ? (
             <>
-              <div
+              <figure
                 className="min-h-[200px] w-full"
-                role="img"
                 aria-label={`Personality Matrix: ${personalitySummary}`}
               >
                 <PersonalityRadar stats={personalityStats} />
-              </div>
+              </figure>
               <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/40 p-3">
                 <div className="mb-1 text-[9px] font-black tracking-widest text-zinc-500 uppercase">
                   Current Focus

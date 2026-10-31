@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type RuntimeGlobals = typeof globalThis & {
   __messageRepository?: unknown;
@@ -19,13 +20,15 @@ function resetRuntimeGlobals(): void {
 
 function createCredentialStoreMock() {
   return {
-    getCredential: vi.fn((channel: string, key: string) => {
-      if (channel !== 'telegram') return '';
-      if (key === 'update_transport') return 'polling';
-      if (key === 'pairing_status') return 'connected';
-      if (key === 'bot_token') return 'token';
-      return '';
-    }),
+    getCredential: vi.fn<(channel: string, key: string) => '' | 'connected' | 'polling' | 'token'>(
+      (channel: string, key: string) => {
+        if (channel !== 'telegram') return '';
+        if (key === 'update_transport') return 'polling';
+        if (key === 'pairing_status') return 'connected';
+        if (key === 'bot_token') return 'token';
+        return '';
+      },
+    ),
   };
 }
 
@@ -43,8 +46,10 @@ describe('messages runtime bootstrap', () => {
 
   it('does not start polling or channel monitor when only getMessageService is called', async () => {
     const store = createCredentialStoreMock();
-    const startTelegramPolling = vi.fn(async () => {});
-    const startChannelHealthMonitor = vi.fn(() => ({ stop: vi.fn() }));
+    const startTelegramPolling = vi.fn<() => Promise<void>>(async () => {});
+    const startChannelHealthMonitor = vi.fn<MockProcedure>(() => ({
+      stop: vi.fn<MockProcedure>(),
+    }));
 
     vi.doMock('@/server/channels/messages/sqliteMessageRepository', () => ({
       SqliteMessageRepository: class SqliteMessageRepository {},
@@ -78,8 +83,10 @@ describe('messages runtime bootstrap', () => {
 
   it('starts polling and health monitor only through explicit bootstrap and only once', async () => {
     const store = createCredentialStoreMock();
-    const startTelegramPolling = vi.fn(async () => {});
-    const startChannelHealthMonitor = vi.fn(() => ({ stop: vi.fn() }));
+    const startTelegramPolling = vi.fn<() => Promise<void>>(async () => {});
+    const startChannelHealthMonitor = vi.fn<MockProcedure>(() => ({
+      stop: vi.fn<MockProcedure>(),
+    }));
 
     vi.doMock('@/server/channels/messages/sqliteMessageRepository', () => ({
       SqliteMessageRepository: class SqliteMessageRepository {},

@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMem0Client, type Mem0ClientConfig } from '@/server/memory/mem0';
 import { registerMem0ClientCleanup } from './mem0-client.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('mem0Client', () => {
   registerMem0ClientCleanup();
   it('falls back to v1 search endpoint when v2 search is unavailable', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: 'not found' }), {
           status: 404,
@@ -57,7 +58,7 @@ describe('mem0Client', () => {
 
   it('falls back to v1 list endpoint when v2 list is unavailable', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: 'not found' }), {
           status: 404,
@@ -107,7 +108,7 @@ describe('mem0Client', () => {
 
   it('falls back to v1 list endpoint when v2 returns an empty first page', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -162,7 +163,7 @@ describe('mem0Client', () => {
   });
 
   it('deletes all persona memories via filter endpoint', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(JSON.stringify({ deleted: 3 }), {
           status: 200,
@@ -195,7 +196,7 @@ describe('mem0Client', () => {
   });
 
   it('loads memory history via history endpoint', async () => {
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<() => Promise<Response>>(
       async () =>
         new Response(
           JSON.stringify([
@@ -238,7 +239,7 @@ describe('mem0Client', () => {
 
   it('falls back to query-based delete for legacy mem0 delete API', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ error: 'not found' }), {
           status: 404,
@@ -275,25 +276,27 @@ describe('mem0Client', () => {
   });
 
   it('aborts request after timeout', async () => {
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const signal = init?.signal;
-      return await new Promise<Response>((resolve, reject) => {
-        const onAbort = () => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-        };
-        signal?.addEventListener('abort', onAbort, { once: true });
+    const fetchMock = vi.fn<(_url: string, init?: RequestInit) => Promise<Response>>(
+      async (_url: string, init?: RequestInit) => {
+        const signal = init?.signal;
+        return await new Promise<Response>((resolve, reject) => {
+          const onAbort = () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+          };
+          signal?.addEventListener('abort', onAbort, { once: true });
 
-        setTimeout(() => {
-          signal?.removeEventListener('abort', onAbort);
-          resolve(
-            new Response(JSON.stringify({ id: 'late' }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            }),
-          );
-        }, 250);
-      });
-    });
+          setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve(
+              new Response(JSON.stringify({ id: 'late' }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              }),
+            );
+          }, 250);
+        });
+      },
+    );
 
     const config: Mem0ClientConfig = {
       baseUrl: 'http://mem0.local',
@@ -313,15 +316,17 @@ describe('mem0Client', () => {
   });
 
   it('preserves caller cancellation as AbortError instead of reporting a timeout', async () => {
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      return await new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener(
-          'abort',
-          () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
-          { once: true },
-        );
-      });
-    });
+    const fetchMock = vi.fn<(_url: string, init?: RequestInit) => Promise<Response>>(
+      async (_url: string, init?: RequestInit) => {
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+            { once: true },
+          );
+        });
+      },
+    );
     const client = createMem0Client(
       { baseUrl: 'http://mem0.local', apiPath: '/v1', timeoutMs: 4000 },
       fetchMock as unknown as typeof fetch,
@@ -343,7 +348,7 @@ describe('mem0Client', () => {
   });
 
   it('fails immediately when the caller signal is already aborted', async () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     const client = createMem0Client(
       { baseUrl: 'http://mem0.local', apiPath: '/v1' },
       fetchMock as unknown as typeof fetch,

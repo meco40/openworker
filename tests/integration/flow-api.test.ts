@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { MockProcedure } from '../helpers/mockProcedure';
 
 // vi.hoisted() ensures mockService is initialized before vi.mock factories run
 const mockService = vi.hoisted(() => ({
-  getFlowGraph: vi.fn(),
-  saveFlowGraph: vi.fn(),
+  getFlowGraph: vi.fn<MockProcedure>(),
+  saveFlowGraph: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/automation/runtime', () => ({
@@ -11,7 +12,7 @@ vi.mock('@/server/automation/runtime', () => ({
 }));
 
 vi.mock('@/server/automation/httpAuth', () => ({
-  resolveAutomationUserId: vi.fn(async () => 'user-1'),
+  resolveAutomationUserId: vi.fn<() => Promise<string>>(async () => 'user-1'),
 }));
 
 // Top-level await import runs after vi.mock hoisting

@@ -27,7 +27,9 @@ fn hex_encode(bytes: &[u8]) -> String {
 /// Generates a new 32-byte (64 hex characters) random CSRF token.
 fn generate_token() -> String {
     let mut bytes = [0u8; 32];
-    let _ = getrandom::fill(&mut bytes);
+    // Fail closed like `randomBytes` in the source: an ignored error would hand out the
+    // all-zero, predictable token.
+    getrandom::fill(&mut bytes).expect("the OS random number generator is unavailable");
     hex_encode(&bytes)
 }
 

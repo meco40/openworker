@@ -1,14 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RespondFn } from '@/server/gateway/method-router';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const mocks = vi.hoisted(() => ({
-  registerMethod: vi.fn(),
-  getMessageService: vi.fn(),
-  getSwarmRepository: vi.fn(),
-  broadcastToUser: vi.fn(),
-  getPersonaRepository: vi.fn(),
-  getMessageRepository: vi.fn(),
+  registerMethod: vi.fn<MockProcedure>(),
+  getMessageService: vi.fn<MockProcedure>(),
+  getSwarmRepository: vi.fn<MockProcedure>(),
+  broadcastToUser: vi.fn<MockProcedure>(),
+  getPersonaRepository: vi.fn<MockProcedure>(),
+  getMessageRepository: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/gateway/method-router', () => ({
@@ -94,11 +95,11 @@ describe('agent.v2.swarm methods', () => {
       getPersona: (id: string) => (id === 'persona-1' || id === 'persona-2' ? { id } : null),
     });
     mocks.getMessageRepository.mockReturnValue({
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     });
   });
 
@@ -121,17 +122,17 @@ describe('agent.v2.swarm methods', () => {
 
   it('creates a swarm with a new conversation', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(() => ({ id: 'conv-new' })),
-      setPersonaId: vi.fn(),
-      getConversation: vi.fn(),
-      isAgentRoomConversation: vi.fn(),
+      getOrCreateConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-new' })),
+      setPersonaId: vi.fn<MockProcedure>(),
+      getConversation: vi.fn<MockProcedure>(),
+      isAgentRoomConversation: vi.fn<MockProcedure>(),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(() => makeSwarm({ id: 'swarm-new' })),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ id: 'swarm-new' })),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -162,17 +163,17 @@ describe('agent.v2.swarm methods', () => {
 
   it('creates a swarm with an existing agent-room conversation', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(),
-      setPersonaId: vi.fn(),
-      getConversation: vi.fn(() => ({ id: 'conv-existing' })),
-      isAgentRoomConversation: vi.fn(() => true),
+      getOrCreateConversation: vi.fn<MockProcedure>(),
+      setPersonaId: vi.fn<MockProcedure>(),
+      getConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-existing' })),
+      isAgentRoomConversation: vi.fn<() => boolean>(() => true),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(() => makeSwarm({ id: 'swarm-existing' })),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ id: 'swarm-existing' })),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -203,17 +204,17 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects a non-agent-room conversation on create', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(),
-      setPersonaId: vi.fn(),
-      getConversation: vi.fn(() => ({ id: 'conv-regular' })),
-      isAgentRoomConversation: vi.fn(() => false),
+      getOrCreateConversation: vi.fn<MockProcedure>(),
+      setPersonaId: vi.fn<MockProcedure>(),
+      getConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-regular' })),
+      isAgentRoomConversation: vi.fn<() => boolean>(() => false),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -242,11 +243,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('lists swarms with default limit', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(() => [makeSwarm()]),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(() => [makeSwarm()]),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -262,11 +263,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('lists swarms with custom limit', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(() => []),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<() => never[]>(() => []),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -281,11 +282,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('gets a swarm by id', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm()),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm()),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -301,11 +302,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('throws when swarm not found on get', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => null),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<() => null>(() => null),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -320,11 +321,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('updates a swarm with valid fields', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm()),
-      updateAgentRoomSwarm: vi.fn(() => makeSwarm({ title: 'Updated' })),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm()),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ title: 'Updated' })),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -344,11 +345,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects server-only fields on update', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -363,11 +364,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects invalid status on update', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -382,11 +383,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects invalid phase on update', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -401,11 +402,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects invalid consensusScore on update', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -420,11 +421,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects invalid lastSeq on update', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -439,11 +440,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('deletes a swarm', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(() => true),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<() => boolean>(() => true),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -459,11 +460,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('throws when swarm not found on delete', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(() => false),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<() => boolean>(() => false),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -478,15 +479,15 @@ describe('agent.v2.swarm methods', () => {
 
   it('forks a swarm', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(() => ({ id: 'conv-fork' })),
-      setPersonaId: vi.fn(),
+      getOrCreateConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-fork' })),
+      setPersonaId: vi.fn<MockProcedure>(),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(() => makeSwarm({ id: 'swarm-fork' })),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm()),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ id: 'swarm-fork' })),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm()),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -503,11 +504,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('throws when source swarm not found on fork', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => null),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<() => null>(() => null),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -522,15 +523,15 @@ describe('agent.v2.swarm methods', () => {
 
   it('chains a swarm with inherited units', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(() => ({ id: 'conv-chain' })),
-      setPersonaId: vi.fn(),
+      getOrCreateConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-chain' })),
+      setPersonaId: vi.fn<MockProcedure>(),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(() => makeSwarm({ id: 'swarm-chain' })),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm()),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ id: 'swarm-chain' })),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm()),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -550,15 +551,15 @@ describe('agent.v2.swarm methods', () => {
 
   it('chains a swarm with custom units', async () => {
     const messageService = {
-      getOrCreateConversation: vi.fn(() => ({ id: 'conv-chain-2' })),
-      setPersonaId: vi.fn(),
+      getOrCreateConversation: vi.fn<() => { id: string }>(() => ({ id: 'conv-chain-2' })),
+      setPersonaId: vi.fn<MockProcedure>(),
     };
     const repo = {
-      createAgentRoomSwarm: vi.fn(() => makeSwarm({ id: 'swarm-chain-2' })),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm()),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ id: 'swarm-chain-2' })),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm()),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageService.mockReturnValue(messageService);
     mocks.getMessageRepository.mockReturnValue(repo);
@@ -586,11 +587,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('deploys a swarm from idle status', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm({ status: 'idle' })),
-      updateAgentRoomSwarm: vi.fn(() => makeSwarm({ status: 'running' })),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ status: 'idle' })),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ status: 'running' })),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -606,11 +607,15 @@ describe('agent.v2.swarm methods', () => {
 
   it('deploys a swarm from hold status without resetting phase', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm({ status: 'hold', currentPhase: 'research' })),
-      updateAgentRoomSwarm: vi.fn(() => makeSwarm({ status: 'running', currentPhase: 'research' })),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() =>
+        makeSwarm({ status: 'hold', currentPhase: 'research' }),
+      ),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(() =>
+        makeSwarm({ status: 'running', currentPhase: 'research' }),
+      ),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 
@@ -625,11 +630,11 @@ describe('agent.v2.swarm methods', () => {
 
   it('rejects deploy when swarm is not resumable', async () => {
     const repo = {
-      createAgentRoomSwarm: vi.fn(),
-      listAgentRoomSwarms: vi.fn(),
-      getAgentRoomSwarm: vi.fn(() => makeSwarm({ status: 'completed' })),
-      updateAgentRoomSwarm: vi.fn(),
-      deleteAgentRoomSwarm: vi.fn(),
+      createAgentRoomSwarm: vi.fn<MockProcedure>(),
+      listAgentRoomSwarms: vi.fn<MockProcedure>(),
+      getAgentRoomSwarm: vi.fn<MockProcedure>(() => makeSwarm({ status: 'completed' })),
+      updateAgentRoomSwarm: vi.fn<MockProcedure>(),
+      deleteAgentRoomSwarm: vi.fn<MockProcedure>(),
     };
     mocks.getMessageRepository.mockReturnValue(repo);
 

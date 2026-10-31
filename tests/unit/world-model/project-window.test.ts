@@ -1,25 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  withWorldModelTransaction: vi.fn(),
-  clientQuery: vi.fn(),
-  getWorldModelConfig: vi.fn(),
-  insertObservationWithResult: vi.fn(),
-  enqueueOutboxEvent: vi.fn(),
-  upsertEntity: vi.fn(),
-  resolveEntity: vi.fn(),
-  insertRelation: vi.fn(),
-  insertAssertion: vi.fn(),
-  insertEvent: vi.fn(),
-  insertEventTransition: vi.fn(),
-  insertOpenLoop: vi.fn(),
-  insertTask: vi.fn(),
-  completeTaskWithEvidence: vi.fn(),
-  applyPlanChangeInTx: vi.fn(),
-  confirmEventOutcomeInTx: vi.fn(),
-  findStructuredEvents: vi.fn(),
-  classifyEventUtterance: vi.fn(),
-  pickEventCandidate: vi.fn(),
+  withWorldModelTransaction: vi.fn<MockProcedure>(),
+  clientQuery: vi.fn<MockProcedure>(),
+  getWorldModelConfig: vi.fn<MockProcedure>(),
+  insertObservationWithResult: vi.fn<MockProcedure>(),
+  enqueueOutboxEvent: vi.fn<MockProcedure>(),
+  upsertEntity: vi.fn<MockProcedure>(),
+  resolveEntity: vi.fn<MockProcedure>(),
+  insertRelation: vi.fn<MockProcedure>(),
+  insertAssertion: vi.fn<MockProcedure>(),
+  insertEvent: vi.fn<MockProcedure>(),
+  insertEventTransition: vi.fn<MockProcedure>(),
+  insertOpenLoop: vi.fn<MockProcedure>(),
+  insertTask: vi.fn<MockProcedure>(),
+  completeTaskWithEvidence: vi.fn<MockProcedure>(),
+  applyPlanChangeInTx: vi.fn<MockProcedure>(),
+  confirmEventOutcomeInTx: vi.fn<MockProcedure>(),
+  findStructuredEvents: vi.fn<MockProcedure>(),
+  classifyEventUtterance: vi.fn<MockProcedure>(),
+  pickEventCandidate: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -69,6 +69,7 @@ import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import { projectWindow } from '@/server/world-model/projector/projectWindow';
 import type { ProjectedEvent, WorldModelProjection } from '@/server/world-model/projector/types';
 import type { ObservationInput } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const scope = { userId: 'user-a', personaId: 'assistant' };
 

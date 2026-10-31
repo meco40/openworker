@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+// The classic compiler API; TypeScript 7 (the project compiler) no longer exports it.
+import ts from 'typescript-api';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();

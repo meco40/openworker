@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const callMock = vi.fn();
+const callMock = vi.fn<MockProcedure>();
 
 beforeEach(() => {
   vi.resetModules();

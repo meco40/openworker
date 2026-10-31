@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('Mission Control planning poll auto-dispatch', () => {
   let tempDir = '';
@@ -69,17 +70,19 @@ describe('Mission Control planning poll auto-dispatch', () => {
         await vi.importActual<typeof import('@/lib/planning-utils')>('@/lib/planning-utils');
       return {
         ...actual,
-        getMessagesFromBetaClaw: vi.fn(async () => [
-          {
-            role: 'assistant',
-            content: JSON.stringify({
-              status: 'complete',
-              spec: { title: 'WebApp' },
-              agents: [{ name: 'Builder', role: 'Frontend Dev', avatar_emoji: '🛠️' }],
-              execution_plan: { phases: ['build'] },
-            }),
-          },
-        ]),
+        getMessagesFromBetaClaw: vi.fn<() => Promise<{ role: string; content: string }[]>>(
+          async () => [
+            {
+              role: 'assistant',
+              content: JSON.stringify({
+                status: 'complete',
+                spec: { title: 'WebApp' },
+                agents: [{ name: 'Builder', role: 'Frontend Dev', avatar_emoji: '🛠️' }],
+                execution_plan: { phases: ['build'] },
+              }),
+            },
+          ],
+        ),
       };
     });
 
@@ -115,7 +118,7 @@ describe('Mission Control planning poll auto-dispatch', () => {
       ],
     );
 
-    global.fetch = vi.fn(async (input, init) => {
+    global.fetch = vi.fn<MockProcedure>(async (input, init) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 

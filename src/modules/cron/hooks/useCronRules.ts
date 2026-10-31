@@ -86,19 +86,27 @@ export function useCronRules(): UseCronRulesResult {
   }, []);
 
   useEffect(() => {
-    void refreshAll();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(refreshAll);
   }, [refreshAll]);
 
-  useEffect(() => {
-    if (!selectedRuleId) {
+  // Prepare the history state during render whenever the requested history changes.
+  const historyKey = selectedRuleId ? `${selectedRuleId}|${historyLimit}` : null;
+  const [preparedHistoryKey, setPreparedHistoryKey] = useState<string | null>(null);
+  if (historyKey !== preparedHistoryKey) {
+    setPreparedHistoryKey(historyKey);
+    setHistoryError(null);
+    if (historyKey) {
+      setHistoryLoading(true);
+    } else {
       setRuns([]);
-      setHistoryError(null);
-      return;
     }
+  }
+
+  useEffect(() => {
+    if (!selectedRuleId) return;
 
     let cancelled = false;
-    setHistoryLoading(true);
-    setHistoryError(null);
 
     void fetchRuns(selectedRuleId, historyLimit)
       .then((nextRuns) => {

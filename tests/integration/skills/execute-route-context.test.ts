@@ -1,9 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const dispatchSkillMock = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
-const normalizeSkillArgsMock = vi.hoisted(() => vi.fn((args: unknown) => (args || {}) as object));
+const dispatchSkillMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
+);
+const normalizeSkillArgsMock = vi.hoisted(() =>
+  vi.fn<(args: unknown) => object>((args: unknown) => (args || {}) as object),
+);
 const resolveRequestUserContextMock = vi.hoisted(() =>
-  vi.fn(async () => ({ userId: 'legacy-user', authenticated: false })),
+  vi.fn<() => Promise<{ userId: string; authenticated: boolean }>>(async () => ({
+    userId: 'legacy-user',
+    authenticated: false,
+  })),
 );
 
 vi.mock('@/server/skills/executeSkill', () => ({

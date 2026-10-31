@@ -174,8 +174,7 @@ export class PersonaRepository {
 
   getPersona(id: string): PersonaProfile | null {
     const row = this.db.prepare('SELECT * FROM personas WHERE id = ?').get(id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? this.attachAllowedToolFunctions(toPersona(row)) : null;
   }
 
@@ -403,8 +402,7 @@ export class PersonaRepository {
 
   private assertUniquePersonaSlug(slug: string, excludePersonaId?: string): void {
     const existing = this.db.prepare('SELECT id FROM personas WHERE slug = ? LIMIT 1').get(slug) as
-      | { id: string }
-      | undefined;
+      { id: string } | undefined;
     if (!existing) return;
     if (excludePersonaId && existing.id === excludePersonaId) return;
     throw new Error(`Persona slug already exists: "${slug}".`);

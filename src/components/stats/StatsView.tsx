@@ -73,15 +73,20 @@ const StatsView: React.FC = () => {
     }
   }, [preset, customFrom, customTo, activeTab]);
 
+  // The logs tab has no stats request, so it shows neither a spinner nor a stats error.
+  if (activeTab === 'logs' && (loading || error !== null)) {
+    setLoading(false);
+    setError(null);
+  }
+
   useEffect(() => {
     if (activeTab === 'logs') {
       abortRef.current?.abort();
-      setLoading(false);
-      setError(null);
       return;
     }
 
-    void fetchStats();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(fetchStats);
     return () => {
       abortRef.current?.abort();
     };

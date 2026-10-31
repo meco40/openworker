@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { executeSkillApi } from '@/skills/runtime-client';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('executeSkillApi', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    global.fetch = vi.fn();
+    global.fetch = vi.fn<MockProcedure>();
   });
 
   afterEach(() => {

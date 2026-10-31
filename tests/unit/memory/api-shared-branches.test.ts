@@ -15,10 +15,11 @@ import {
 } from '@/server/memory/api/shared';
 
 vi.mock('@/server/channels/messages/runtime', () => ({
-  getMessageRepository: vi.fn(),
+  getMessageRepository: vi.fn<MockProcedure>(),
 }));
 
 import { getMessageRepository } from '@/server/channels/messages/runtime';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('memory/api/shared branch coverage', () => {
   describe('getReadyMemoryService', () => {
@@ -330,7 +331,7 @@ describe('memory/api/shared branch coverage', () => {
         { channelType: 'slack', externalChatId: 'chat-4', personaId: null },
       ];
       vi.mocked(getMessageRepository).mockReturnValue({
-        listConversations: vi.fn(() => conversations),
+        listConversations: vi.fn<MockProcedure>(() => conversations),
       } as never);
       const result = resolveMemoryReadUserScopes('legacy-local-user', 'p1');
       expect(result).toContain('legacy-local-user');
@@ -342,7 +343,7 @@ describe('memory/api/shared branch coverage', () => {
 
     it('handles repository errors gracefully', () => {
       vi.mocked(getMessageRepository).mockReturnValue({
-        listConversations: vi.fn(() => {
+        listConversations: vi.fn<() => never>(() => {
           throw new Error('db down');
         }),
       } as never);

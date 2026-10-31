@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AutomationRuntime } from '@/server/automation/runtime';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 interface RuntimeServiceStub {
   acquireLease: ReturnType<typeof vi.fn>;
@@ -10,9 +11,9 @@ interface RuntimeServiceStub {
 
 function createRuntimeServiceStub(overrides: Partial<RuntimeServiceStub> = {}): RuntimeServiceStub {
   return {
-    acquireLease: vi.fn(() => true),
-    processTick: vi.fn(async () => {}),
-    releaseLease: vi.fn(),
+    acquireLease: vi.fn<() => boolean>(() => true),
+    processTick: vi.fn<() => Promise<void>>(async () => {}),
+    releaseLease: vi.fn<MockProcedure>(),
     ...overrides,
   };
 }
@@ -24,7 +25,7 @@ describe('AutomationRuntime class', () => {
 
   it('returns early when scheduler lease is not acquired', async () => {
     const service = createRuntimeServiceStub({
-      acquireLease: vi.fn(() => false),
+      acquireLease: vi.fn<() => boolean>(() => false),
     });
     const runtime = new AutomationRuntime(service as never, { instanceId: 'scheduler-1' });
 
@@ -36,8 +37,8 @@ describe('AutomationRuntime class', () => {
 
   it('logs errors when processTick fails and keeps runtime alive', async () => {
     const service = createRuntimeServiceStub({
-      acquireLease: vi.fn(() => true),
-      processTick: vi.fn(async () => {
+      acquireLease: vi.fn<() => boolean>(() => true),
+      processTick: vi.fn<() => Promise<never>>(async () => {
         throw new Error('tick failed');
       }),
     });
@@ -54,14 +55,14 @@ describe('AutomationRuntime class', () => {
 
   it('starts once, schedules interval with unref, and stops cleanly', () => {
     const service = createRuntimeServiceStub({
-      acquireLease: vi.fn(() => false),
+      acquireLease: vi.fn<() => boolean>(() => false),
     });
     const runtime = new AutomationRuntime(service as never, {
       instanceId: 'scheduler-1',
       tickIntervalMs: 1234,
     });
 
-    const unref = vi.fn();
+    const unref = vi.fn<MockProcedure>();
     const timer = { unref } as unknown as ReturnType<typeof setInterval>;
     const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockReturnValue(timer);
     const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval').mockImplementation(() => {});

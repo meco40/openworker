@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
-const mockRequest = vi.fn();
-const mockConnect = vi.fn();
-const mockOn = vi.fn(() => () => {});
-const mockDisconnect = vi.fn();
+const mockRequest = vi.fn<MockProcedure>();
+const mockConnect = vi.fn<MockProcedure>();
+const mockOn = vi.fn<() => () => void>(() => () => {});
+const mockDisconnect = vi.fn<MockProcedure>();
 
 vi.mock('@/modules/gateway/ws-client', () => {
   class MockGatewayClient {

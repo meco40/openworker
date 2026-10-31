@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMem0ClientFromEnv } from '@/server/memory/mem0';
 import { registerMem0ClientCleanup } from './mem0-client.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('mem0Client', () => {
   registerMem0ClientCleanup();
   it('creates a client from env only when provider is mem0 and base url exists', () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
 
     const disabled = createMem0ClientFromEnv(
       {
@@ -36,7 +37,7 @@ describe('mem0Client', () => {
   });
 
   it('throws for explicit mem0 provider without base url', () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     expect(() =>
       createMem0ClientFromEnv(
         {
@@ -49,7 +50,7 @@ describe('mem0Client', () => {
   });
 
   it('throws for explicit mem0 provider without api key', () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     expect(() =>
       createMem0ClientFromEnv(
         {
@@ -63,7 +64,7 @@ describe('mem0Client', () => {
   });
 
   it('throws in production when MEMORY_PROVIDER is not mem0', () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn<MockProcedure>();
     expect(() =>
       createMem0ClientFromEnv(
         {

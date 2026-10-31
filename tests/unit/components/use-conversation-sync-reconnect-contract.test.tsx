@@ -1,11 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useConversationSync } from '@/modules/app-shell/useConversationSync';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const gatewayMocks = vi.hoisted(() => ({
-  connect: vi.fn(),
-  on: vi.fn(() => () => {}),
-  onStateChange: vi.fn(() => () => {}),
+  connect: vi.fn<MockProcedure>(),
+  on: vi.fn<() => () => void>(() => () => {}),
+  onStateChange: vi.fn<() => () => void>(() => () => {}),
 }));
 
 vi.mock('@/modules/gateway/ws-client', () => ({
@@ -18,6 +19,15 @@ vi.mock('@/modules/gateway/ws-client', () => ({
 
 type StateHandler = (state: string) => void;
 
+function getStateHandler(): StateHandler {
+  const calls = gatewayMocks.onStateChange.mock.calls as unknown as Array<[StateHandler]>;
+  const handler = calls[0]?.[0];
+  if (!handler) {
+    throw new Error('Expected onStateChange handler to be registered.');
+  }
+  return handler;
+}
+
 describe('useConversationSync reconnect behavior', () => {
   const originalFetch = globalThis.fetch;
 
@@ -28,24 +38,17 @@ describe('useConversationSync reconnect behavior', () => {
     gatewayMocks.onStateChange.mockClear();
     gatewayMocks.on.mockImplementation(() => () => {});
     gatewayMocks.onStateChange.mockImplementation(() => () => {});
-    globalThis.fetch = vi.fn();
+    globalThis.fetch = vi.fn<MockProcedure>();
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
-  function getStateHandler(): StateHandler {
-    const calls = gatewayMocks.onStateChange.mock.calls as unknown as Array<[StateHandler]>;
-    const handler = calls[0]?.[0];
-    if (!handler) {
-      throw new Error('Expected onStateChange handler to be registered.');
-    }
-    return handler;
-  }
-
   it('reloads conversations with resync and active history when gateway reconnects', async () => {
-    const fetchMock = vi.fn(async (url: string) => {
+    const fetchMock = vi.fn<
+      (url: string) => Promise<{ ok: boolean; json: () => Promise<{ ok: boolean }> }>
+    >(async (url: string) => {
       const urlString = String(url);
       if (urlString.includes('/api/channels/inbox')) {
         return {
@@ -119,7 +122,16 @@ describe('useConversationSync reconnect behavior', () => {
   });
 
   it('does not reload when gateway state is not connected', async () => {
-    const fetchMock = vi.fn(async () => ({
+    const fetchMock = vi.fn<
+      () => Promise<{
+        ok: boolean;
+        json: () => Promise<{
+          ok: boolean;
+          items: never[];
+          page: { hasMore: boolean; nextCursor: null };
+        }>;
+      }>
+    >(async () => ({
       ok: true,
       json: async () => ({
         ok: true,

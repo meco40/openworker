@@ -10,18 +10,20 @@ type RecallMatch = {
 };
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI response',
-    provider: 'test-provider',
-    model: 'test-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI response',
+      provider: 'test-provider',
+      model: 'test-model',
+    }),
+  ),
 );
 
-const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
-const broadcastToUserMock = vi.hoisted(() => vi.fn());
+const deliverOutboundMock = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => {}));
+const broadcastToUserMock = vi.hoisted(() => vi.fn<MockProcedure>());
 const knowledgeRetrieveMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<MockProcedure>(async () => ({
     context: 'Knowledge: Mittags Sauna mit Details zu Temperatur und Aufguss.',
     sections: {
       answerDraft: '',
@@ -33,10 +35,14 @@ const knowledgeRetrieveMock = vi.hoisted(() =>
     tokenCount: 42,
   })),
 );
-const knowledgeShouldTriggerRecallMock = vi.hoisted(() => vi.fn(async () => false));
-const ensureKnowledgeIngestedForConversationMock = vi.hoisted(() => vi.fn(async () => null));
+const knowledgeShouldTriggerRecallMock = vi.hoisted(() =>
+  vi.fn<() => Promise<boolean>>(async () => false),
+);
+const ensureKnowledgeIngestedForConversationMock = vi.hoisted(() =>
+  vi.fn<() => Promise<null>>(async () => null),
+);
 const memoryRecallDetailedMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<() => Promise<{ context: string; matches: RecallMatch[] }>>(async () => ({
     context: 'Mem0 fallback context',
     matches: [] as RecallMatch[],
   })),
@@ -63,9 +69,9 @@ vi.mock('../../../src/server/gateway/broadcast', () => ({
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryProviderKind: memoryProviderKindMock,
   getMemoryService: () => ({
-    store: vi.fn(async () => ({ id: 'mem-1' })),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
     recallDetailed: memoryRecallDetailedMock,
-    registerFeedback: vi.fn(async () => 0),
+    registerFeedback: vi.fn<() => Promise<number>>(async () => 0),
   }),
 }));
 
@@ -89,6 +95,7 @@ vi.mock('../../../src/server/knowledge/runtime', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(
   personaId: string | null,

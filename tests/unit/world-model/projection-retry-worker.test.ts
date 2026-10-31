@@ -1,25 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  listDueProjectionPending: vi.fn(),
-  markProjectionPendingFailed: vi.fn(),
-  markProjectionPendingSucceeded: vi.fn(),
-  getWorldModelDb: vi.fn(),
-  runWithWorldModelScope: vi.fn(),
-  listRuntimeWorldModelScopes: vi.fn(),
-  dbQuery: vi.fn(),
-  getMemoryProviderKind: vi.fn(),
-  getMemoryService: vi.fn(),
-  isMem0FactualWriteBlocked: vi.fn(),
-  normalizeExtraction: vi.fn(),
-  projectWindow: vi.fn(),
-  getKnowledgeMessageRepository: vi.fn(),
-  getKnowledgeRepository: vi.fn(),
-  upsertEpisodeAndLedger: vi.fn(),
-  storeEvents: vi.fn(),
-  storeEntities: vi.fn(),
-  processFacts: vi.fn(),
-  processMeetingLedger: vi.fn(),
+  listDueProjectionPending: vi.fn<MockProcedure>(),
+  markProjectionPendingFailed: vi.fn<MockProcedure>(),
+  markProjectionPendingSucceeded: vi.fn<MockProcedure>(),
+  getWorldModelDb: vi.fn<MockProcedure>(),
+  runWithWorldModelScope: vi.fn<MockProcedure>(),
+  listRuntimeWorldModelScopes: vi.fn<MockProcedure>(),
+  dbQuery: vi.fn<MockProcedure>(),
+  getMemoryProviderKind: vi.fn<MockProcedure>(),
+  getMemoryService: vi.fn<MockProcedure>(),
+  isMem0FactualWriteBlocked: vi.fn<MockProcedure>(),
+  normalizeExtraction: vi.fn<MockProcedure>(),
+  projectWindow: vi.fn<MockProcedure>(),
+  getKnowledgeMessageRepository: vi.fn<MockProcedure>(),
+  getKnowledgeRepository: vi.fn<MockProcedure>(),
+  upsertEpisodeAndLedger: vi.fn<MockProcedure>(),
+  storeEvents: vi.fn<MockProcedure>(),
+  storeEntities: vi.fn<MockProcedure>(),
+  processFacts: vi.fn<MockProcedure>(),
+  processMeetingLedger: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/db', () => ({
@@ -70,6 +70,7 @@ import {
   runProjectionRetryOnce,
   startProjectionRetryWorker,
 } from '@/server/world-model/services/projectionRetryWorker';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const scope = { userId: 'user-1', personaId: 'assistant', workspaceId: 'workspace-1' };
 
@@ -110,13 +111,15 @@ beforeEach(() => {
   );
   mocks.getMemoryProviderKind.mockReturnValue('sqlite');
   mocks.getMemoryService.mockReturnValue({
-    storeMemory: vi.fn().mockResolvedValue({}),
-    store: vi.fn().mockResolvedValue({}),
+    storeMemory: vi.fn<MockProcedure>().mockResolvedValue({}),
+    store: vi.fn<MockProcedure>().mockResolvedValue({}),
   });
   mocks.isMem0FactualWriteBlocked.mockReturnValue(false);
   mocks.normalizeExtraction.mockReturnValue({});
   mocks.projectWindow.mockImplementation(async () => {});
-  mocks.getKnowledgeMessageRepository.mockReturnValue({ markMessagesMemoryPending: vi.fn() });
+  mocks.getKnowledgeMessageRepository.mockReturnValue({
+    markMessagesMemoryPending: vi.fn<MockProcedure>(),
+  });
   mocks.getKnowledgeRepository.mockReturnValue({});
   mocks.processFacts.mockReturnValue([]);
   mocks.processMeetingLedger.mockReturnValue({
@@ -155,7 +158,7 @@ describe('runProjectionRetryOnce', () => {
   it('marks handled records succeeded and records unsupported types as failed', async () => {
     const handled = pendingRecord('custom_projection');
     const unsupported = pendingRecord('unknown_projection');
-    const handler = vi.fn(async () => {});
+    const handler = vi.fn<() => Promise<void>>(async () => {});
     mocks.listDueProjectionPending.mockResolvedValue([handled, unsupported]);
 
     await expect(runProjectionRetryOnce(12, { custom_projection: handler })).resolves.toEqual({
@@ -175,13 +178,13 @@ describe('runProjectionRetryOnce', () => {
 
   it('clears memory-pending flags after the final projection settles', async () => {
     const record = pendingRecord('custom_projection', { messageIds: ['message-1', null, 42, ''] });
-    const messageRepository = { markMessagesMemoryPending: vi.fn() };
+    const messageRepository = { markMessagesMemoryPending: vi.fn<MockProcedure>() };
     mocks.listDueProjectionPending.mockResolvedValue([record]);
     mocks.dbQuery.mockResolvedValue({ rows: [{ count: '0' }] });
     mocks.getKnowledgeMessageRepository.mockReturnValue(messageRepository);
 
     await expect(
-      runProjectionRetryOnce(25, { custom_projection: vi.fn(async () => {}) }),
+      runProjectionRetryOnce(25, { custom_projection: vi.fn<() => Promise<void>>(async () => {}) }),
     ).resolves.toEqual({ selected: 1, succeeded: 1, failed: 0 });
 
     expect(messageRepository.markMessagesMemoryPending).toHaveBeenCalledWith(
@@ -194,12 +197,14 @@ describe('runProjectionRetryOnce', () => {
     const record = pendingRecord('custom_projection', {
       messages: [{ id: 'message-1' }, {}, { id: 17 }],
     });
-    const messageRepository = { markMessagesMemoryPending: vi.fn() };
+    const messageRepository = { markMessagesMemoryPending: vi.fn<MockProcedure>() };
     mocks.listDueProjectionPending.mockResolvedValue([record]);
     mocks.dbQuery.mockResolvedValue({ rows: [{ count: 0 }] });
     mocks.getKnowledgeMessageRepository.mockReturnValue(messageRepository);
 
-    await runProjectionRetryOnce(25, { custom_projection: vi.fn(async () => {}) });
+    await runProjectionRetryOnce(25, {
+      custom_projection: vi.fn<() => Promise<void>>(async () => {}),
+    });
 
     expect(messageRepository.markMessagesMemoryPending).toHaveBeenCalledWith(
       ['message-1', '17'],
@@ -209,11 +214,13 @@ describe('runProjectionRetryOnce', () => {
 
   it('keeps messages marked pending while another projection remains unsettled', async () => {
     const record = pendingRecord('custom_projection', { messageIds: ['message-1'] });
-    const messageRepository = { markMessagesMemoryPending: vi.fn() };
+    const messageRepository = { markMessagesMemoryPending: vi.fn<MockProcedure>() };
     mocks.listDueProjectionPending.mockResolvedValue([record]);
     mocks.getKnowledgeMessageRepository.mockReturnValue(messageRepository);
 
-    await runProjectionRetryOnce(25, { custom_projection: vi.fn(async () => {}) });
+    await runProjectionRetryOnce(25, {
+      custom_projection: vi.fn<() => Promise<void>>(async () => {}),
+    });
 
     expect(messageRepository.markMessagesMemoryPending).not.toHaveBeenCalled();
   });
@@ -223,7 +230,9 @@ describe('runProjectionRetryOnce', () => {
     mocks.listDueProjectionPending.mockResolvedValue([record]);
 
     await expect(
-      runProjectionRetryOnce(25, { custom_projection: vi.fn().mockRejectedValue('offline') }),
+      runProjectionRetryOnce(25, {
+        custom_projection: vi.fn<MockProcedure>().mockRejectedValue('offline'),
+      }),
     ).resolves.toEqual({ selected: 1, succeeded: 0, failed: 1 });
 
     expect(mocks.markProjectionPendingFailed).toHaveBeenCalledWith(record.id, 'offline');
@@ -324,7 +333,7 @@ describe('runProjectionRetryOnce', () => {
     const record = pendingRecord('mem0_fact', {
       facts: [' Keep this fact. ', '  ', null, 'Second fact'],
     });
-    const storeMemory = vi.fn().mockResolvedValue({ id: 'memory-1' });
+    const storeMemory = vi.fn<MockProcedure>().mockResolvedValue({ id: 'memory-1' });
     mocks.listDueProjectionPending.mockResolvedValue([record]);
     mocks.getMemoryProviderKind.mockReturnValue('mem0');
     mocks.getMemoryService.mockReturnValue({ storeMemory });
@@ -392,7 +401,7 @@ describe('runProjectionRetryOnce', () => {
 
   it('uses the legacy memory store method when storeMemory is unavailable', async () => {
     const record = pendingRecord('mem0_fact', { facts: ['  Stored through legacy API  '] });
-    const store = vi.fn().mockResolvedValue({});
+    const store = vi.fn<MockProcedure>().mockResolvedValue({});
     mocks.listDueProjectionPending.mockResolvedValue([record]);
     mocks.getMemoryService.mockReturnValue({ store });
 

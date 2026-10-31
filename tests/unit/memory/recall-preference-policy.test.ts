@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Mem0Client } from '@/server/memory/mem0';
 import { MemoryService } from '@/server/memory/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function record(id: string, type: string, content: string, score: number | null = 0.95) {
   return {
@@ -14,7 +15,16 @@ function record(id: string, type: string, content: string, score: number | null 
 
 describe('Mem0 preference-only recall policy', () => {
   it('filters semantic results after fetching enough candidates', async () => {
-    const searchMemories = vi.fn(async () => [
+    const searchMemories = vi.fn<
+      () => Promise<
+        {
+          id: string;
+          content: string;
+          score: number | null;
+          metadata: { type: string; lifecycleStatus: string };
+        }[]
+      >
+    >(async () => [
       record('fact-1', 'fact', 'Das Kino ist am Freitag.'),
       record('preference-1', 'preference', 'Ich mag kleine Kinos.'),
     ]);
@@ -33,7 +43,7 @@ describe('Mem0 preference-only recall policy', () => {
   });
 
   it('uses Mem0 type filters for lexical fallback/list recall', async () => {
-    const listMemories = vi.fn(async (input: { type?: string }) => ({
+    const listMemories = vi.fn<MockProcedure>(async (input: { type?: string }) => ({
       memories:
         input.type === 'preference'
           ? [record('preference-1', 'preference', 'Ich mag kleine Kinos.', null)]

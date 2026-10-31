@@ -1,22 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { OpenLoopRecord } from '@/server/world-model/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 let deliverDueOpenLoops: typeof import('@/server/world-model/services/openLoopService').deliverDueOpenLoops;
 
-const listDue = vi.fn();
-const claim = vi.fn();
-const countToday = vi.fn();
-const markAsked = vi.fn();
-const enqueue = vi.fn();
-const releaseLease = vi.fn();
-const enqueueOutbox = vi.fn();
-const updateStatus = vi.fn();
-const transactionDb = { query: vi.fn() };
-const withTransaction = vi.fn((callback: (db: typeof transactionDb) => Promise<unknown>) =>
-  callback(transactionDb),
+const listDue = vi.fn<MockProcedure>();
+const claim = vi.fn<MockProcedure>();
+const countToday = vi.fn<MockProcedure>();
+const markAsked = vi.fn<MockProcedure>();
+const enqueue = vi.fn<MockProcedure>();
+const releaseLease = vi.fn<MockProcedure>();
+const enqueueOutbox = vi.fn<MockProcedure>();
+const updateStatus = vi.fn<MockProcedure>();
+const transactionDb = { query: vi.fn<MockProcedure>() };
+const withTransaction = vi.fn<MockProcedure>(
+  (callback: (db: typeof transactionDb) => Promise<unknown>) => callback(transactionDb),
 );
-const getConfig = vi.fn(() => ({
+const getConfig = vi.fn<
+  () => {
+    enabled: boolean;
+    dailyProactiveBudget: number;
+    quietHours: null;
+    userActiveWindowMs: number;
+  }
+>(() => ({
   enabled: false,
   dailyProactiveBudget: 10,
   quietHours: null,
@@ -93,7 +101,7 @@ describe('deliverDueOpenLoops', () => {
     const loop = openLoop({});
     listDue.mockResolvedValue([loop]);
     claim.mockResolvedValue(loop);
-    const markAskedFn = vi.fn(async () => {});
+    const markAskedFn = vi.fn<() => Promise<void>>(async () => {});
     const result = await deliverDueOpenLoops('u', 'p', {
       listDueOpenLoops: listDue,
       claimDueOpenLoop: claim,
@@ -223,7 +231,7 @@ describe('deliverDueOpenLoops', () => {
     const loop = openLoop({ attempts: 2 });
     listDue.mockResolvedValue([loop]);
     claim.mockResolvedValue(loop);
-    const failedEnqueue = vi.fn().mockRejectedValue(new Error('outbox unavailable'));
+    const failedEnqueue = vi.fn<MockProcedure>().mockRejectedValue(new Error('outbox unavailable'));
 
     const result = await deliverDueOpenLoops('u', 'p', {
       listDueOpenLoops: listDue,

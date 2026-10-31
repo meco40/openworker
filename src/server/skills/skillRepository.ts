@@ -154,8 +154,7 @@ export class SkillRepository {
 
   getSkill(id: string): SkillRow | null {
     const row = this.db.prepare('SELECT * FROM skills WHERE id = ?').get(id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? toRow(row) : null;
   }
 

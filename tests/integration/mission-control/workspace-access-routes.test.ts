@@ -19,10 +19,12 @@ describe('Mission Control workspace authorization', () => {
 
     vi.doMock('@/server/auth/userContext', () => ({
       isAuthRequired: () => true,
-      resolveRequestUserContext: vi.fn(async () => ({
-        userId: 'user-a',
-        authenticated: true,
-      })),
+      resolveRequestUserContext: vi.fn<() => Promise<{ userId: string; authenticated: boolean }>>(
+        async () => ({
+          userId: 'user-a',
+          authenticated: true,
+        }),
+      ),
     }));
   });
 

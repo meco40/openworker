@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const graphitiService = vi.hoisted(() => ({
-  listPipeline: vi.fn(),
-  dispatchWithFallback: vi.fn(),
+  listPipeline: vi.fn<MockProcedure>(),
+  dispatchWithFallback: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/model-hub/runtime', () => ({
@@ -11,6 +11,7 @@ vi.mock('@/server/model-hub/runtime', () => ({
 }));
 
 import { POST } from '../../../app/api/internal/model-hub/graphiti/[...path]/route';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const defaultBody = {
   model: 'graphiti-json',

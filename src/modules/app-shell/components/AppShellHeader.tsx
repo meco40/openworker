@@ -98,13 +98,12 @@ const AppShellHeader: React.FC<AppShellHeaderProps> = ({
         <h1 className="truncate text-sm font-bold tracking-tight text-white sm:text-lg">
           BetaClaw Gateway
         </h1>
-        <div
-          role="status"
+        <output
           aria-live="polite"
           className={`shrink-0 rounded border px-2 py-0.5 text-[9px] font-black tracking-widest whitespace-nowrap uppercase ${bridgeStatus.className}`}
         >
           {bridgeStatus.label}
-        </div>
+        </output>
       </div>
       <div className="hidden items-center space-x-6 md:flex">
         <div className="text-right">

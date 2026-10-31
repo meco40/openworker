@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
@@ -343,7 +344,9 @@ describe('/api/config route', () => {
       );
       return {
         ...actual,
-        loadGatewayConfig: vi.fn().mockRejectedValue(new Error(`EACCES: ${configPath}`)),
+        loadGatewayConfig: vi
+          .fn<MockProcedure>()
+          .mockRejectedValue(new Error(`EACCES: ${configPath}`)),
       };
     });
 

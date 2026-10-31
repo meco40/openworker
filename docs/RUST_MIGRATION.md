@@ -228,6 +228,26 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-31 — Abhängigkeits-Audit und Updates
+
+- `cargo audit` meldete 7 Befunde (`rustls` 0.23.45: RUSTSEC-2026-0346 bis -0349,
+  `rustls-webpki` 0.103.15: -0382, `webpki-root-certs` 1.0.9: -0383, `ctutils` 0.4.3:
+  -0385) und `tokio` 1.53.2 als unsound (-0386). `cargo update` hebt 47 Crates im
+  erlaubten Bereich an, unter anderem `rustls` 0.23.46, `rustls-webpki` 0.103.16,
+  `webpki-root-certs` 1.0.11, `ctutils` 0.4.7 und `tokio` 1.54.1. Danach: 310 Crates,
+  keine Befunde.
+- Direkte Abhängigkeiten: `getrandom` 0.3 → 0.4 (gleiche `fill`-API) und `rusqlite`
+  0.40 → 0.41. In 0.41 liefert `Statement::column_names()` einen Iterator;
+  `skills/db_query.rs` und `families/tasks/wire.rs` sind angepasst.
+- `auth/csrf.rs`: `generate_token` ignorierte einen Fehler von `getrandom::fill` und
+  hätte dann das vorhersagbare Null-Token ausgegeben. Es bricht jetzt ab, wie
+  `randomBytes` in `next-auth`.
+- Die Gemini-Fixture bleibt mit `@google/genai` 2.30 byte-gleich
+  (`fixtures:gemini-traffic` ohne Diff); das Wire-Format ist unverändert.
+
+Gates: `fmt:check` und `clippy -D warnings` exit 0. `cargo test`: 2990 (Core), 528
+(Gateway), 9, 1, 10 bestanden, 0 fehlgeschlagen.
+
 ### 2026-10-31 — Fehlerprüfung nach rust-review, CI-Reparaturen
 
 Gezieltes Review des Rust-Workspace nach dem BeautifulRust-Skill `rust-review`

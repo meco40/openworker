@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_REQUESTS_PER_MINUTE } from '@/server/gateway/constants';
 import { GatewayEvents } from '@/server/gateway/events';
 import { getClientRegistry } from '@/server/gateway/client-registry';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MessagePayload = string | Buffer;
 const DEFAULT_GATEWAY_V2_LIMIT = Math.max(MAX_REQUESTS_PER_MINUTE, 600);
@@ -13,8 +14,8 @@ class MockSocket extends EventEmitter {
   OPEN = 1;
   readyState = 1;
   bufferedAmount = 0;
-  send = vi.fn();
-  close = vi.fn((code?: number, reason?: string) => {
+  send = vi.fn<MockProcedure>();
+  close = vi.fn<(code?: number, reason?: string) => void>((code?: number, reason?: string) => {
     this.readyState = 3;
     this.emit('close', code ?? 1000, Buffer.from(reason ?? ''));
   });
@@ -41,15 +42,15 @@ async function setupHandler(options?: {
 }) {
   vi.resetModules();
 
-  const broadcastToUser = vi.fn();
-  const dispatchMethod = vi.fn(async (frame, _client, sendRaw) => {
+  const broadcastToUser = vi.fn<MockProcedure>();
+  const dispatchMethod = vi.fn<MockProcedure>(async (frame, _client, sendRaw) => {
     if (options?.dispatchImpl) {
       await options.dispatchImpl(frame, sendRaw);
       return;
     }
     sendRaw({ type: 'res', id: frame.id, ok: true, payload: { accepted: true } });
   });
-  const getRegisteredMethods = vi.fn(() => ['test.echo']);
+  const getRegisteredMethods = vi.fn<() => string[]>(() => ['test.echo']);
 
   vi.doMock('../../../src/server/gateway/broadcast', () => ({ broadcastToUser }));
   vi.doMock('../../../src/server/gateway/method-router', () => ({
@@ -315,7 +316,7 @@ describe('gateway connection handler', () => {
   it('swallows hello send errors during connection setup', async () => {
     const { handleConnection } = await setupHandler();
     const socket = new MockSocket();
-    socket.send = vi.fn(() => {
+    socket.send = vi.fn<() => never>(() => {
       throw new Error('send failed');
     });
 

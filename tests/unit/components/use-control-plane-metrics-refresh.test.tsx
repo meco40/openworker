@@ -1,8 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ControlPlaneMetrics } from '@/shared/domain/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const requestControlPlaneMetrics = vi.fn();
+const requestControlPlaneMetrics = vi.fn<MockProcedure>();
 
 vi.mock('@/modules/app-shell/controlPlaneMetricsClient', () => ({
   requestControlPlaneMetrics,

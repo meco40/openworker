@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-v2'): GatewayClient {
   return {
@@ -8,8 +9,8 @@ function makeClient(userId = 'user-v2'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-v2',
     userId,
@@ -38,36 +39,40 @@ describe('gateway agent v2 methods', () => {
   it('dispatches session.start with persona and conversation payload in v2 namespace', async () => {
     vi.resetModules();
 
-    const startSession = vi.fn(async () => ({
+    const startSession = vi.fn<
+      () => Promise<{ session: { id: string; userId: string }; events: never[] }>
+    >(async () => ({
       session: { id: 's-1', userId: 'user-v2' },
       events: [],
     }));
     vi.doMock('../../../src/server/agent-v2/runtime', () => ({
       getAgentV2SessionManager: () => ({
         startSession,
-        enqueueInput: vi.fn(),
-        enqueueSteer: vi.fn(),
-        enqueueFollowUp: vi.fn(),
-        enqueueApprovalResponse: vi.fn(),
-        enqueueAbort: vi.fn(),
-        getSession: vi.fn(),
-        listSessions: vi.fn(),
-        replaySessionEvents: vi.fn(),
+        enqueueInput: vi.fn<MockProcedure>(),
+        enqueueSteer: vi.fn<MockProcedure>(),
+        enqueueFollowUp: vi.fn<MockProcedure>(),
+        enqueueApprovalResponse: vi.fn<MockProcedure>(),
+        enqueueAbort: vi.fn<MockProcedure>(),
+        getSession: vi.fn<MockProcedure>(),
+        listSessions: vi.fn<MockProcedure>(),
+        replaySessionEvents: vi.fn<MockProcedure>(),
       }),
     }));
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
-      getMessageRepository: vi.fn(() => ({})),
-      getMessageService: vi.fn(() => ({
-        getConversation: vi.fn(),
-        getOrCreateConversation: vi.fn(),
-        setPersonaId: vi.fn(),
+      getMessageRepository: vi.fn<() => Record<string, unknown>>(() => ({})),
+      getMessageService: vi.fn<MockProcedure>(() => ({
+        getConversation: vi.fn<MockProcedure>(),
+        getOrCreateConversation: vi.fn<MockProcedure>(),
+        setPersonaId: vi.fn<MockProcedure>(),
       })),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
-      getPersonaRepository: () => ({ getPersona: vi.fn(() => ({ id: 'persona-1' })) }),
+      getPersonaRepository: () => ({
+        getPersona: vi.fn<() => { id: string }>(() => ({ id: 'persona-1' })),
+      }),
     }));
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
 
     const { dispatchMethod } = await import('@/server/gateway/method-router');
@@ -104,7 +109,7 @@ describe('gateway agent v2 methods', () => {
     vi.resetModules();
     vi.stubEnv('AGENT_ROOM_ENABLED', 'true');
 
-    const createAgentRoomSwarm = vi.fn(() => ({
+    const createAgentRoomSwarm = vi.fn<MockProcedure>(() => ({
       id: 'swarm-1',
       conversationId: 'conv-1',
       userId: 'user-v2',
@@ -127,54 +132,60 @@ describe('gateway agent v2 methods', () => {
       createdAt: 'now',
       updatedAt: 'now',
     }));
-    const listAgentRoomSwarms = vi.fn(() => [createAgentRoomSwarm.mock.results[0]?.value]);
-    const getAgentRoomSwarm = vi.fn(() => createAgentRoomSwarm.mock.results[0]?.value);
-    const updateAgentRoomSwarm = vi.fn(() => ({
+    const listAgentRoomSwarms = vi.fn<MockProcedure>(() => [
+      createAgentRoomSwarm.mock.results[0]?.value,
+    ]);
+    const getAgentRoomSwarm = vi.fn<MockProcedure>(
+      () => createAgentRoomSwarm.mock.results[0]?.value,
+    );
+    const updateAgentRoomSwarm = vi.fn<MockProcedure>(() => ({
       ...createAgentRoomSwarm.mock.results[0]?.value,
       status: 'running',
       updatedAt: 'later',
     }));
-    const deleteAgentRoomSwarm = vi.fn(() => true);
+    const deleteAgentRoomSwarm = vi.fn<() => boolean>(() => true);
 
     vi.doMock('../../../src/server/agent-v2/runtime', () => ({
       getAgentV2SessionManager: () => ({
-        startSession: vi.fn(),
-        enqueueInput: vi.fn(),
-        enqueueSteer: vi.fn(),
-        enqueueFollowUp: vi.fn(),
-        enqueueApprovalResponse: vi.fn(),
-        enqueueAbort: vi.fn(),
-        getSession: vi.fn(),
-        listSessions: vi.fn(),
-        replaySessionEvents: vi.fn(),
+        startSession: vi.fn<MockProcedure>(),
+        enqueueInput: vi.fn<MockProcedure>(),
+        enqueueSteer: vi.fn<MockProcedure>(),
+        enqueueFollowUp: vi.fn<MockProcedure>(),
+        enqueueApprovalResponse: vi.fn<MockProcedure>(),
+        enqueueAbort: vi.fn<MockProcedure>(),
+        getSession: vi.fn<MockProcedure>(),
+        listSessions: vi.fn<MockProcedure>(),
+        replaySessionEvents: vi.fn<MockProcedure>(),
       }),
     }));
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
-      getMessageRepository: vi.fn(() => ({
+      getMessageRepository: vi.fn<MockProcedure>(() => ({
         createAgentRoomSwarm,
         listAgentRoomSwarms,
         getAgentRoomSwarm,
         updateAgentRoomSwarm,
         deleteAgentRoomSwarm,
       })),
-      getMessageService: vi.fn(() => ({
-        getConversation: vi.fn(() => ({
+      getMessageService: vi.fn<MockProcedure>(() => ({
+        getConversation: vi.fn<() => { id: string; personaId: null }>(() => ({
           id: 'conv-1',
           personaId: null,
         })),
-        isAgentRoomConversation: vi.fn(() => true),
-        getOrCreateConversation: vi.fn(() => ({
+        isAgentRoomConversation: vi.fn<() => boolean>(() => true),
+        getOrCreateConversation: vi.fn<() => { id: string; personaId: null }>(() => ({
           id: 'conv-1',
           personaId: null,
         })),
-        setPersonaId: vi.fn(),
+        setPersonaId: vi.fn<MockProcedure>(),
       })),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
-      getPersonaRepository: () => ({ getPersona: vi.fn(() => ({ id: 'persona-1' })) }),
+      getPersonaRepository: () => ({
+        getPersona: vi.fn<() => { id: string }>(() => ({ id: 'persona-1' })),
+      }),
     }));
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
 
     const { dispatchMethod } = await import('@/server/gateway/method-router');
@@ -243,31 +254,31 @@ describe('gateway agent v2 methods', () => {
   it('dispatches v2 methods via default namespace', async () => {
     vi.resetModules();
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
-      getMessageRepository: vi.fn(() => ({})),
-      getMessageService: vi.fn(() => ({
-        getConversation: vi.fn(),
-        getOrCreateConversation: vi.fn(),
-        setPersonaId: vi.fn(),
+      getMessageRepository: vi.fn<() => Record<string, unknown>>(() => ({})),
+      getMessageService: vi.fn<MockProcedure>(() => ({
+        getConversation: vi.fn<MockProcedure>(),
+        getOrCreateConversation: vi.fn<MockProcedure>(),
+        setPersonaId: vi.fn<MockProcedure>(),
       })),
     }));
     vi.doMock('../../../src/server/personas/personaRepository', () => ({
-      getPersonaRepository: () => ({ getPersona: vi.fn() }),
+      getPersonaRepository: () => ({ getPersona: vi.fn<MockProcedure>() }),
     }));
     vi.doMock('../../../src/server/agent-v2/runtime', () => ({
       getAgentV2SessionManager: () => ({
-        startSession: vi.fn(),
-        enqueueInput: vi.fn(),
-        enqueueSteer: vi.fn(),
-        enqueueFollowUp: vi.fn(),
-        enqueueApprovalResponse: vi.fn(),
-        enqueueAbort: vi.fn(),
-        getSession: vi.fn(),
-        listSessions: vi.fn(),
-        replaySessionEvents: vi.fn(),
+        startSession: vi.fn<MockProcedure>(),
+        enqueueInput: vi.fn<MockProcedure>(),
+        enqueueSteer: vi.fn<MockProcedure>(),
+        enqueueFollowUp: vi.fn<MockProcedure>(),
+        enqueueApprovalResponse: vi.fn<MockProcedure>(),
+        enqueueAbort: vi.fn<MockProcedure>(),
+        getSession: vi.fn<MockProcedure>(),
+        listSessions: vi.fn<MockProcedure>(),
+        replaySessionEvents: vi.fn<MockProcedure>(),
       }),
     }));
     vi.doMock('../../../src/server/gateway/broadcast', () => ({
-      broadcastToUser: vi.fn(),
+      broadcastToUser: vi.fn<MockProcedure>(),
     }));
 
     await import('@/server/gateway/methods/agent-v2/registerMethods');

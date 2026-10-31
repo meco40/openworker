@@ -73,7 +73,8 @@ export function useKnowledgeGraph(selectedPersonaId: string | null): UseKnowledg
   }, [selectedPersonaId]);
 
   useEffect(() => {
-    void load();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(load);
     return () => {
       abortRef.current?.abort();
     };

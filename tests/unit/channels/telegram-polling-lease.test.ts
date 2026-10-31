@@ -5,8 +5,9 @@ import {
   startTelegramPolling,
   stopTelegramPolling,
 } from '@/server/channels/pairing/telegramPolling';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const processTelegramInboundUpdate = vi.hoisted(() => vi.fn());
+const processTelegramInboundUpdate = vi.hoisted(() => vi.fn<MockProcedure>());
 vi.mock('@/server/channels/pairing/telegramInbound', () => ({ processTelegramInboundUpdate }));
 
 type PollingGlobals = typeof globalThis & {

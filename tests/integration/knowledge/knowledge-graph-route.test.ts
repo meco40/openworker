@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EntityAlias, EntityRelation, KnowledgeEntity } from '@/server/knowledge/entityGraph';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type RepoMock = {
   listEntities: ReturnType<typeof vi.fn>;
@@ -10,7 +11,7 @@ type RepoMock = {
 
 function mockUserContext(context: { userId: string; authenticated: boolean } | null): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
@@ -106,15 +107,23 @@ function createRepositoryMock(): RepoMock {
     ['ent-4', []],
   ]);
 
-  const listEntities = vi.fn((filter: { userId: string; personaId: string }, limit = 100) => {
-    if (filter.userId !== 'user-a') return [];
-    const scoped = entities.filter(
-      (entity) => entity.userId === filter.userId && entity.personaId === filter.personaId,
-    );
-    return scoped.slice(0, Math.max(0, limit));
-  });
+  const listEntities = vi.fn<MockProcedure>(
+    (filter: { userId: string; personaId: string }, limit = 100) => {
+      if (filter.userId !== 'user-a') return [];
+      const scoped = entities.filter(
+        (entity) => entity.userId === filter.userId && entity.personaId === filter.personaId,
+      );
+      return scoped.slice(0, Math.max(0, limit));
+    },
+  );
 
-  const getEntityWithRelations = vi.fn((entityId: string) => {
+  const getEntityWithRelations = vi.fn<
+    (entityId: string) => {
+      entity: KnowledgeEntity;
+      aliases: EntityAlias[];
+      relations: EntityRelation[];
+    }
+  >((entityId: string) => {
     const entity = entities.find((entry) => entry.id === entityId);
     if (!entity) {
       throw new Error(`Entity ${entityId} not found`);
@@ -131,52 +140,56 @@ function createRepositoryMock(): RepoMock {
 
 function createBatchRepositoryMock(): RepoMock {
   const base = createRepositoryMock();
-  const getAliasCountsByEntityIds = vi.fn((entityIds: string[]) => {
-    const counts: Record<string, number> = {};
-    for (const entityId of entityIds) {
-      counts[entityId] = entityId === 'ent-1' ? 1 : 0;
-    }
-    return counts;
-  });
+  const getAliasCountsByEntityIds = vi.fn<(entityIds: string[]) => Record<string, number>>(
+    (entityIds: string[]) => {
+      const counts: Record<string, number> = {};
+      for (const entityId of entityIds) {
+        counts[entityId] = entityId === 'ent-1' ? 1 : 0;
+      }
+      return counts;
+    },
+  );
 
-  const listRelationsByEntityIds = vi.fn((entityIds: string[]) => {
-    const set = new Set(entityIds);
-    const allRelations: EntityRelation[] = [
-      {
-        id: 'rel-ent-1-ent-2',
-        sourceEntityId: 'ent-1',
-        targetEntityId: 'ent-2',
-        relationType: 'works_with',
-        properties: {},
-        confidence: 0.85,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'rel-ent-2-ent-3',
-        sourceEntityId: 'ent-2',
-        targetEntityId: 'ent-3',
-        relationType: 'depends_on',
-        properties: {},
-        confidence: 0.85,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 'rel-ent-3-ent-4',
-        sourceEntityId: 'ent-3',
-        targetEntityId: 'ent-4',
-        relationType: 'part_of',
-        properties: {},
-        confidence: 0.85,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-    return allRelations.filter(
-      (relation) => set.has(relation.sourceEntityId) && set.has(relation.targetEntityId),
-    );
-  });
+  const listRelationsByEntityIds = vi.fn<(entityIds: string[]) => EntityRelation[]>(
+    (entityIds: string[]) => {
+      const set = new Set(entityIds);
+      const allRelations: EntityRelation[] = [
+        {
+          id: 'rel-ent-1-ent-2',
+          sourceEntityId: 'ent-1',
+          targetEntityId: 'ent-2',
+          relationType: 'works_with',
+          properties: {},
+          confidence: 0.85,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'rel-ent-2-ent-3',
+          sourceEntityId: 'ent-2',
+          targetEntityId: 'ent-3',
+          relationType: 'depends_on',
+          properties: {},
+          confidence: 0.85,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'rel-ent-3-ent-4',
+          sourceEntityId: 'ent-3',
+          targetEntityId: 'ent-4',
+          relationType: 'part_of',
+          properties: {},
+          confidence: 0.85,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+      return allRelations.filter(
+        (relation) => set.has(relation.sourceEntityId) && set.has(relation.targetEntityId),
+      );
+    },
+  );
 
   return {
     ...base,
@@ -187,7 +200,7 @@ function createBatchRepositoryMock(): RepoMock {
 
 function mockKnowledgeRepository(repoMock: RepoMock): void {
   vi.doMock('../../../src/server/knowledge/runtime', () => ({
-    getKnowledgeRepository: vi.fn(() => repoMock),
+    getKnowledgeRepository: vi.fn<() => RepoMock>(() => repoMock),
   }));
 }
 

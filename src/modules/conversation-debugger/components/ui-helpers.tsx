@@ -208,10 +208,12 @@ export const TokenBar: React.FC<TokenBarProps> = ({ promptTokens, completionToke
   const promptPct = Math.round((promptTokens / total) * 100);
   return (
     <div>
+      <span className="sr-only">
+        {`Token usage: ${String(promptTokens)} prompt, ${String(completionTokens)} completion`}
+      </span>
       <div
         className="mb-1.5 flex h-2.5 overflow-hidden rounded-full bg-zinc-800"
-        role="img"
-        aria-label={`Token usage: ${String(promptTokens)} prompt, ${String(completionTokens)} completion`}
+        aria-hidden="true"
       >
         <div
           className="h-full bg-blue-600 transition-all"

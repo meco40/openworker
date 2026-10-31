@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deliveriMessage } from '@/server/channels/outbound/imessage';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('deliveriMessage', () => {
   const originalEnv = process.env.IMESSAGE_BRIDGE_URL;
@@ -7,7 +8,7 @@ describe('deliveriMessage', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    globalThis.fetch = vi.fn();
+    globalThis.fetch = vi.fn<MockProcedure>();
   });
 
   afterEach(() => {
@@ -32,7 +33,10 @@ describe('deliveriMessage', () => {
 
   it('posts to the bridge URL with chatGuid and message', async () => {
     process.env.IMESSAGE_BRIDGE_URL = 'https://bridge.example.com/';
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+    const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+      ok: true,
+      status: 200,
+    }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await deliveriMessage('chat-1', 'Hello');
@@ -46,7 +50,10 @@ describe('deliveriMessage', () => {
 
   it('strips trailing slash from bridge URL', async () => {
     process.env.IMESSAGE_BRIDGE_URL = 'https://bridge.example.com';
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+    const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+      ok: true,
+      status: 200,
+    }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await deliveriMessage('chat-1', 'Hello');
@@ -56,7 +63,10 @@ describe('deliveriMessage', () => {
 
   it('throws when bridge returns non-OK response', async () => {
     process.env.IMESSAGE_BRIDGE_URL = 'https://bridge.example.com/';
-    const fetchMock = vi.fn(async () => ({ ok: false, status: 500 }));
+    const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+      ok: false,
+      status: 500,
+    }));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await expect(deliveriMessage('chat-1', 'Hello')).rejects.toThrow(

@@ -29,7 +29,8 @@ export function useTaskCatalog(filterStatus: TaskStatus | '') {
   }, [filterStatus]);
 
   useEffect(() => {
-    void loadTasks();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(loadTasks);
   }, [loadTasks]);
 
   const handleStatusChange = useCallback(

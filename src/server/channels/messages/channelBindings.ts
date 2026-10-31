@@ -1,12 +1,7 @@
 import type { ChannelKey } from '@/server/channels/adapters/types';
 
 export type ChannelBindingStatus =
-  | 'idle'
-  | 'pairing'
-  | 'awaiting_code'
-  | 'connected'
-  | 'disconnected'
-  | 'error';
+  'idle' | 'pairing' | 'awaiting_code' | 'connected' | 'disconnected' | 'error';
 
 export interface ChannelBinding {
   userId: string;

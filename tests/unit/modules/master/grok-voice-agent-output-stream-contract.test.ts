@@ -2,28 +2,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+function loadHookSource(): string {
+  return fs.readFileSync(
+    path.join(process.cwd(), 'src/modules/master/voice/grok/useGrokVoiceAgent.ts'),
+    'utf8',
+  );
+}
+
+function loadRealtimeSource(): string {
+  return fs.readFileSync(
+    path.join(process.cwd(), 'src/modules/master/voice/grok/realtimeSession.ts'),
+    'utf8',
+  );
+}
+
+function loadOutputAudioBusSource(): string {
+  return fs.readFileSync(
+    path.join(process.cwd(), 'src/modules/master/voice/grok/outputAudioBus.ts'),
+    'utf8',
+  );
+}
+
 describe('useGrokVoiceAgent output stream contract', () => {
-  function loadHookSource(): string {
-    return fs.readFileSync(
-      path.join(process.cwd(), 'src/modules/master/voice/grok/useGrokVoiceAgent.ts'),
-      'utf8',
-    );
-  }
-
-  function loadRealtimeSource(): string {
-    return fs.readFileSync(
-      path.join(process.cwd(), 'src/modules/master/voice/grok/realtimeSession.ts'),
-      'utf8',
-    );
-  }
-
-  function loadOutputAudioBusSource(): string {
-    return fs.readFileSync(
-      path.join(process.cwd(), 'src/modules/master/voice/grok/outputAudioBus.ts'),
-      'utf8',
-    );
-  }
-
   it('exposes subscribeOutputAudio in the returned API', () => {
     const source = loadHookSource();
     expect(source).toContain('subscribeOutputAudio');

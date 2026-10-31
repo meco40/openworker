@@ -96,8 +96,7 @@ export function getApprovalRule(
        WHERE user_id = ? AND workspace_id = ? AND action_type = ? AND fingerprint = ?`,
     )
     .get(scope.userId, scope.workspaceId, actionType, fingerprint) as
-    | { decision: ApprovalDecision }
-    | undefined;
+    { decision: ApprovalDecision } | undefined;
   return row?.decision || null;
 }
 

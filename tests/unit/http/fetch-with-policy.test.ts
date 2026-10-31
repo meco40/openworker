@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithPolicy } from '@/server/http/fetchWithPolicy';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('fetchWithPolicy', () => {
   afterEach(() => {
@@ -8,7 +9,7 @@ describe('fetchWithPolicy', () => {
 
   it('retries transient HTTP statuses and returns eventual success', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(new Response('busy', { status: 503 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -27,7 +28,7 @@ describe('fetchWithPolicy', () => {
 
   it('retries transient network errors', async () => {
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockRejectedValueOnce(new TypeError('network down'))
       .mockResolvedValueOnce(new Response('ok', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -42,7 +43,7 @@ describe('fetchWithPolicy', () => {
   });
 
   it('throws after retry budget is exhausted', async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new TypeError('offline'));
+    const fetchMock = vi.fn<MockProcedure>().mockRejectedValue(new TypeError('offline'));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(

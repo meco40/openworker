@@ -9,17 +9,13 @@ export function createGatewayClient() {
 }
 
 export function useGatewayClient() {
-  const clientRef = React.useRef<GatewayClient | AgentV2GatewayClient | null>(null);
-
-  if (!clientRef.current) {
-    clientRef.current = createGatewayClient();
-  }
+  // Lazy state initialization creates exactly one client per component instance.
+  const [client] = React.useState<GatewayClient | AgentV2GatewayClient>(createGatewayClient);
 
   React.useEffect(() => {
-    const client = clientRef.current!;
     client.connect();
     return () => client.disconnect();
-  }, []);
+  }, [client]);
 
-  return clientRef.current;
+  return client;
 }

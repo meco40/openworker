@@ -1,8 +1,5 @@
 export type KnowledgeQueryIntent =
-  | 'meeting_recall'
-  | 'negotiation_recall'
-  | 'count_recall'
-  | 'general_recall';
+  'meeting_recall' | 'negotiation_recall' | 'count_recall' | 'general_recall';
 export type KnowledgeDetailDepth = 'low' | 'medium' | 'high';
 
 export interface KnowledgeTimeRange {

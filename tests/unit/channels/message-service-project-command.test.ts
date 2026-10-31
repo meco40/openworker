@@ -5,14 +5,17 @@ import { ChannelType } from '@/shared/domain/types';
 import { MessageService } from '@/server/channels/messages/service';
 import { SqliteMessageRepository } from '@/server/channels/messages/sqliteMessageRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'fallback-chat-response',
-    provider: 'test-provider',
-    model: 'test-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'fallback-chat-response',
+      provider: 'test-provider',
+      model: 'test-model',
+    }),
+  ),
 );
 
 vi.mock('../../../src/server/model-hub/runtime', () => ({
@@ -23,18 +26,21 @@ vi.mock('../../../src/server/model-hub/runtime', () => ({
 }));
 
 vi.mock('../../../src/server/channels/outbound/router', () => ({
-  deliverOutbound: vi.fn(async () => {}),
+  deliverOutbound: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock('../../../src/server/gateway/broadcast', () => ({
-  broadcastToUser: vi.fn(),
+  broadcastToUser: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('../../../src/server/memory/runtime', () => ({
   getMemoryService: () => ({
-    recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
-    store: vi.fn(async () => ({ id: 'mem-1' })),
-    updateFeedback: vi.fn(async () => {}),
+    recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+      context: '',
+      matches: [],
+    })),
+    store: vi.fn<() => Promise<{ id: string }>>(async () => ({ id: 'mem-1' })),
+    updateFeedback: vi.fn<() => Promise<void>>(async () => {}),
   }),
 }));
 

@@ -28,8 +28,7 @@ export class EpisodeRepository {
       `,
       )
       .get(input.conversationId, input.personaId, sourceSeqStart, sourceSeqEnd) as
-      | { id: string }
-      | undefined;
+      { id: string } | undefined;
 
     const id = existing?.id || crypto.randomUUID();
 

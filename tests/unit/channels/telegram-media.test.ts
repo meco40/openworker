@@ -6,6 +6,7 @@ import {
   extractTelegramInboundMedia,
   resolveTelegramInboundText,
 } from '@/server/channels/telegram/media';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('telegram media helper', () => {
   beforeEach(() => {
@@ -53,7 +54,7 @@ describe('telegram media helper', () => {
     process.env.CHAT_ATTACHMENTS_DIR = tmpRoot;
 
     const fetchMock = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ ok: true, result: { file_path: 'photos/1.jpg' } }), {
           status: 200,

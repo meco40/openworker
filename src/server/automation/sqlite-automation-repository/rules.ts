@@ -110,8 +110,7 @@ export function getRule(db: SqliteDb, ruleId: string, userId: string): Automatio
 
 export function getRuleById(db: SqliteDb, ruleId: string): AutomationRule | null {
   const row = db.prepare('SELECT * FROM automation_rules WHERE id = ?').get(ruleId) as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   return row ? toRule(row) : null;
 }
 

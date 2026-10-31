@@ -202,8 +202,7 @@ function migrateCapabilityScores(db: MasterSqliteDb, input: ScopeMigrationInput)
 
   for (const row of oldRows) {
     const target = selectTarget.get(input.userId, input.toWorkspaceId, row.capability) as
-      | CapabilityScoreRow
-      | undefined;
+      CapabilityScoreRow | undefined;
     if (!target) {
       updateScope.run(input.toWorkspaceId, row.id);
       continue;

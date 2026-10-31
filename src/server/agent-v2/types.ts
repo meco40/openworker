@@ -6,22 +6,12 @@ export {
 } from '@/shared/agentV2Types';
 
 export type AgentV2SessionStatus =
-  | 'idle'
-  | 'running'
-  | 'completed'
-  | 'aborted'
-  | 'error'
-  | 'error_recoverable';
+  'idle' | 'running' | 'completed' | 'aborted' | 'error' | 'error_recoverable';
 
 export type AgentV2CommandType = 'input' | 'steer' | 'follow_up' | 'approval' | 'abort';
 
 export type AgentV2CommandStatus =
-  | 'queued'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'failed_recoverable'
-  | 'aborted';
+  'queued' | 'running' | 'completed' | 'failed' | 'failed_recoverable' | 'aborted';
 
 export interface AgentSessionSnapshot {
   id: string;

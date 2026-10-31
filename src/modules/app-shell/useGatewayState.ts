@@ -5,7 +5,13 @@ import { usePersona } from '@/modules/personas/PersonaContext';
 
 function createInitialGatewayState(): GatewayState {
   return {
-    eventHistory: [],
+    eventHistory: [
+      {
+        timestamp: new Date().toLocaleTimeString(),
+        type: 'SYS',
+        message: 'Gateway Core initialized.',
+      },
+    ],
     memoryEntries: [],
   };
 }
@@ -52,24 +58,12 @@ export function useGatewayState({ loadMemory = true }: UseGatewayStateOptions = 
   }, [activePersonaId]);
 
   useEffect(() => {
-    setGatewayState((previous) => ({
-      ...previous,
-      eventHistory: [
-        {
-          timestamp: new Date().toLocaleTimeString(),
-          type: 'SYS',
-          message: 'Gateway Core initialized.',
-        },
-      ],
-    }));
-  }, []);
-
-  useEffect(() => {
     if (!loadMemory) {
       return;
     }
 
-    void updateMemoryDisplay();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(updateMemoryDisplay);
   }, [loadMemory, updateMemoryDisplay]);
 
   return {

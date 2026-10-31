@@ -4,6 +4,7 @@ import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
 import { FormHeader } from '@/components/personas/editor/components/FormHeader';
 import { SystemPromptSection } from '@/components/personas/editor/components/SystemPromptSection';
 import type { PersonaWithFiles } from '@/server/personas/personaTypes';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const masterPersona: PersonaWithFiles = {
   id: 'persona-master',
@@ -82,8 +83,8 @@ describe('system persona UI treatment', () => {
   });
 
   it('renders system prompt tabs read-only for Master', () => {
-    const setEditorContent = vi.fn();
-    const setDirty = vi.fn();
+    const setEditorContent = vi.fn<MockProcedure>();
+    const setDirty = vi.fn<MockProcedure>();
 
     render(
       <SystemPromptSection

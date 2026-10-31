@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProviderAccountRecord } from '@/server/model-hub/repository';
 import type { ProviderCatalogEntry } from '@/server/model-hub/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildAccount(
   providerId: string,
@@ -41,18 +42,25 @@ async function setupFetcher(options: {
 }) {
   vi.resetModules();
 
-  const getProviderAdapter = vi.fn(() => options.adapter ?? null);
-  const decryptSecret = vi.fn(() => options.decryptSecretReturn ?? 'provider-secret');
+  const getProviderAdapter = vi.fn<MockProcedure>(() => options.adapter ?? null);
+  const decryptSecret = vi.fn<() => string>(() => options.decryptSecretReturn ?? 'provider-secret');
   const fetchOpenAICompatibleModels = options.openAICompatibleThrows
-    ? vi.fn(async () => {
+    ? vi.fn<() => Promise<never>>(async () => {
         throw new Error('openai-compatible failed');
       })
-    : vi.fn(async () => options.openAICompatibleResult ?? []);
+    : vi.fn<() => Promise<{ id: string; name: string; provider: string }[]>>(
+        async () => options.openAICompatibleResult ?? [],
+      );
   const fetchWithTimeout = options.openRouterEmbeddingThrows
-    ? vi.fn(async () => {
+    ? vi.fn<() => Promise<never>>(async () => {
         throw new Error('openrouter embeddings failed');
       })
-    : vi.fn(async () => ({
+    : vi.fn<
+        () => Promise<{
+          ok: boolean;
+          json: () => Promise<{ data: { id: string; name?: string; context_length?: number }[] }>;
+        }>
+      >(async () => ({
         ok: true,
         json: async () => ({ data: options.openRouterEmbeddingResult ?? [] }),
       }));
@@ -121,7 +129,9 @@ describe('fetchModelsForAccount', () => {
   });
 
   it('uses adapter fetchModels when available', async () => {
-    const adapterFetch = vi.fn(async () => [{ id: 'a', name: 'a', provider: 'openai' }]);
+    const adapterFetch = vi.fn<() => Promise<{ id: string; name: string; provider: string }[]>>(
+      async () => [{ id: 'a', name: 'a', provider: 'openai' }],
+    );
     const { fetchModelsForAccount, getProviderAdapter } = await setupFetcher({
       catalog: [
         {

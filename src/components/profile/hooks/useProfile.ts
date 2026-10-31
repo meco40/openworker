@@ -62,7 +62,8 @@ export function useProfile(options: UseProfileOptions = {}) {
   }, []);
 
   useEffect(() => {
-    void loadProfile();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(loadProfile);
   }, [loadProfile]);
 
   const usage = useMemo(

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CredentialStore } from '@/server/channels/credentials/credentialStore';
 import { deliverTelegram, editTelegramMessage } from '@/server/channels/outbound/telegram';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('telegram outbound threading', () => {
-  const fetchMock = vi.fn();
+  const fetchMock = vi.fn<MockProcedure>();
 
   beforeEach(() => {
     (globalThis as Record<string, unknown>).__credentialStore = new CredentialStore(':memory:');

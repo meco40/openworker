@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 vi.mock('next-auth/jwt', () => ({
-  getToken: vi.fn(async () => null),
+  getToken: vi.fn<() => Promise<null>>(async () => null),
 }));
 
 describe('proxy oauth callback handling', () => {

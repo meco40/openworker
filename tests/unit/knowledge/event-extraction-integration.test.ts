@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildKnowledgeExtractionPrompt } from '@/server/knowledge/prompts';
 import { KnowledgeExtractor, type KnowledgeExtractionInput } from '@/server/knowledge/extractor';
 import type { StoredMessage } from '@/server/channels/messages/repository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeMsg(seq: number, role: string, content: string): StoredMessage {
   return {
@@ -99,7 +100,7 @@ describe('Event extraction from LLM response', () => {
     });
 
     const extractor = new KnowledgeExtractor({
-      runExtractionModel: vi.fn().mockResolvedValue(modelResponse),
+      runExtractionModel: vi.fn<MockProcedure>().mockResolvedValue(modelResponse),
     });
 
     const result = await extractor.extract(input);
@@ -135,7 +136,7 @@ describe('Event extraction from LLM response', () => {
     });
 
     const extractor = new KnowledgeExtractor({
-      runExtractionModel: vi.fn().mockResolvedValue(modelResponse),
+      runExtractionModel: vi.fn<MockProcedure>().mockResolvedValue(modelResponse),
     });
 
     const result = await extractor.extract({
@@ -184,7 +185,7 @@ describe('Event extraction from LLM response', () => {
     });
 
     const extractor = new KnowledgeExtractor({
-      runExtractionModel: vi.fn().mockResolvedValue(modelResponse),
+      runExtractionModel: vi.fn<MockProcedure>().mockResolvedValue(modelResponse),
     });
 
     const result = await extractor.extract({

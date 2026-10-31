@@ -78,7 +78,9 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
   });
 
   it('triggers /api/tasks/:id/test when task completion webhook sets task to testing', async () => {
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const { run, queryOne } = await import('@/lib/db');
@@ -145,7 +147,9 @@ describe('Mission Control agent-completion webhook auto-testing trigger', () => 
   });
 
   it('rejects an oversized body before processing the webhook', async () => {
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const { POST } = await import('../../../app/api/webhooks/agent-completion/route');

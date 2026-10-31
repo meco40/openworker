@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const auditMock = vi.fn();
-const logMock = vi.fn();
+const auditMock = vi.fn<MockProcedure>();
+const logMock = vi.fn<MockProcedure>();
 
 vi.mock('@/server/channels/messages/attachmentConsistency', () => ({
   runAttachmentConsistencyAudit: (...args: unknown[]) => auditMock(...args),

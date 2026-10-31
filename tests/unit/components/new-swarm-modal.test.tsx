@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import NewSwarmModal from '@/modules/agent-room/components/NewSwarmModal';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('NewSwarmModal', () => {
   it('renders persona options from persona registry', () => {
@@ -41,8 +42,8 @@ describe('NewSwarmModal', () => {
             updatedAt: new Date().toISOString(),
           },
         ],
-        onClose: vi.fn(),
-        onCreate: vi.fn(async () => {}),
+        onClose: vi.fn<MockProcedure>(),
+        onCreate: vi.fn<() => Promise<void>>(async () => {}),
       }),
     );
 
@@ -89,8 +90,8 @@ describe('NewSwarmModal', () => {
             updatedAt: new Date().toISOString(),
           },
         ],
-        onClose: vi.fn(),
-        onCreate: vi.fn(async () => {}),
+        onClose: vi.fn<MockProcedure>(),
+        onCreate: vi.fn<() => Promise<void>>(async () => {}),
       }),
     );
 

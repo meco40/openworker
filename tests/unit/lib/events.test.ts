@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SSEEvent } from '@/lib/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 // Mock console.log to suppress output during tests
 vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -8,9 +9,9 @@ vi.spyOn(console, 'error').mockImplementation(() => {});
 // Helper to create mock controller
 function createMockController() {
   return {
-    enqueue: vi.fn(),
-    close: vi.fn(),
-    error: vi.fn(),
+    enqueue: vi.fn<MockProcedure>(),
+    close: vi.fn<MockProcedure>(),
+    error: vi.fn<MockProcedure>(),
     desiredSize: 1,
   } as unknown as ReadableStreamDefaultController;
 }
@@ -112,8 +113,8 @@ describe('SSE Events Broadcaster', () => {
     it('sends encoded event to all connected clients', async () => {
       const { registerClient, broadcast, getSseDiagnostics } = await getFreshEventsModule();
 
-      const enqueue1 = vi.fn();
-      const enqueue2 = vi.fn();
+      const enqueue1 = vi.fn<MockProcedure>();
+      const enqueue2 = vi.fn<MockProcedure>();
 
       registerClient({ enqueue: enqueue1 } as unknown as ReadableStreamDefaultController);
       registerClient({ enqueue: enqueue2 } as unknown as ReadableStreamDefaultController);
@@ -152,10 +153,10 @@ describe('SSE Events Broadcaster', () => {
     it('removes disconnected clients on enqueue error', async () => {
       const { registerClient, broadcast, getSseDiagnostics } = await getFreshEventsModule();
 
-      const enqueueError = vi.fn().mockImplementation(() => {
+      const enqueueError = vi.fn<MockProcedure>().mockImplementation(() => {
         throw new Error('Client disconnected');
       });
-      const enqueueOk = vi.fn();
+      const enqueueOk = vi.fn<MockProcedure>();
 
       registerClient({ enqueue: enqueueError } as unknown as ReadableStreamDefaultController);
       registerClient({ enqueue: enqueueOk } as unknown as ReadableStreamDefaultController);

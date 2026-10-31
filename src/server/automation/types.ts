@@ -3,12 +3,7 @@ import type { FlowGraph } from '@/server/automation/flowTypes';
 export type AutomationTriggerSource = 'cron' | 'manual';
 
 export type AutomationRunStatus =
-  | 'queued'
-  | 'running'
-  | 'succeeded'
-  | 'failed'
-  | 'dead_letter'
-  | 'skipped';
+  'queued' | 'running' | 'succeeded' | 'failed' | 'dead_letter' | 'skipped';
 
 export interface AutomationRule {
   id: string;

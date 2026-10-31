@@ -1,10 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ToolPolicyPanel } from '@/modules/master/components/ToolPolicyPanel';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('ToolPolicyPanel', () => {
   it('renders current values and saves edited policy', () => {
-    const onSave = vi.fn();
+    const onSave = vi.fn<MockProcedure>();
     render(
       <ToolPolicyPanel
         policy={{

@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
 import { makeMessage } from './retrieval-service.harness';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('KnowledgeRetrievalService', () => {
   it('focuses retrieval on mentioned counterpart even without "mit <name>" phrase', async () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => [
+        listMeetingLedger: vi.fn<MockProcedure>(() => [
           {
             id: 'led-andreas',
             userId: 'user-1',
@@ -43,7 +44,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-12T10:00:00.000Z',
           },
         ]),
-        listEpisodes: vi.fn(() => [
+        listEpisodes: vi.fn<MockProcedure>(() => [
           {
             id: 'ep-andreas',
             userId: 'user-1',
@@ -77,7 +78,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-12T10:00:00.000Z',
           },
         ]),
-        insertRetrievalAudit: vi.fn(() => ({
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-1',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -91,10 +92,13 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [makeMessage(2, 'Wir vereinbaren 8% Rabatt')]),
+        listMessages: vi.fn<MockProcedure>(() => [makeMessage(2, 'Wir vereinbaren 8% Rabatt')]),
       },
     });
 
@@ -114,7 +118,7 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => [
+        listMeetingLedger: vi.fn<MockProcedure>(() => [
           {
             id: 'led-rules',
             userId: 'user-1',
@@ -133,7 +137,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-11T10:00:00.000Z',
           },
         ]),
-        listEpisodes: vi.fn(() => [
+        listEpisodes: vi.fn<MockProcedure>(() => [
           {
             id: 'ep-noisy',
             userId: 'user-1',
@@ -151,7 +155,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-11T10:00:00.000Z',
           },
         ]),
-        insertRetrievalAudit: vi.fn(() => ({
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-rules',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -165,7 +169,9 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({
+        recallDetailed: vi.fn<
+          () => Promise<{ context: string; matches: { node: { id: string; content: string } }[] }>
+        >(async () => ({
           context: '',
           matches: [
             {
@@ -182,7 +188,7 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [makeMessage(2, 'Niemals zu spät kommen')]),
+        listMessages: vi.fn<MockProcedure>(() => [makeMessage(2, 'Niemals zu spät kommen')]),
       },
     });
 
@@ -203,9 +209,9 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => []),
-        listEntities: vi.fn(() => [
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        listEntities: vi.fn<MockProcedure>(() => [
           {
             id: 'ent-rules',
             userId: 'user-1',
@@ -221,7 +227,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2026-02-20T09:00:00.000Z',
           },
         ]),
-        listEvents: vi.fn(() => [
+        listEvents: vi.fn<MockProcedure>(() => [
           {
             id: 'evt-rules-1',
             userId: 'user-1',
@@ -245,7 +251,7 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2026-02-20T09:00:00.000Z',
           },
         ]),
-        insertRetrievalAudit: vi.fn(() => ({
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-rules-fallback',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -259,10 +265,13 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [
+        listMessages: vi.fn<MockProcedure>(() => [
           makeMessage(11, 'Arbeitsbeginn ist 08:00 Uhr.'),
           makeMessage(12, 'Im Meeting bleibt das Handy lautlos.'),
         ]),
@@ -286,7 +295,7 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => [
+        listMeetingLedger: vi.fn<MockProcedure>(() => [
           {
             id: 'led-no-refs',
             userId: 'user-1',
@@ -305,10 +314,10 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-11T10:00:00.000Z',
           },
         ]),
-        listEpisodes: vi.fn(() => []),
-        listEntities: vi.fn(() => []),
-        listEvents: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => ({
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        listEntities: vi.fn<() => never[]>(() => []),
+        listEvents: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<MockProcedure>(() => ({
           id: 'audit-rules-unclear',
           userId: 'user-1',
           personaId: 'persona-1',
@@ -322,10 +331,13 @@ describe('KnowledgeRetrievalService', () => {
         })),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => [makeMessage(1, 'Hallo')]),
+        listMessages: vi.fn<MockProcedure>(() => [makeMessage(1, 'Hallo')]),
       },
     });
 

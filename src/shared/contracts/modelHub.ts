@@ -13,12 +13,7 @@ export type ProviderEndpointType =
   | 'github-native';
 
 export type ProviderCapability =
-  | 'chat'
-  | 'tools'
-  | 'vision'
-  | 'audio'
-  | 'embeddings'
-  | 'code_pairing';
+  'chat' | 'tools' | 'vision' | 'audio' | 'embeddings' | 'code_pairing';
 
 export interface ProviderCatalogEntry {
   id: string;

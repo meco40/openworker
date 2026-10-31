@@ -25,7 +25,7 @@ describe('world-model Graphiti REST client', () => {
     delete process.env.GRAPHITI_API_KEY;
     delete process.env.GRAPHITI_TIMEOUT_MS;
     resetGraphitiCircuit();
-    fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    fetchMock = vi.fn<() => Promise<Response>>(async () => new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
   });
 

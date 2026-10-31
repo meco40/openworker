@@ -37,7 +37,7 @@ describe('Graphiti projection of World Model events', () => {
     process.env.GRAPHITI_BASE_URL = 'http://graphiti.test';
     process.env.GRAPHITI_MAX_RETRIES = '1';
     resetGraphitiCircuit();
-    fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    fetchMock = vi.fn<() => Promise<Response>>(async () => new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
   });
 

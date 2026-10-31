@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-describe('MasterFaceCanvasThree interaction contract', () => {
-  function loadSource(relativePath: string): string {
-    return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
-  }
+function loadSource(relativePath: string): string {
+  return fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+}
 
+describe('MasterFaceCanvasThree interaction contract', () => {
   it('keeps the component as a thin wrapper over runtime + view modules', () => {
     const source = loadSource('src/modules/master/components/MasterFaceCanvasThree.tsx');
     expect(source).toContain('useMasterFaceThreeRuntime');

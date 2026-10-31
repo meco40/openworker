@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const answerTelegramCallbackQuery = vi.fn();
-const processTelegramModelCallback = vi.fn();
+const answerTelegramCallbackQuery = vi.fn<MockProcedure>();
+const processTelegramModelCallback = vi.fn<MockProcedure>();
 
 vi.mock('../../../src/server/channels/outbound/telegram', () => ({
-  deliverTelegram: vi.fn(),
+  deliverTelegram: vi.fn<MockProcedure>(),
   answerTelegramCallbackQuery,
 }));
 
 vi.mock('../../../src/server/channels/telegram/nativeCommandHandler', () => ({
-  handleTelegramNativeCommand: vi.fn().mockResolvedValue(false),
+  handleTelegramNativeCommand: vi.fn<MockProcedure>().mockResolvedValue(false),
 }));
 
 vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
@@ -17,7 +18,7 @@ vi.mock('../../../src/server/channels/telegram/modelSelection', () => ({
 }));
 
 vi.mock('../../../src/server/channels/pairing/telegramCodePairing', () => ({
-  ensureTelegramPairingCode: vi.fn(),
+  ensureTelegramPairingCode: vi.fn<MockProcedure>(),
   isTelegramChatAuthorized: (chatId: string) => chatId === '123',
 }));
 

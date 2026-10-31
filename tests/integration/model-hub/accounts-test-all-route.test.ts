@@ -42,7 +42,7 @@ describe('model-hub accounts test-all route', () => {
     expect(createJson.ok).toBe(true);
 
     const originalFetch = global.fetch;
-    global.fetch = vi.fn(async () => {
+    global.fetch = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'gpt-4.1-mini' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

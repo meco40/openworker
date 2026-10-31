@@ -182,8 +182,7 @@ export const DELETE = withUserContext<{ id: string }>(async ({ params, userConte
 
     if (!session) {
       session = db.prepare('SELECT * FROM betaclaw_sessions WHERE id = ?').get(id) as
-        | BetaClawSessionRow
-        | undefined;
+        BetaClawSessionRow | undefined;
     }
 
     if (!session) {
@@ -199,8 +198,7 @@ export const DELETE = withUserContext<{ id: string }>(async ({ params, userConte
     // If there's an associated agent that was auto-created (role = 'Sub-Agent'), delete it too
     if (agentId) {
       const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(agentId) as
-        | AgentRow
-        | undefined;
+        AgentRow | undefined;
       if (agent && agent.role === 'Sub-Agent') {
         db.prepare('DELETE FROM agents WHERE id = ?').run(agentId);
       } else if (agent) {

@@ -69,7 +69,7 @@ describe('automation runtime', () => {
   });
 
   it('moves repeated failures to dead-letter without crashing runtime', async () => {
-    const failing = vi.fn(async () => {
+    const failing = vi.fn<() => Promise<never>>(async () => {
       throw new Error('boom');
     });
 

@@ -6,8 +6,9 @@ import {
   confirmTelegramPairingCode,
   ensureTelegramPairingCode,
 } from '@/server/channels/pairing/telegramCodePairing';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const handleInbound = vi.fn();
+const handleInbound = vi.fn<MockProcedure>();
 
 vi.mock('../../../src/server/channels/messages/runtime', () => ({
   getMessageService: () => ({
@@ -58,7 +59,7 @@ describe('telegram webhook pairing gate', () => {
     handleInbound.mockReset();
     handleInbound.mockImplementation(async () => {});
 
-    fetchMock = vi.fn().mockResolvedValue(
+    fetchMock = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

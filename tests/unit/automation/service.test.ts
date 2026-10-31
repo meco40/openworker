@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AutomationRepository } from '@/server/automation/repository';
 import { AutomationService } from '@/server/automation/service';
 import type { AutomationRule, AutomationRun, SchedulerLeaseState } from '@/server/automation/types';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRule(overrides: Partial<AutomationRule> = {}): AutomationRule {
   const now = '2026-02-22T00:00:00.000Z';
@@ -48,7 +49,7 @@ function buildRun(overrides: Partial<AutomationRun> = {}): AutomationRun {
 
 function createMockRepository(overrides: Partial<AutomationRepository> = {}): AutomationRepository {
   return {
-    createRule: vi.fn((input) =>
+    createRule: vi.fn<MockProcedure>((input) =>
       buildRule({
         userId: input.userId,
         name: input.name,
@@ -59,13 +60,13 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
         nextRunAt: input.nextRunAt ?? null,
       }),
     ),
-    updateRule: vi.fn(() => null),
-    deleteRule: vi.fn(() => true),
-    getRule: vi.fn(() => null),
-    getRuleById: vi.fn(() => null),
-    listRules: vi.fn(() => []),
-    listDueRules: vi.fn(() => []),
-    createOrGetRun: vi.fn((input) =>
+    updateRule: vi.fn<() => null>(() => null),
+    deleteRule: vi.fn<() => boolean>(() => true),
+    getRule: vi.fn<() => null>(() => null),
+    getRuleById: vi.fn<() => null>(() => null),
+    listRules: vi.fn<() => never[]>(() => []),
+    listDueRules: vi.fn<() => never[]>(() => []),
+    createOrGetRun: vi.fn<MockProcedure>((input) =>
       buildRun({
         ruleId: input.ruleId,
         userId: input.userId,
@@ -76,16 +77,16 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
         nextAttemptAt: input.nextAttemptAt ?? null,
       }),
     ),
-    getRun: vi.fn(() => null),
-    listRuns: vi.fn(() => []),
-    listQueuedRunsDue: vi.fn(() => []),
-    markRunRunning: vi.fn((runId, startedAt) =>
+    getRun: vi.fn<() => null>(() => null),
+    listRuns: vi.fn<() => never[]>(() => []),
+    listQueuedRunsDue: vi.fn<() => never[]>(() => []),
+    markRunRunning: vi.fn<MockProcedure>((runId, startedAt) =>
       buildRun({ id: runId, status: 'running', startedAt }),
     ),
-    markRunSucceeded: vi.fn((runId, finishedAt, summary) =>
+    markRunSucceeded: vi.fn<MockProcedure>((runId, finishedAt, summary) =>
       buildRun({ id: runId, status: 'succeeded', finishedAt, resultSummary: summary ?? null }),
     ),
-    markRunForRetry: vi.fn((runId, attempt, errorMessage, nextAttemptAt) =>
+    markRunForRetry: vi.fn<MockProcedure>((runId, attempt, errorMessage, nextAttemptAt) =>
       buildRun({
         id: runId,
         status: 'queued',
@@ -94,7 +95,7 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
         nextAttemptAt,
       }),
     ),
-    markRunDeadLetter: vi.fn((runId, errorMessage, finishedAt) =>
+    markRunDeadLetter: vi.fn<MockProcedure>((runId, errorMessage, finishedAt) =>
       buildRun({
         id: runId,
         status: 'dead_letter',
@@ -102,7 +103,16 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
         finishedAt,
       }),
     ),
-    recordDeadLetter: vi.fn(() => ({
+    recordDeadLetter: vi.fn<
+      () => {
+        id: string;
+        runId: string;
+        ruleId: string;
+        reason: string;
+        payload: null;
+        createdAt: string;
+      }
+    >(() => ({
       id: 'dl-1',
       runId: 'run-1',
       ruleId: 'rule-1',
@@ -110,14 +120,16 @@ function createMockRepository(overrides: Partial<AutomationRepository> = {}): Au
       payload: null,
       createdAt: '2026-02-22T00:00:00.000Z',
     })),
-    countActiveRules: vi.fn(() => 0),
-    countRunsByStatus: vi.fn(() => 0),
-    getFlowGraph: vi.fn(() => null),
-    saveFlowGraph: vi.fn(() => null),
-    acquireLease: vi.fn(() => true),
-    releaseLease: vi.fn(),
-    getLeaseState: vi.fn(() => null as SchedulerLeaseState | null),
-    close: vi.fn(),
+    countActiveRules: vi.fn<() => number>(() => 0),
+    countRunsByStatus: vi.fn<() => number>(() => 0),
+    getFlowGraph: vi.fn<() => null>(() => null),
+    saveFlowGraph: vi.fn<() => null>(() => null),
+    acquireLease: vi.fn<() => boolean>(() => true),
+    releaseLease: vi.fn<MockProcedure>(),
+    getLeaseState: vi.fn<() => SchedulerLeaseState | null>(
+      () => null as SchedulerLeaseState | null,
+    ),
+    close: vi.fn<MockProcedure>(),
     ...overrides,
   };
 }
@@ -187,7 +199,7 @@ describe('AutomationService', () => {
 
   it('returns null when updating a non-existing rule', () => {
     const repo = createMockRepository({
-      getRule: vi.fn(() => null),
+      getRule: vi.fn<() => null>(() => null),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'ok' }),
@@ -209,8 +221,8 @@ describe('AutomationService', () => {
       nextRunAt: '2026-02-22T00:05:00.000Z',
     });
     const repo = createMockRepository({
-      getRule: vi.fn(() => existing),
-      updateRule: vi.fn(() => updated),
+      getRule: vi.fn<() => AutomationRule>(() => existing),
+      updateRule: vi.fn<() => AutomationRule>(() => updated),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'ok' }),
@@ -232,7 +244,7 @@ describe('AutomationService', () => {
   it('creates manual runs and rejects unknown rule ids', () => {
     const rule = buildRule();
     const repo = createMockRepository({
-      getRule: vi.fn().mockReturnValueOnce(null).mockReturnValueOnce(rule),
+      getRule: vi.fn<MockProcedure>().mockReturnValueOnce(null).mockReturnValueOnce(rule),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'ok' }),
@@ -251,14 +263,16 @@ describe('AutomationService', () => {
     const now = new Date('2026-02-22T00:00:10.000Z').getTime();
     vi.spyOn(Date, 'now').mockReturnValue(now);
     const repo = createMockRepository({
-      getLeaseState: vi.fn(() => ({
+      getLeaseState: vi.fn<
+        () => { singletonKey: string; instanceId: string; heartbeatAt: string; updatedAt: string }
+      >(() => ({
         singletonKey: 'automation-runtime',
         instanceId: 'scheduler-1',
         heartbeatAt: '2026-02-22T00:00:00.000Z',
         updatedAt: '2026-02-22T00:00:05.000Z',
       })),
-      countActiveRules: vi.fn(() => 3),
-      countRunsByStatus: vi.fn((status) => {
+      countActiveRules: vi.fn<() => number>(() => 3),
+      countRunsByStatus: vi.fn<MockProcedure>((status) => {
         if (status === 'queued') return 2;
         if (status === 'running') return 1;
         if (status === 'dead_letter') return 4;
@@ -284,8 +298,11 @@ describe('AutomationService', () => {
       nextRunAt: '2026-02-22T00:00:00.000Z',
     });
     const repo = createMockRepository({
-      listDueRules: vi.fn(() => [buildRule({ id: 'rule-skip', nextRunAt: null }), dueRule]),
-      listQueuedRunsDue: vi.fn(() => []),
+      listDueRules: vi.fn<() => AutomationRule[]>(() => [
+        buildRule({ id: 'rule-skip', nextRunAt: null }),
+        dueRule,
+      ]),
+      listQueuedRunsDue: vi.fn<() => never[]>(() => []),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'ok' }),
@@ -311,8 +328,8 @@ describe('AutomationService', () => {
       ruleId: 'missing-rule',
     });
     const repo = createMockRepository({
-      listQueuedRunsDue: vi.fn(() => [run]),
-      getRuleById: vi.fn(() => null),
+      listQueuedRunsDue: vi.fn<() => AutomationRun[]>(() => [run]),
+      getRuleById: vi.fn<() => null>(() => null),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'ok' }),
@@ -349,8 +366,8 @@ describe('AutomationService', () => {
       scheduledFor: '2026-02-22T00:00:00.000Z',
     });
     const repo = createMockRepository({
-      listQueuedRunsDue: vi.fn(() => [run]),
-      getRuleById: vi.fn(() => rule),
+      listQueuedRunsDue: vi.fn<() => AutomationRun[]>(() => [run]),
+      getRuleById: vi.fn<() => AutomationRule>(() => rule),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => ({ summary: 'done' }),
@@ -385,8 +402,8 @@ describe('AutomationService', () => {
       attempt: 2,
     });
     const repo = createMockRepository({
-      listQueuedRunsDue: vi.fn(() => [run]),
-      getRuleById: vi.fn(() => rule),
+      listQueuedRunsDue: vi.fn<() => AutomationRun[]>(() => [run]),
+      getRuleById: vi.fn<() => AutomationRule>(() => rule),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => {
@@ -424,8 +441,8 @@ describe('AutomationService', () => {
       attempt: 2,
     });
     const repo = createMockRepository({
-      listQueuedRunsDue: vi.fn(() => [run]),
-      getRuleById: vi.fn(() => rule),
+      listQueuedRunsDue: vi.fn<() => AutomationRun[]>(() => [run]),
+      getRuleById: vi.fn<() => AutomationRule>(() => rule),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => {
@@ -456,8 +473,8 @@ describe('AutomationService', () => {
     const firstRun = buildRun({ id: 'run-retry-1', ruleId: rule.id, attempt: 0 });
     const secondRun = buildRun({ id: 'run-retry-2', ruleId: rule.id, attempt: 1 });
     const repo = createMockRepository({
-      listQueuedRunsDue: vi.fn(() => [firstRun, secondRun]),
-      getRuleById: vi.fn(() => rule),
+      listQueuedRunsDue: vi.fn<() => AutomationRun[]>(() => [firstRun, secondRun]),
+      getRuleById: vi.fn<() => AutomationRule>(() => rule),
     });
     const service = new AutomationService(repo, {
       runPrompt: async () => {

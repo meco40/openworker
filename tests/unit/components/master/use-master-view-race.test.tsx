@@ -2,25 +2,28 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasterApprovalRequest, MasterRun } from '@/modules/master/types';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 const apiMocks = vi.hoisted(() => ({
-  fetchMasterSettings: vi.fn(),
-  fetchMasterPersonas: vi.fn(),
-  fetchWorkspaces: vi.fn(),
-  fetchRuns: vi.fn(),
-  fetchMetrics: vi.fn(),
-  fetchRunDetail: vi.fn(),
-  fetchApprovalRequests: vi.fn(),
-  fetchSubagentSessions: vi.fn(),
-  fetchReminders: vi.fn(),
-  cancelRun: vi.fn(async (): Promise<unknown> => ({})),
-  createRun: vi.fn(),
-  decideApprovalRequest: vi.fn(),
-  createMasterEventsUrl: vi.fn(() => '/api/master/events?workspaceId=main&personaId=master-1'),
-  parseMasterEventMessage: vi.fn((data: string) => JSON.parse(data)),
-  postRunAction: vi.fn(),
-  submitFeedback: vi.fn(async () => {}),
-  saveMasterSettings: vi.fn(),
+  fetchMasterSettings: vi.fn<MockProcedure>(),
+  fetchMasterPersonas: vi.fn<MockProcedure>(),
+  fetchWorkspaces: vi.fn<MockProcedure>(),
+  fetchRuns: vi.fn<MockProcedure>(),
+  fetchMetrics: vi.fn<MockProcedure>(),
+  fetchRunDetail: vi.fn<MockProcedure>(),
+  fetchApprovalRequests: vi.fn<MockProcedure>(),
+  fetchSubagentSessions: vi.fn<MockProcedure>(),
+  fetchReminders: vi.fn<MockProcedure>(),
+  cancelRun: vi.fn<() => Promise<unknown>>(async (): Promise<unknown> => ({})),
+  createRun: vi.fn<MockProcedure>(),
+  decideApprovalRequest: vi.fn<MockProcedure>(),
+  createMasterEventsUrl: vi.fn<() => string>(
+    () => '/api/master/events?workspaceId=main&personaId=master-1',
+  ),
+  parseMasterEventMessage: vi.fn<MockProcedure>((data: string) => JSON.parse(data)),
+  postRunAction: vi.fn<MockProcedure>(),
+  submitFeedback: vi.fn<() => Promise<void>>(async () => {}),
+  saveMasterSettings: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/modules/master/api', () => ({

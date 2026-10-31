@@ -360,11 +360,7 @@ pub fn query_rows<P: Params>(
     params: P,
 ) -> rusqlite::Result<Vec<Value>> {
     let mut statement = connection.prepare(sql)?;
-    let names: Vec<String> = statement
-        .column_names()
-        .into_iter()
-        .map(str::to_string)
-        .collect();
+    let names: Vec<String> = statement.column_names().map(str::to_string).collect();
     let rows = statement.query_map(params, |row| row_object(row, &names))?;
     rows.collect()
 }

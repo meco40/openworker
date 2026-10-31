@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { MasterSettingsSnapshot, SaveMasterSettingsInput } from '@/modules/master/types';
 
 interface MasterSettingsPanelProps {
@@ -38,8 +38,11 @@ export default function MasterSettingsPanel({
   const [agents, setAgents] = useState('');
   const [user, setUser] = useState('');
 
-  useEffect(() => {
-    if (!settings) return;
+  // Load a newly arrived settings snapshot into the draft during render (React's
+  // "adjusting state when a prop changes" pattern) instead of in an effect.
+  const [syncedSettings, setSyncedSettings] = useState<MasterSettingsSnapshot | null>(null);
+  if (settings && settings !== syncedSettings) {
+    setSyncedSettings(settings);
     setPreferredModelId(settings.runtimeSettings.preferredModelId ?? '');
     setModelHubProfileId(settings.runtimeSettings.modelHubProfileId ?? '');
     setIsAutonomous(settings.runtimeSettings.isAutonomous);
@@ -48,7 +51,7 @@ export default function MasterSettingsPanel({
     setSoul(settings.instructionFiles['SOUL.md']);
     setAgents(settings.instructionFiles['AGENTS.md']);
     setUser(settings.instructionFiles['USER.md']);
-  }, [settings]);
+  }
 
   if (!settings) {
     return (

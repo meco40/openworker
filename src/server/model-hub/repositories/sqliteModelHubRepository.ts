@@ -165,8 +165,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
       );
 
     const row = this.db.prepare('SELECT * FROM model_hub_accounts WHERE id = ?').get(id) as
-      | ProviderAccountRow
-      | undefined;
+      ProviderAccountRow | undefined;
     if (!row) {
       throw new Error(`Failed to read inserted account ${id}`);
     }
@@ -182,8 +181,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
 
   getAccountRecordById(id: string): ProviderAccountRecord | null {
     const row = this.db.prepare('SELECT * FROM model_hub_accounts WHERE id = ?').get(id) as
-      | ProviderAccountRow
-      | undefined;
+      ProviderAccountRow | undefined;
     if (!row) return null;
 
     return {
@@ -273,8 +271,7 @@ export class SqliteModelHubRepository implements ModelHubRepository {
       );
 
     const row = this.db.prepare('SELECT * FROM model_hub_pipeline WHERE id = ?').get(id) as
-      | PipelineRow
-      | undefined;
+      PipelineRow | undefined;
     if (!row) {
       throw new Error(`Failed to read inserted pipeline model ${id}`);
     }

@@ -11,7 +11,7 @@ export function validateCss(css: string): CssValidationError[] {
       parseValue: false,
       onParseError: (error) => {
         errors.push({
-          message: error.rawMessage || error.message,
+          message: error.message,
         });
       },
     });

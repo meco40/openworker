@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type RuntimeGlobals = typeof globalThis & {
   __automationRepository?: unknown;
@@ -14,8 +15,8 @@ function resetAutomationGlobals(): void {
 function mockAutomationRepository(acquireLeaseImpl: () => boolean = () => false): void {
   vi.doMock('../../../src/server/automation/sqliteAutomationRepository', () => ({
     SqliteAutomationRepository: class {
-      acquireLease = vi.fn(() => acquireLeaseImpl());
-      releaseLease = vi.fn();
+      acquireLease = vi.fn<() => boolean>(() => acquireLeaseImpl());
+      releaseLease = vi.fn<MockProcedure>();
     },
   }));
 }
@@ -32,8 +33,8 @@ describe('automation runtime singletons', () => {
 
   it('uses existing global runtime instance for start/stop', async () => {
     resetAutomationGlobals();
-    const start = vi.fn();
-    const stop = vi.fn();
+    const start = vi.fn<MockProcedure>();
+    const stop = vi.fn<MockProcedure>();
     (globalThis as { __automationRuntime?: unknown }).__automationRuntime = { start, stop };
 
     const runtimeModule = await import('@/server/automation/runtime');
@@ -80,13 +81,17 @@ describe('automation runtime singletons', () => {
   it('default runPrompt uses default conversation, truncates summary, and handles abort', async () => {
     resetAutomationGlobals();
 
-    const getDefaultWebChatConversation = vi.fn(() => ({ id: 'conv-default' }));
-    const abortGeneration = vi.fn();
-    const handleWebUIMessage = vi.fn(async () => ({
-      agentMsg: {
-        content: 'x'.repeat(600),
-      },
+    const getDefaultWebChatConversation = vi.fn<() => { id: string }>(() => ({
+      id: 'conv-default',
     }));
+    const abortGeneration = vi.fn<MockProcedure>();
+    const handleWebUIMessage = vi.fn<() => Promise<{ agentMsg: { content: string } }>>(
+      async () => ({
+        agentMsg: {
+          content: 'x'.repeat(600),
+        },
+      }),
+    );
 
     mockAutomationRepository(() => false);
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({

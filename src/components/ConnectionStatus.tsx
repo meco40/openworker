@@ -22,17 +22,16 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ state }) => {
   const cfg = stateConfig[state] ?? stateConfig.disconnected;
 
   return (
-    <div
-      role="status"
+    <output
       aria-live="polite"
       className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2"
     >
       <span className="text-xs text-zinc-400">Gateway</span>
-      <div className="flex items-center space-x-1.5">
+      <span className="flex items-center space-x-1.5">
         <span className="text-[10px] text-zinc-500">{cfg.label}</span>
         <span className={`h-2 w-2 rounded-full ${cfg.color}`} />
-      </div>
-    </div>
+      </span>
+    </output>
   );
 };
 

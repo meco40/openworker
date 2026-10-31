@@ -58,6 +58,16 @@ function extractSlot(text: string): { slotName: string; value: string } | null {
   return null;
 }
 
+/** Strips negation words and punctuation so the remaining content can be compared. */
+function stripNeg(text: string): string {
+  return text
+    .replace(NEGATION_WORDS_GLOBAL, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 /**
  * Check if one fact is a negation of the other.
  * E.g., "Max hat keine Freundin" vs "Max hat eine Freundin"
@@ -68,15 +78,6 @@ function detectNegation(newFact: string, existingFact: string): boolean {
 
   // One has negation and the other doesn't
   if (newHasNeg === existHasNeg) return false;
-
-  // Strip negation words and compare remaining content
-  const stripNeg = (t: string) =>
-    t
-      .replace(NEGATION_WORDS_GLOBAL, ' ')
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
 
   const strippedNew = stripNeg(newFact);
   const strippedExist = stripNeg(existingFact);

@@ -43,6 +43,7 @@ export function PersonasSidebar({
             onClick={() => setShowTemplates(!showTemplates)}
             className="rounded-lg bg-indigo-600 p-1.5 text-white transition-colors hover:bg-indigo-500"
             title="Neue Persona"
+            aria-label="Neue Persona"
           >
             <svg
               className="h-4 w-4"

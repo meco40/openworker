@@ -95,7 +95,8 @@ export function useOpsNodes(): UseOpsNodesResult {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(refresh);
   }, [refresh]);
 
   return {

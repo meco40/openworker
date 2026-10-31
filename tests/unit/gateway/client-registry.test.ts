@@ -3,14 +3,15 @@ import type { WebSocket } from 'ws';
 
 // Client registry uses globalThis singleton — import after potential cleanup
 import { getClientRegistry, type GatewayClient } from '@/server/gateway/client-registry';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeMockSocket(): WebSocket {
   return {
     readyState: 1, // WebSocket.OPEN
     OPEN: 1,
     bufferedAmount: 0,
-    send: vi.fn(),
-    close: vi.fn(),
+    send: vi.fn<MockProcedure>(),
+    close: vi.fn<MockProcedure>(),
   } as unknown as WebSocket;
 }
 

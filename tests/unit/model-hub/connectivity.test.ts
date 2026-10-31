@@ -55,7 +55,7 @@ function buildCodexAccessToken(accountId = 'acct_test'): string {
 describe('model-hub connectivity adapters', () => {
   it('calls OpenAI models endpoint for openai provider', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'gpt-4.1-mini' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +76,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('calls OpenRouter key endpoint for openrouter provider', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: { label: 'test-key' } }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('calls OpenCode models endpoint for opencode provider', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(
         JSON.stringify({
           object: 'list',
@@ -135,7 +135,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('routes kimi keys to kimi code endpoint and normalizes Bearer prefix', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'moonshot-v1-8k' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -164,7 +164,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('uses kimi code endpoint for non sk-kimi keys as well', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'kimi-for-coding' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -188,7 +188,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('normalizes quoted and multiline kimi API keys', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'moonshot-v1-8k' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -213,7 +213,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('returns actionable kimi auth error for invalid_authentication_error', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(
         JSON.stringify({
           error: {
@@ -240,46 +240,48 @@ describe('model-hub connectivity adapters', () => {
 
   it('calls ChatGPT Codex responses endpoint for openai-codex provider', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      if (url.includes('/wham/usage')) {
-        return new Response(
-          JSON.stringify({
-            plan_type: 'pro',
-            rate_limit: {
-              allowed: true,
-              limit_reached: false,
-              primary_window: {
-                used_percent: 80,
-                limit_window_seconds: 18000,
-                reset_after_seconds: 1500,
-                reset_at: 1772067505,
+    const fetchMock = vi.fn<(input: string | URL | Request) => Promise<Response>>(
+      async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('/wham/usage')) {
+          return new Response(
+            JSON.stringify({
+              plan_type: 'pro',
+              rate_limit: {
+                allowed: true,
+                limit_reached: false,
+                primary_window: {
+                  used_percent: 80,
+                  limit_window_seconds: 18000,
+                  reset_after_seconds: 1500,
+                  reset_at: 1772067505,
+                },
+                secondary_window: {
+                  used_percent: 60,
+                  limit_window_seconds: 432000,
+                  reset_after_seconds: 50000,
+                  reset_at: 1772579246,
+                },
               },
-              secondary_window: {
-                used_percent: 60,
-                limit_window_seconds: 432000,
-                reset_after_seconds: 50000,
-                reset_at: 1772579246,
-              },
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
             },
-          }),
-          {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        );
-      }
-      const sse = [
-        'data: {"type":"response.output_text.delta","delta":"pong"}',
-        '',
-        'data: {"type":"response.completed","response":{"status":"completed","model":"gpt-5.3-codex","usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}}',
-        '',
-      ].join('\n');
-      return new Response(sse, {
-        status: 200,
-        headers: { 'Content-Type': 'text/event-stream' },
-      });
-    });
+          );
+        }
+        const sse = [
+          'data: {"type":"response.output_text.delta","delta":"pong"}',
+          '',
+          'data: {"type":"response.completed","response":{"status":"completed","model":"gpt-5.3-codex","usage":{"input_tokens":2,"output_tokens":1,"total_tokens":3}}}',
+          '',
+        ].join('\n');
+        return new Response(sse, {
+          status: 200,
+          headers: { 'Content-Type': 'text/event-stream' },
+        });
+      },
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await testProviderAccountConnectivity(
@@ -332,33 +334,35 @@ describe('model-hub connectivity adapters', () => {
 
   it('extracts codex 5h and 5d rate limits from connectivity response headers', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
-      const url = String(input);
-      if (url.includes('/wham/usage')) {
-        return new Response(JSON.stringify({ plan_type: 'pro', rate_limit: null }), {
+    const fetchMock = vi.fn<(input: string | URL | Request) => Promise<Response>>(
+      async (input: string | URL | Request) => {
+        const url = String(input);
+        if (url.includes('/wham/usage')) {
+          return new Response(JSON.stringify({ plan_type: 'pro', rate_limit: null }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        const sse = [
+          'data: {"type":"response.output_text.delta","delta":"pong"}',
+          '',
+          'data: {"type":"response.completed","response":{"status":"completed","model":"gpt-5.3-codex"}}',
+          '',
+        ].join('\n');
+        return new Response(sse, {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'x-ratelimit-limit-5h': '300',
+            'x-ratelimit-remaining-5h': '129',
+            'x-ratelimit-reset-5h': '1740603600',
+            'x-ratelimit-limit-5d': '3000',
+            'x-ratelimit-remaining-5d': '2701',
+            'x-ratelimit-reset-5d': '1740952800',
+          },
         });
-      }
-      const sse = [
-        'data: {"type":"response.output_text.delta","delta":"pong"}',
-        '',
-        'data: {"type":"response.completed","response":{"status":"completed","model":"gpt-5.3-codex"}}',
-        '',
-      ].join('\n');
-      return new Response(sse, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'x-ratelimit-limit-5h': '300',
-          'x-ratelimit-remaining-5h': '129',
-          'x-ratelimit-reset-5h': '1740603600',
-          'x-ratelimit-limit-5d': '3000',
-          'x-ratelimit-remaining-5d': '2701',
-          'x-ratelimit-reset-5d': '1740952800',
-        },
-      });
-    });
+      },
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await testProviderAccountConnectivity(
@@ -401,7 +405,7 @@ describe('model-hub connectivity adapters', () => {
 
   it('calls GitHub models inference endpoint for github-copilot token', async () => {
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify([{ id: 'gpt-4o' }]), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -425,8 +429,10 @@ describe('model-hub connectivity adapters', () => {
   });
 
   it('supports ollama connectivity without auth token', async () => {
+    // The unit-fast lane shares process state across files; pin the default endpoint.
+    vi.stubEnv('OLLAMA_BASE_URL', '');
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ models: [{ name: 'llama3.2' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -447,11 +453,13 @@ describe('model-hub connectivity adapters', () => {
     expect(firstCallInit?.headers?.Authorization).toBeUndefined();
 
     global.fetch = originalFetch;
+    vi.unstubAllEnvs();
   });
 
   it('supports lmstudio connectivity without auth token', async () => {
+    vi.stubEnv('LMSTUDIO_BASE_URL', '');
     const originalFetch = global.fetch;
-    const fetchMock = vi.fn(async () => {
+    const fetchMock = vi.fn<() => Promise<Response>>(async () => {
       return new Response(JSON.stringify({ data: [{ id: 'qwen2.5-coder' }] }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -467,5 +475,6 @@ describe('model-hub connectivity adapters', () => {
     expect(firstCallUrl).toContain('localhost:1234/v1/models');
 
     global.fetch = originalFetch;
+    vi.unstubAllEnvs();
   });
 });

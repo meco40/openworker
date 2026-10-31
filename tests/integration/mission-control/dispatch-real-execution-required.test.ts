@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('Mission Control dispatch real execution guard', () => {
   let tempDir = '';
@@ -319,7 +320,9 @@ describe('Mission Control dispatch real execution guard', () => {
     const htmlPath = path.join(projectDir, 'index.html');
     fs.writeFileSync(htmlPath, '<!doctype html><html><body>Hallo</body></html>', 'utf-8');
 
-    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchSpy = vi.fn<() => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     global.fetch = fetchSpy as typeof fetch;
 
     const { run, queryAll } = await import('@/lib/db');
@@ -389,7 +392,15 @@ describe('Mission Control dispatch real execution guard', () => {
       }),
     }));
 
-    const callSpy = vi.fn(async () => ({
+    const callSpy = vi.fn<
+      () => Promise<{
+        userMsgId: string;
+        agentMsgId: string;
+        conversationId: string;
+        agentContent: string;
+        agentMetadata: { ok: boolean };
+      }>
+    >(async () => ({
       userMsgId: 'msg-user',
       agentMsgId: 'msg-agent',
       conversationId: 'conv-1',
@@ -468,7 +479,7 @@ describe('Mission Control dispatch real execution guard', () => {
     }));
 
     const callSpy = vi
-      .fn()
+      .fn<MockProcedure>()
       .mockResolvedValueOnce({
         userMsgId: 'msg-user-1',
         agentMsgId: 'msg-agent-1',

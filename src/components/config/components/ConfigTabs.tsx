@@ -86,7 +86,7 @@ const TAB_ICONS: Record<ConfigTab, React.ReactNode> = {
 
 export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeTab, onTabChange }) => {
   return (
-    <nav
+    <div
       role="tablist"
       aria-label="Config sections"
       className="flex flex-wrap gap-1 border-b border-zinc-800 pb-0"
@@ -113,6 +113,6 @@ export const ConfigTabs: React.FC<ConfigTabsProps> = ({ activeTab, onTabChange }
           </button>
         );
       })}
-    </nav>
+    </div>
   );
 };

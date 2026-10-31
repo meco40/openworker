@@ -2,38 +2,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePersona } from '@/modules/personas/PersonaContext';
-import type { PersonaSummary } from '@/shared/personaTypes';
+import { resolveSelectedPersonaId } from '@/modules/personas/resolveSelectedPersonaId';
 import { KnowledgeGraphPanel } from '@/components/knowledge/graph/KnowledgeGraphPanel';
 import { useKnowledgeGraph } from '@/components/knowledge/hooks/useKnowledgeGraph';
 
 const KnowledgeView: React.FC = () => {
   const { personas, activePersonaId, refreshPersonas } = usePersona();
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [chosenPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const selectedPersonaId = resolveSelectedPersonaId(personas, chosenPersonaId, activePersonaId);
 
   useEffect(() => {
     void refreshPersonas();
   }, [refreshPersonas]);
-
-  useEffect(() => {
-    if (personas.length === 0) {
-      setSelectedPersonaId(null);
-      return;
-    }
-    if (
-      selectedPersonaId &&
-      personas.some((persona: PersonaSummary) => persona.id === selectedPersonaId)
-    ) {
-      return;
-    }
-    if (
-      activePersonaId &&
-      personas.some((persona: PersonaSummary) => persona.id === activePersonaId)
-    ) {
-      setSelectedPersonaId(activePersonaId);
-      return;
-    }
-    setSelectedPersonaId(personas[0].id);
-  }, [activePersonaId, personas, selectedPersonaId]);
 
   const { payload, loading, error, reload } = useKnowledgeGraph(selectedPersonaId);
 

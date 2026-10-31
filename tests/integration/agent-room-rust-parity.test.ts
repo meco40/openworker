@@ -25,14 +25,14 @@ vi.mock('@/server/channels/messages/runtime', () => ({
     },
   }),
   getMessageService: () => ({
-    setPersonaId: vi.fn(),
+    setPersonaId: vi.fn<MockProcedure>(),
     getConversation: () => ({ personaId: 'lead' }),
   }),
 }));
 vi.mock('@/server/personas/personaRepository', () => ({
   getPersonaRepository: () => ({ getPersona: () => null }),
 }));
-vi.mock('@/server/gateway/broadcast', () => ({ broadcastToUser: vi.fn() }));
+vi.mock('@/server/gateway/broadcast', () => ({ broadcastToUser: vi.fn<MockProcedure>() }));
 vi.mock('@/server/agent-v2/runtime', () => ({
   getAgentV2SessionManager: () => ({
     startSession: async () => ({ session: { id: 'session-fixture', lastSeq: 0 } }),
@@ -57,6 +57,7 @@ vi.mock('@/server/agent-v2/runtime', () => ({
 }));
 
 import { runOrchestratorOnce } from '@/server/agent-room/orchestrator';
+import type { MockProcedure } from '../helpers/mockProcedure';
 
 const fields = [
   'sessionId',

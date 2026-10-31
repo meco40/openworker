@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const listConversations = vi.fn();
-const count = vi.fn();
-const getMemoryService = vi.fn(() => ({ count }));
-const getMemoryServiceIfReady = vi.fn();
+const listConversations = vi.fn<MockProcedure>();
+const count = vi.fn<MockProcedure>();
+const getMemoryService = vi.fn<MockProcedure>(() => ({ count }));
+const getMemoryServiceIfReady = vi.fn<MockProcedure>();
 
 vi.mock('@/server/channels/messages/runtime', () => ({
   getMessageRepository: () => ({

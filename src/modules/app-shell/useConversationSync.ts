@@ -225,7 +225,8 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
       return;
     }
 
-    void loadConversations();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() => loadConversations());
   }, [enabled, loadConversations]);
 
   // ─── WebSocket Live Updates ──────────────────────────────
@@ -353,18 +354,24 @@ export function useConversationSync({ enabled }: UseConversationSyncArgs) {
     };
   }, [enabled, loadConversations, loadMessages]);
 
+  // Without an active conversation there are no messages (cleared during render).
+  if (enabled && !activeConversationId && messages.length > 0) {
+    setMessages([]);
+  }
+
   useEffect(() => {
     if (!enabled) {
       return;
     }
 
     if (!activeConversationId) {
+      // Invalidate a load that is still in flight for the previous conversation.
       loadMessagesRequestIdRef.current += 1;
-      setMessages([]);
       return;
     }
 
-    void loadMessages(activeConversationId);
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(() => loadMessages(activeConversationId));
   }, [activeConversationId, enabled, loadMessages]);
 
   return {

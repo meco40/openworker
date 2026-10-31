@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getWorldModelConfig: vi.fn(),
-  getWorldModelDb: vi.fn(),
-  query: vi.fn(),
-  checkGraphitiHealth: vi.fn(),
+  getWorldModelConfig: vi.fn<MockProcedure>(),
+  getWorldModelDb: vi.fn<MockProcedure>(),
+  query: vi.fn<MockProcedure>(),
+  checkGraphitiHealth: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/config', () => ({ getWorldModelConfig: mocks.getWorldModelConfig }));
@@ -19,6 +19,7 @@ import {
   getWorldModelMetrics,
   summarizeWorldModelMetrics,
 } from '@/server/world-model/metrics';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 beforeEach(() => {
   vi.clearAllMocks();

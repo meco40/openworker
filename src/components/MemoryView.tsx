@@ -11,11 +11,12 @@ import { PersonaSidebar } from '@/components/memory/components/PersonaSidebar';
 import { MemoryToolbar } from '@/components/memory/components/MemoryToolbar';
 import { MemoryNodeItem } from '@/components/memory/components/MemoryNodeItem';
 import { MemoryPagination } from '@/components/memory/components/MemoryPagination';
-import type { PersonaSummary } from '@/shared/personaTypes';
+import { resolveSelectedPersonaId } from '@/modules/personas/resolveSelectedPersonaId';
 
 const MemoryView: React.FC = () => {
   const { personas, activePersonaId, refreshPersonas } = usePersona();
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const [chosenPersonaId, setSelectedPersonaId] = useState<string | null>(null);
+  const selectedPersonaId = resolveSelectedPersonaId(personas, chosenPersonaId, activePersonaId);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | MemoryType>('all');
@@ -31,31 +32,18 @@ const MemoryView: React.FC = () => {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Reset page when filters change
-  useEffect(() => {
+  // Reset page during render when a filter or the persona changes
+  const filterKey = `${typeFilter}|${pageSize}|${selectedPersonaId ?? ''}`;
+  const [pageFilterKey, setPageFilterKey] = useState(filterKey);
+  if (pageFilterKey !== filterKey) {
+    setPageFilterKey(filterKey);
     setPage(1);
-  }, [typeFilter, pageSize, selectedPersonaId]);
+  }
 
   // Refresh personas on mount
   useEffect(() => {
     void refreshPersonas();
   }, [refreshPersonas]);
-
-  // Auto-select persona
-  useEffect(() => {
-    if (personas.length === 0) {
-      setSelectedPersonaId(null);
-      return;
-    }
-    if (selectedPersonaId && personas.some((p: PersonaSummary) => p.id === selectedPersonaId)) {
-      return;
-    }
-    if (activePersonaId && personas.some((p: PersonaSummary) => p.id === activePersonaId)) {
-      setSelectedPersonaId(activePersonaId);
-      return;
-    }
-    setSelectedPersonaId(personas[0].id);
-  }, [activePersonaId, personas, selectedPersonaId]);
 
   // Memory data management
   const { nodes, loading, pagination, errorMessage, setErrorMessage, reloadCurrent } = useMemory({
@@ -167,7 +155,7 @@ const MemoryView: React.FC = () => {
           onApplyBulkDelete={applyBulkDelete}
         />
 
-        <div className="scrollbar-thin flex-1 space-y-3 overflow-y-auto p-4">
+        <div className="flex-1 scrollbar-thin space-y-3 overflow-y-auto p-4">
           {!selectedPersonaId && (
             <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-500">
               Erstelle zuerst eine Persona oder wähle eine bestehende aus.

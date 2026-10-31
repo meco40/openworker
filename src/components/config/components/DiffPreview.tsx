@@ -70,8 +70,7 @@ export const DiffPreview: React.FC<DiffPreviewProps> = ({ diffItems, onCancel, o
   const hasHighRiskChanges = hasHighRiskDiff(diffItems);
 
   return (
-    <div
-      role="region"
+    <section
       aria-label="Apply preview"
       className="rounded-xl border border-indigo-700/40 bg-indigo-950/30 px-4 py-4"
     >
@@ -158,6 +157,6 @@ export const DiffPreview: React.FC<DiffPreviewProps> = ({ diffItems, onCancel, o
           Confirm Apply
         </button>
       </div>
-    </div>
+    </section>
   );
 };

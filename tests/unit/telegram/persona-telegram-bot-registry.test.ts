@@ -170,6 +170,6 @@ describe('PersonaTelegramBotRegistry', () => {
         webhookSecret: 's',
         transport: 'polling',
       });
-    }).toThrow();
+    }).toThrow('UNIQUE constraint failed');
   });
 });

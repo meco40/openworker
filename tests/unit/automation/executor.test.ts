@@ -4,7 +4,7 @@ import { TimeoutError, executeAgentRunAction } from '@/server/automation/executo
 
 describe('automation executor', () => {
   it('executes the agent action and returns a summary', async () => {
-    const runPrompt = vi.fn(async () => ({ summary: 'ok' }));
+    const runPrompt = vi.fn<() => Promise<{ summary: string }>>(async () => ({ summary: 'ok' }));
 
     const result = await executeAgentRunAction(
       {
@@ -25,7 +25,7 @@ describe('automation executor', () => {
   });
 
   it('fails with TimeoutError when action exceeds timeout', async () => {
-    const runPrompt = vi.fn(
+    const runPrompt = vi.fn<() => Promise<{ summary: string }>>(
       async (): Promise<{ summary: string }> =>
         await new Promise((resolve) => setTimeout(() => resolve({ summary: 'late' }), 25)),
     );
@@ -45,7 +45,14 @@ describe('automation executor', () => {
   it('aborts the underlying runPrompt signal on timeout', async () => {
     let observedSignal: AbortSignal | undefined;
     let sawAbort = false;
-    const runPrompt = vi.fn(
+    const runPrompt = vi.fn<
+      (input: {
+        userId: string;
+        prompt: string;
+        conversationId?: string | null;
+        signal?: AbortSignal;
+      }) => Promise<{ summary: string }>
+    >(
       async (input: {
         userId: string;
         prompt: string;
@@ -101,7 +108,14 @@ describe('automation executor', () => {
     globalThis.AbortController = SyncAbortController as unknown as typeof AbortController;
 
     try {
-      const runPrompt = vi.fn(
+      const runPrompt = vi.fn<
+        (input: {
+          userId: string;
+          prompt: string;
+          conversationId?: string | null;
+          signal?: AbortSignal;
+        }) => Promise<{ summary: string }>
+      >(
         async (input: {
           userId: string;
           prompt: string;
@@ -135,7 +149,7 @@ describe('automation executor', () => {
   });
 
   it('falls back to default timeout for non-finite timeout values', async () => {
-    const runPrompt = vi.fn(
+    const runPrompt = vi.fn<() => Promise<{ summary: string }>>(
       async (): Promise<{ summary: string }> =>
         await new Promise((resolve) => setTimeout(() => resolve({ summary: 'ok' }), 10)),
     );

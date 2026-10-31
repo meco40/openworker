@@ -51,14 +51,16 @@ const PersonasView: React.FC = () => {
   const [maxToolCalls, setMaxToolCalls] = useState(120);
   const [savingAutonomous, setSavingAutonomous] = useState(false);
 
-  // Sync memoryPersonaType when persona loads
-  useEffect(() => {
+  // Sync the persona settings drafts during render when another persona loads.
+  const [syncedPersona, setSyncedPersona] = useState<typeof selectedPersona | null>(null);
+  if (selectedPersona !== syncedPersona) {
+    setSyncedPersona(selectedPersona);
     if (selectedPersona) {
       setMemoryPersonaType(selectedPersona.memoryPersonaType || 'general');
       setIsAutonomous(Boolean(selectedPersona.isAutonomous));
       setMaxToolCalls(selectedPersona.maxToolCalls ?? 120);
     }
-  }, [selectedPersona]);
+  }
 
   // Editor state
   const { editorContent, setEditorContent, dirty, setDirty, saveFile } = usePersonaEditor({

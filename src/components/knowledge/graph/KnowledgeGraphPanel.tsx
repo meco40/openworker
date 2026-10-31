@@ -107,7 +107,10 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
     };
   }, []);
 
-  useEffect(() => {
+  // Keep the category filter in step with the loaded categories (during render).
+  const [filteredCategories, setFilteredCategories] = useState<typeof allCategories | null>(null);
+  if (filteredCategories !== allCategories) {
+    setFilteredCategories(allCategories);
     setEnabledCategories((previous) => {
       const next = new Set<string>();
       for (const category of allCategories) {
@@ -120,7 +123,7 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
       }
       return next;
     });
-  }, [allCategories]);
+  }
 
   const transformed = useMemo(
     () =>
@@ -137,16 +140,21 @@ function KnowledgeGraphCanvas({ payload, loading, error, onReload }: KnowledgeGr
     [payload, query, enabledCategories, currentZoom],
   );
 
-  useEffect(() => {
-    if (!focusedNodeId || !transformed) return;
-    if (!transformed.nodes.some((node) => node.id === focusedNodeId)) {
-      setFocusedNodeId(null);
-    }
-  }, [focusedNodeId, transformed]);
+  // A focused node that the current filter hides loses focus.
+  if (
+    focusedNodeId &&
+    transformed &&
+    !transformed.nodes.some((node) => node.id === focusedNodeId)
+  ) {
+    setFocusedNodeId(null);
+  }
 
-  useEffect(() => {
+  // A newly focused node starts with the first page of details.
+  const [detailNodeId, setDetailNodeId] = useState(focusedNodeId);
+  if (detailNodeId !== focusedNodeId) {
+    setDetailNodeId(focusedNodeId);
     setDetailVisibleCount(20);
-  }, [focusedNodeId]);
+  }
 
   const nodeDetails = useMemo(
     () => buildNodeRelationDetails(payload, focusedNodeId),

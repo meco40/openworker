@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import ChatMainPane from '@/modules/chat/components/ChatMainPane';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
-const mockUsePersona = vi.fn();
+const mockUsePersona = vi.fn<MockProcedure>();
 
 vi.mock('@/modules/personas/PersonaContext', () => ({
   usePersona: () => mockUsePersona(),
@@ -29,7 +30,7 @@ describe('ChatMainPane persona filtering', () => {
         },
       ],
       activePersonaId: null,
-      setActivePersonaId: vi.fn(),
+      setActivePersonaId: vi.fn<MockProcedure>(),
     });
 
     render(
@@ -43,8 +44,8 @@ describe('ChatMainPane persona filtering', () => {
         }
         messages={[]}
         chatStreamDebug={{ phase: 'idle', transport: 'final-only' } as never}
-        onDeleteMessage={vi.fn()}
-        onRespondApproval={vi.fn()}
+        onDeleteMessage={vi.fn<MockProcedure>()}
+        onRespondApproval={vi.fn<MockProcedure>()}
         scrollRef={{ current: null }}
       />,
     );

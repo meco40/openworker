@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type MockUserContext = { userId: string; authenticated: boolean } | null;
 
 function mockUserContext(context: MockUserContext): void {
   vi.doMock('../../../src/server/auth/userContext', () => ({
-    resolveRequestUserContext: vi.fn().mockResolvedValue(context),
+    resolveRequestUserContext: vi.fn<MockProcedure>().mockResolvedValue(context),
   }));
 }
 
@@ -21,7 +22,7 @@ describe('/api/debug/conversations/[id]/turns route', () => {
   it('returns paginated turns with cursor metadata', async () => {
     mockUserContext({ userId: 'debug-user', authenticated: true });
 
-    const listDispatches = vi.fn().mockReturnValue([
+    const listDispatches = vi.fn<MockProcedure>().mockReturnValue([
       {
         id: 'd-18',
         turnSeq: 18,
@@ -60,7 +61,7 @@ describe('/api/debug/conversations/[id]/turns route', () => {
       },
     ]);
 
-    const listMessagesAfterSeq = vi.fn().mockReturnValue([
+    const listMessagesAfterSeq = vi.fn<MockProcedure>().mockReturnValue([
       { seq: 17, content: 'User seq 17' },
       { seq: 18, content: 'User seq 18' },
       { seq: 19, content: 'Agent seq 18' },
@@ -75,7 +76,7 @@ describe('/api/debug/conversations/[id]/turns route', () => {
     vi.doMock('../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
         listMessagesAfterSeq,
-        listMessages: vi.fn().mockReturnValue([]),
+        listMessages: vi.fn<MockProcedure>().mockReturnValue([]),
       }),
     }));
 

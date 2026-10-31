@@ -33,7 +33,12 @@ function createExecutor(
   } = () => ({ rows: [], rowCount: 0 }),
 ) {
   const calls: Array<{ text: string; values?: unknown[] }> = [];
-  const query = vi.fn(async (text: string, values?: unknown[]) => {
+  const query = vi.fn<
+    (
+      text: string,
+      values?: unknown[],
+    ) => Promise<{ rows: Record<string, unknown>[]; rowCount?: number | null }>
+  >(async (text: string, values?: unknown[]) => {
     calls.push({ text, values });
     return respond(text, values);
   });

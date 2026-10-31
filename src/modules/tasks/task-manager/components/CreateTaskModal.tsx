@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Task, TaskPriority } from '@/lib/types';
 import { ALL_PRIORITIES, PRIORITY_LABELS } from '@/modules/tasks/task-manager/constants';
 import { Spinner } from '@/modules/tasks/task-manager/components/Spinner';
+import { useEscapeKey } from '@/components/shared/useEscapeKey';
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -17,15 +18,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose,
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Reopening starts from an empty form; reset during render when `open` flips.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setTitle('');
       setDescription('');
       setPriority('normal');
       setError(null);
-      setTimeout(() => titleRef.current?.focus(), 50);
     }
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => titleRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
   }, [open]);
+
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 
@@ -56,21 +67,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose,
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-task-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         aria-hidden="true"
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/60 bg-zinc-900 shadow-2xl">
+      <dialog
+        open
+        aria-modal="true"
+        aria-labelledby="create-task-title"
+        className="relative z-10 w-full max-w-md rounded-xl border border-zinc-700/60 bg-zinc-900 text-inherit shadow-2xl"
+      >
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
           <h2 id="create-task-title" className="text-sm font-semibold text-zinc-100">
             New Task
@@ -150,7 +158,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({ open, onClose,
             </button>
           </div>
         </form>
-      </div>
+      </dialog>
     </div>
   );
 };

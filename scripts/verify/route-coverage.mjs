@@ -6,7 +6,8 @@ import { spawnSync } from 'node:child_process';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-import ts from 'typescript';
+// The classic compiler API; TypeScript 7 (the project compiler) no longer exports it.
+import ts from 'typescript-api';
 
 const root = process.env.ROUTE_COVERAGE_ROOT || fileURLToPath(new URL('../../', import.meta.url));
 const methods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);

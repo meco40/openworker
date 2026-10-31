@@ -4,8 +4,8 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import { createServerEventBus } from '@/server/events/eventBus';
 import { registerProactiveEventSubscribers } from '@/server/proactive/subscribers';
 
-const proactiveIngestMock = vi.hoisted(() => vi.fn(() => 1));
-const proactiveEvaluateMock = vi.hoisted(() => vi.fn(() => []));
+const proactiveIngestMock = vi.hoisted(() => vi.fn<() => number>(() => 1));
+const proactiveEvaluateMock = vi.hoisted(() => vi.fn<() => never[]>(() => []));
 
 vi.mock('../../../src/server/proactive/runtime', () => ({
   getProactiveGateService: () => ({

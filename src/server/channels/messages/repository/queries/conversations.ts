@@ -47,8 +47,7 @@ export class ConversationQueries {
           .prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ?')
           .get(id, normalizedUserId) as Record<string, unknown> | undefined)
       : (this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(id) as
-          | Record<string, unknown>
-          | undefined);
+          Record<string, unknown> | undefined);
     logInboxDbQuery('conversations.get', {
       conversationId: id,
       userId: normalizedUserId,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMasterView } from '@/modules/master/hooks/useMasterView';
 import ViewErrorBoundary from '@/components/ViewErrorBoundary';
 import MasterEntryPage from './MasterEntryPage';
@@ -125,7 +125,7 @@ function StatusBanner({
 
 const MasterView: React.FC = () => {
   const view = useMasterView();
-  const [activeTab, setActiveTab] = useState<Tab>('new');
+  const [selectedTab, setActiveTab] = useState<Tab>('new');
   const [showEntry, setShowEntry] = useState(true);
   const tabs = useMemo(
     () => [
@@ -139,11 +139,8 @@ const MasterView: React.FC = () => {
     [view.masterMode],
   );
 
-  useEffect(() => {
-    if (!tabs.includes(activeTab)) {
-      setActiveTab('new');
-    }
-  }, [activeTab, tabs]);
+  // A tab that the current mode does not offer falls back to "new".
+  const activeTab: Tab = tabs.includes(selectedTab) ? selectedTab : 'new';
 
   const tabDefinitions: {
     id: Tab;
@@ -488,6 +485,7 @@ const MasterView: React.FC = () => {
           {view.selectedRun?.status === 'COMPLETED' && (
             <ViewErrorBoundary key={view.selectedRun.id} label="Run Feedback">
               <RunFeedbackPanel
+                key={view.selectedRun.id}
                 runId={view.selectedRun.id}
                 loading={view.loadingAction === 'submitting-feedback'}
                 onSubmit={view.submitFeedback}
@@ -541,6 +539,7 @@ const MasterView: React.FC = () => {
           {view.masterSettings && (
             <ViewErrorBoundary label="Tool Policy">
               <ToolPolicyPanel
+                key={JSON.stringify(view.masterSettings.toolPolicy)}
                 policy={view.masterSettings.toolPolicy}
                 loading={view.loadingAction === 'saving-settings'}
                 onSave={(toolPolicy) => void view.saveSettings({ toolPolicy })}

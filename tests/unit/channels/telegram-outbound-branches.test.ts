@@ -6,6 +6,7 @@ import {
   editTelegramMessage,
   splitTelegramMessage,
 } from '@/server/channels/outbound/telegram';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 type FetchMock = ReturnType<typeof vi.fn> & {
   mock: {
@@ -23,7 +24,7 @@ function urlOf(fetchMock: FetchMock, index = 0): string {
 }
 
 vi.mock('@/server/channels/telegram/targets', () => ({
-  parseTelegramTarget: vi.fn((target: string) => {
+  parseTelegramTarget: vi.fn<MockProcedure>((target: string) => {
     if (target === 'group:1') {
       return { chatId: 'group-1', chatType: 'group', messageThreadId: 1 };
     }
@@ -40,7 +41,7 @@ describe('outbound/telegram branch coverage', () => {
 
   beforeEach(() => {
     vi.resetModules();
-    globalThis.fetch = vi.fn();
+    globalThis.fetch = vi.fn<MockProcedure>();
     process.env.TELEGRAM_BOT_TOKEN = 'test-token';
   });
 
@@ -125,7 +126,10 @@ describe('outbound/telegram branch coverage', () => {
 
   describe('deliverTelegram', () => {
     it('sends a single message to private chat', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('private:1', 'Hello');
@@ -140,7 +144,10 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('sends multiple chunks for long text', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('private:1', 'a'.repeat(5000));
@@ -149,7 +156,10 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('omits message_thread_id for group thread 1', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('group:1', 'Hello');
@@ -159,7 +169,10 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('includes message_thread_id for group thread > 1', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('group:5', 'Hello');
@@ -169,7 +182,10 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('includes parse_mode and reply_markup on first chunk', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('private:1', 'Hello', {
@@ -187,7 +203,7 @@ describe('outbound/telegram branch coverage', () => {
     it('returns early when no token configured', async () => {
       delete process.env.TELEGRAM_BOT_TOKEN;
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const fetchMock = vi.fn();
+      const fetchMock = vi.fn<MockProcedure>();
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await deliverTelegram('private:1', 'Hello');
@@ -197,7 +213,9 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('throws when response is not ok', async () => {
-      const fetchMock = vi.fn(async () => ({
+      const fetchMock = vi.fn<
+        () => Promise<{ ok: boolean; status: number; json: () => Promise<{ description: string }> }>
+      >(async () => ({
         ok: false,
         status: 400,
         json: async () => ({ description: 'Bad Request' }),
@@ -211,7 +229,7 @@ describe('outbound/telegram branch coverage', () => {
 
     it('retries on 429 then succeeds', async () => {
       const fetchMock = vi
-        .fn()
+        .fn<MockProcedure>()
         .mockResolvedValueOnce({ ok: false, status: 429 })
         .mockResolvedValueOnce({ ok: true, status: 200 });
       globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -226,7 +244,9 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('throws after max retries on 500', async () => {
-      const fetchMock = vi.fn(async () => ({
+      const fetchMock = vi.fn<
+        () => Promise<{ ok: boolean; status: number; json: () => Promise<{ description: string }> }>
+      >(async () => ({
         ok: false,
         status: 500,
         json: async () => ({ description: 'Server Error' }),
@@ -246,7 +266,10 @@ describe('outbound/telegram branch coverage', () => {
 
   describe('editTelegramMessage', () => {
     it('edits a message', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await editTelegramMessage('private:1', 42, 'Updated');
@@ -261,7 +284,7 @@ describe('outbound/telegram branch coverage', () => {
     it('returns early when no token', async () => {
       delete process.env.TELEGRAM_BOT_TOKEN;
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const fetchMock = vi.fn();
+      const fetchMock = vi.fn<MockProcedure>();
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await editTelegramMessage('private:1', 42, 'Updated');
@@ -271,7 +294,9 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('throws when response is not ok', async () => {
-      const fetchMock = vi.fn(async () => ({
+      const fetchMock = vi.fn<
+        () => Promise<{ ok: boolean; status: number; json: () => Promise<{ description: string }> }>
+      >(async () => ({
         ok: false,
         status: 400,
         json: async () => ({ description: 'Bad Request' }),
@@ -286,7 +311,10 @@ describe('outbound/telegram branch coverage', () => {
 
   describe('answerTelegramCallbackQuery', () => {
     it('answers callback query', async () => {
-      const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }));
+      const fetchMock = vi.fn<() => Promise<{ ok: boolean; status: number }>>(async () => ({
+        ok: true,
+        status: 200,
+      }));
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await answerTelegramCallbackQuery('cb-1', 'Done', { showAlert: true });
@@ -302,7 +330,7 @@ describe('outbound/telegram branch coverage', () => {
     it('returns early when no token', async () => {
       delete process.env.TELEGRAM_BOT_TOKEN;
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const fetchMock = vi.fn();
+      const fetchMock = vi.fn<MockProcedure>();
       globalThis.fetch = fetchMock as unknown as typeof fetch;
 
       await answerTelegramCallbackQuery('cb-1');
@@ -312,7 +340,9 @@ describe('outbound/telegram branch coverage', () => {
     });
 
     it('warns but does not throw on non-ok response', async () => {
-      const fetchMock = vi.fn(async () => ({
+      const fetchMock = vi.fn<
+        () => Promise<{ ok: boolean; status: number; json: () => Promise<{ description: string }> }>
+      >(async () => ({
         ok: false,
         status: 400,
         json: async () => ({ description: 'Bad Request' }),

@@ -189,8 +189,11 @@ export function useChatInterfaceState({
   useEffect(() => {
     sendQueueRef.current = [];
     isProcessingQueueRef.current = false;
-    setQueuedMessages([]);
-    setIsGenerating(isTypingRef.current);
+    // The state reset runs after the effect returns.
+    void Promise.resolve().then(() => {
+      setQueuedMessages([]);
+      setIsGenerating(isTypingRef.current);
+    });
   }, [activeConversationId]);
 
   const removeQueuedMessage = useCallback(

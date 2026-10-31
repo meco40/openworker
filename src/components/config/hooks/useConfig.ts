@@ -76,7 +76,8 @@ export function useConfig() {
   }, []);
 
   useEffect(() => {
-    void loadConfig();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(loadConfig);
   }, [loadConfig]);
 
   // Prevent unload with unsaved changes

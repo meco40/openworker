@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('dispatchOpenAICompatibleChat tool-calling support', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
   });
 
   it('forwards gateway tools to OpenAI-compatible request body', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(
         JSON.stringify({
           choices: [{ message: { content: 'ok' } }],
@@ -20,7 +21,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
-    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 180_000);
+    const resolveModelHubGatewayTimeoutMs = vi.fn<() => number>(() => 180_000);
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
       resolveModelHubGatewayTimeoutMs,
@@ -56,7 +57,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
   });
 
   it('maps tool_calls from response into functionCalls', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(
         JSON.stringify({
           choices: [
@@ -80,7 +81,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     );
-    const resolveModelHubGatewayTimeoutMs = vi.fn(() => 60_000);
+    const resolveModelHubGatewayTimeoutMs = vi.fn<() => number>(() => 60_000);
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
       resolveModelHubGatewayTimeoutMs,
@@ -108,7 +109,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
   });
 
   it('forwards structured response formats to OpenAI-compatible providers', async () => {
-    const fetchWithTimeout = vi.fn().mockResolvedValue(
+    const fetchWithTimeout = vi.fn<MockProcedure>().mockResolvedValue(
       new Response(
         JSON.stringify({
           choices: [{ message: { content: '{"entities":[]}' } }],
@@ -119,7 +120,7 @@ describe('dispatchOpenAICompatibleChat tool-calling support', () => {
     );
     vi.doMock('../../../src/server/model-hub/Models/shared/http', () => ({
       fetchWithTimeout,
-      resolveModelHubGatewayTimeoutMs: vi.fn(() => 60_000),
+      resolveModelHubGatewayTimeoutMs: vi.fn<() => number>(() => 60_000),
     }));
 
     const { dispatchOpenAICompatibleChat } =

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-1'): GatewayClient {
   return {
@@ -8,8 +9,8 @@ function makeClient(userId = 'user-1'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-1',
     userId,
@@ -32,10 +33,12 @@ function makeRequest(
 async function setupForSessionTests() {
   vi.resetModules();
 
-  const broadcastToUser = vi.fn();
-  const emitInboxUpdated = vi.fn();
-  const deleteConversation = vi.fn(() => true);
-  const getOrCreateConversation = vi.fn(() => ({
+  const broadcastToUser = vi.fn<MockProcedure>();
+  const emitInboxUpdated = vi.fn<MockProcedure>();
+  const deleteConversation = vi.fn<() => boolean>(() => true);
+  const getOrCreateConversation = vi.fn<
+    () => { id: string; channelType: string; title: string; updatedAt: string }
+  >(() => ({
     id: 'conv-new',
     channelType: 'WebChat',
     title: 'New Conversation',

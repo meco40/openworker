@@ -34,16 +34,19 @@ export function useDiagnostics() {
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(true);
   const [memoryDiagnosticsEnabled, setMemoryDiagnosticsEnabled] = useState(false);
 
-  // Load memory diagnostics setting from localStorage
+  // Load memory diagnostics setting from localStorage after mount (it is unavailable
+  // during the static prerender); the update runs after the effect returns.
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(MEMORY_DIAGNOSTICS_STORAGE_KEY);
-      if (stored === '1' || stored === 'true') {
-        setMemoryDiagnosticsEnabled(true);
+    void Promise.resolve().then(() => {
+      try {
+        const stored = localStorage.getItem(MEMORY_DIAGNOSTICS_STORAGE_KEY);
+        if (stored === '1' || stored === 'true') {
+          setMemoryDiagnosticsEnabled(true);
+        }
+      } catch {
+        // Ignore storage access errors (SSR/private mode edge cases)
       }
-    } catch {
-      // Ignore storage access errors (SSR/private mode edge cases)
-    }
+    });
   }, []);
 
   // Save memory diagnostics setting to localStorage
@@ -133,7 +136,8 @@ export function useDiagnostics() {
 
   // Initial fetch
   useEffect(() => {
-    void fetchDiagnostics();
+    // Start after the effect returns; the loader sets state.
+    void Promise.resolve().then(fetchDiagnostics);
   }, [fetchDiagnostics]);
 
   // Auto-refresh interval

@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OutboxEvent } from '@/server/world-model/types';
 
 const mocks = vi.hoisted(() => {
-  const client = { query: vi.fn() };
+  const client = { query: vi.fn<MockProcedure>() };
   return {
     client,
-    getWorldModelConfig: vi.fn(),
-    runWithWorldModelScope: vi.fn(),
-    withWorldModelTransaction: vi.fn(),
-    enqueueOutboxEvent: vi.fn(),
-    insertTask: vi.fn(),
-    updateTaskStatusByExternalId: vi.fn(),
-    getTaskById: vi.fn(),
-    executeAction: vi.fn(),
+    getWorldModelConfig: vi.fn<MockProcedure>(),
+    runWithWorldModelScope: vi.fn<MockProcedure>(),
+    withWorldModelTransaction: vi.fn<MockProcedure>(),
+    enqueueOutboxEvent: vi.fn<MockProcedure>(),
+    insertTask: vi.fn<MockProcedure>(),
+    updateTaskStatusByExternalId: vi.fn<MockProcedure>(),
+    getTaskById: vi.fn<MockProcedure>(),
+    executeAction: vi.fn<MockProcedure>(),
   };
 });
 
@@ -46,6 +46,7 @@ import {
   toWorldModelTaskStatus,
   validateTaskTransition,
 } from '@/server/world-model/services/missionControlBridge';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const context = {
   taskId: 'task-1',
@@ -124,7 +125,10 @@ describe('Mission Control task status bridge', () => {
 
   it('does nothing while disabled and directly executes actions without canonical persistence', async () => {
     setConfig({ enabled: false, e2eEnabled: false, mode: 'off' });
-    const run = vi.fn(async () => ({ ok: false, error: 'provider unavailable' }));
+    const run = vi.fn<() => Promise<{ ok: boolean; error: string }>>(async () => ({
+      ok: false,
+      error: 'provider unavailable',
+    }));
     const input = {
       scope: { userId: 'user-1', personaId: 'assistant', workspaceId: 'workspace-a' },
       taskId: 'external-task-1',
@@ -248,7 +252,10 @@ describe('Mission Control task status bridge', () => {
 
   it('executes actions with canonical task linkage when available and keeps unknown IDs unlinked', async () => {
     const scope = { userId: 'user-1', personaId: 'assistant', workspaceId: 'workspace-a' };
-    const run = vi.fn(async () => ({ ok: true, result: { providerId: 'mail-1' } }));
+    const run = vi.fn<() => Promise<{ ok: boolean; result: { providerId: string } }>>(async () => ({
+      ok: true,
+      result: { providerId: 'mail-1' },
+    }));
     const baseInput = {
       scope,
       taskId: 'task-1',

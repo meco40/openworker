@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 describe('Mission Control full flow: create -> planning -> answer -> dispatch -> review', () => {
   let tempDir = '';
@@ -63,9 +64,24 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
         await vi.importActual<typeof import('@/lib/planning-utils')>('@/lib/planning-utils');
       return {
         ...actual,
-        getMessagesFromBetaClaw: vi.fn(async () => {
-          pollCallCount += 1;
-          if (pollCallCount === 1) {
+        getMessagesFromBetaClaw: vi.fn<() => Promise<{ role: string; content: string }[]>>(
+          async () => {
+            pollCallCount += 1;
+            if (pollCallCount === 1) {
+              return [
+                {
+                  role: 'assistant',
+                  content: JSON.stringify({
+                    question: 'Welche Art von Webseite soll erstellt werden?',
+                    options: [
+                      { id: 'A', label: 'Einfache HTML-Seite mit Hallo' },
+                      { id: 'B', label: 'Landingpage mit mehreren Sektionen' },
+                      { id: 'other', label: 'Andere' },
+                    ],
+                  }),
+                },
+              ];
+            }
             return [
               {
                 role: 'assistant',
@@ -78,39 +94,26 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
                   ],
                 }),
               },
+              {
+                role: 'assistant',
+                content: JSON.stringify({
+                  status: 'complete',
+                  spec: {
+                    title: 'Simple Hallo Page',
+                    summary: 'Create a simple HTML webpage showing Hallo.',
+                    deliverables: ['index.html'],
+                    success_criteria: ['Browser displays Hallo text'],
+                  },
+                  agents: [{ name: 'Web Builder', role: 'Frontend Dev', avatar_emoji: '🛠️' }],
+                  execution_plan: {
+                    approach: 'Create one static html file',
+                    steps: ['Create index.html', 'Render Hallo text'],
+                  },
+                }),
+              },
             ];
-          }
-          return [
-            {
-              role: 'assistant',
-              content: JSON.stringify({
-                question: 'Welche Art von Webseite soll erstellt werden?',
-                options: [
-                  { id: 'A', label: 'Einfache HTML-Seite mit Hallo' },
-                  { id: 'B', label: 'Landingpage mit mehreren Sektionen' },
-                  { id: 'other', label: 'Andere' },
-                ],
-              }),
-            },
-            {
-              role: 'assistant',
-              content: JSON.stringify({
-                status: 'complete',
-                spec: {
-                  title: 'Simple Hallo Page',
-                  summary: 'Create a simple HTML webpage showing Hallo.',
-                  deliverables: ['index.html'],
-                  success_criteria: ['Browser displays Hallo text'],
-                },
-                agents: [{ name: 'Web Builder', role: 'Frontend Dev', avatar_emoji: '🛠️' }],
-                execution_plan: {
-                  approach: 'Create one static html file',
-                  steps: ['Create index.html', 'Render Hallo text'],
-                },
-              }),
-            },
-          ];
-        }),
+          },
+        ),
       };
     });
 
@@ -119,7 +122,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
         launch: async () => ({
           newContext: async () => ({
             newPage: async () => ({
-              on: vi.fn(),
+              on: vi.fn<MockProcedure>(),
               goto: async () => ({ status: () => 200 }),
               waitForTimeout: async () => {},
               screenshot: async () => {},
@@ -204,7 +207,7 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
     const taskId = createdTask.id;
     expect(taskId).toBeTruthy();
 
-    global.fetch = vi.fn(async (input, init) => {
+    global.fetch = vi.fn<MockProcedure>(async (input, init) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 
@@ -286,24 +289,23 @@ describe('Mission Control full flow: create -> planning -> answer -> dispatch ->
     expect(secondPoll.autoDispatched).toBe(true);
     expect(secondPoll.dispatchError).toBeNull();
 
-    let finalTask = queryOne<{
-      status: string;
-      planning_complete: number;
-      assigned_agent_id: string | null;
-    }>('SELECT status, planning_complete, assigned_agent_id FROM tasks WHERE id = ?', [taskId]);
-
-    for (let i = 0; i < 20 && finalTask?.status !== 'review'; i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      finalTask = queryOne<{
-        status: string;
-        planning_complete: number;
-        assigned_agent_id: string | null;
-      }>('SELECT status, planning_complete, assigned_agent_id FROM tasks WHERE id = ?', [taskId]);
-    }
+    // The dispatch continues in the background and can take seconds under a loaded
+    // parallel run, so wait for the review status instead of a fixed poll budget.
+    const finalTask = await vi.waitFor(
+      () => {
+        const task = queryOne<{
+          status: string;
+          planning_complete: number;
+          assigned_agent_id: string | null;
+        }>('SELECT status, planning_complete, assigned_agent_id FROM tasks WHERE id = ?', [taskId]);
+        expect(task?.status).toBe('review');
+        return task;
+      },
+      { timeout: 10_000, interval: 20 },
+    );
 
     expect(finalTask?.planning_complete).toBe(1);
     expect(finalTask?.assigned_agent_id).toBeTruthy();
-    expect(finalTask?.status).toBe('review');
 
     const deliverables = queryAll<{ id: string; path: string }>(
       'SELECT id, path FROM task_deliverables WHERE task_id = ?',

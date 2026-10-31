@@ -17,15 +17,7 @@ interface InlineMarkdownProps {
 
 interface MarkdownNode {
   type:
-    | 'text'
-    | 'bold'
-    | 'italic'
-    | 'code'
-    | 'codeblock'
-    | 'list'
-    | 'orderedlist'
-    | 'heading'
-    | 'hr';
+    'text' | 'bold' | 'italic' | 'code' | 'codeblock' | 'list' | 'orderedlist' | 'heading' | 'hr';
   content: string;
   language?: string;
   /** Heading level 1-6 */

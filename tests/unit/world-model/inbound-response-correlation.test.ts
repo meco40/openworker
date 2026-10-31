@@ -4,13 +4,13 @@ import type { CorrelatableTarget } from '@/server/world-model/services/responseC
 
 const mocks = vi.hoisted(() => ({
   client: { id: 'transaction-client' },
-  getWorldModelConfig: vi.fn(),
-  correlateUserResponse: vi.fn(),
-  resolveOpenLoopAsAnsweredInTx: vi.fn(),
-  confirmEventOutcomeInTx: vi.fn(),
-  withWorldModelTransaction: vi.fn(),
-  listAskedOpenLoops: vi.fn(),
-  getLatestDeliveryReceiptByOpenLoopId: vi.fn(),
+  getWorldModelConfig: vi.fn<MockProcedure>(),
+  correlateUserResponse: vi.fn<MockProcedure>(),
+  resolveOpenLoopAsAnsweredInTx: vi.fn<MockProcedure>(),
+  confirmEventOutcomeInTx: vi.fn<MockProcedure>(),
+  withWorldModelTransaction: vi.fn<MockProcedure>(),
+  listAskedOpenLoops: vi.fn<MockProcedure>(),
+  getLatestDeliveryReceiptByOpenLoopId: vi.fn<MockProcedure>(),
 }));
 
 vi.mock('@/server/world-model/config', () => ({
@@ -39,6 +39,7 @@ import {
   correlateInboundResponse,
   looksLikeResponse,
 } from '@/server/world-model/services/inboundResponseCorrelation';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const conversation: Conversation = {
   id: 'conversation-1',

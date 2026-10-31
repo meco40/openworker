@@ -18,6 +18,7 @@ import { planKnowledgeQuery } from '@/server/knowledge/queryPlanner';
 import type { KnowledgeExtractionResult } from '@/server/knowledge/extractor';
 import type { StoredMessage } from '@/server/channels/messages/repository';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
@@ -62,7 +63,7 @@ describe('Nata reference scenario: 3 days total', () => {
   it('computes the correct answer of 3 unique days', async () => {
     // ── Mock memory service (does nothing) ────────────────────
     const memoryService = {
-      store: vi.fn().mockResolvedValue(null),
+      store: vi.fn<MockProcedure>().mockResolvedValue(null),
     };
 
     // ── Week 1 extraction result (mock LLM returns this) ──────
@@ -174,12 +175,17 @@ describe('Nata reference scenario: 3 days total', () => {
     const extractionResults = [week1Result, week2Result, week3Result];
     let callIndex = 0;
     const extractor = {
-      extract: vi.fn().mockImplementation(async () => extractionResults[callIndex++]),
+      extract: vi
+        .fn<MockProcedure>()
+        .mockImplementation(async () => extractionResults[callIndex++]),
     };
 
     // ── Ingestion service ──────────────────────────────────────
     const ingestionService = new KnowledgeIngestionService({
-      cursor: { getPendingWindows: vi.fn().mockReturnValue([]), markWindowProcessed: vi.fn() },
+      cursor: {
+        getPendingWindows: vi.fn<MockProcedure>().mockReturnValue([]),
+        markWindowProcessed: vi.fn<MockProcedure>(),
+      },
       extractor,
       knowledgeRepository: repo,
       memoryService,

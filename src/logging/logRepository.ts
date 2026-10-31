@@ -156,8 +156,7 @@ export class LogRepository {
 
   getLogCount(
     levelOrFilter?:
-      | LogLevel
-      | Pick<LogFilter, 'level' | 'source' | 'category' | 'search' | 'before'>,
+      LogLevel | Pick<LogFilter, 'level' | 'source' | 'category' | 'search' | 'before'>,
   ): number {
     const filter =
       typeof levelOrFilter === 'string' ? { level: levelOrFilter } : (levelOrFilter ?? {});

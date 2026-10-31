@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KnowledgeRetrievalService } from '@/server/knowledge/retrieval';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('KnowledgeRetrievalService', () => {
   it('triggers recall probe when query mentions known counterpart name', async () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => [
+        listMeetingLedger: vi.fn<MockProcedure>(() => [
           {
             id: 'led-andreas',
             userId: 'user-1',
@@ -25,16 +26,19 @@ describe('KnowledgeRetrievalService', () => {
             updatedAt: '2025-08-11T10:00:00.000Z',
           },
         ]),
-        listEpisodes: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => {
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<() => never>(() => {
           throw new Error('should not be called');
         }),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
       },
     });
 
@@ -51,17 +55,20 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => {
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<() => never>(() => {
           throw new Error('not used');
         }),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
       },
     });
 
@@ -78,17 +85,20 @@ describe('KnowledgeRetrievalService', () => {
     const service = new KnowledgeRetrievalService({
       maxContextTokens: 1200,
       knowledgeRepository: {
-        listMeetingLedger: vi.fn(() => []),
-        listEpisodes: vi.fn(() => []),
-        insertRetrievalAudit: vi.fn(() => {
+        listMeetingLedger: vi.fn<() => never[]>(() => []),
+        listEpisodes: vi.fn<() => never[]>(() => []),
+        insertRetrievalAudit: vi.fn<() => never>(() => {
           throw new Error('not used');
         }),
       },
       memoryService: {
-        recallDetailed: vi.fn(async () => ({ context: '', matches: [] })),
+        recallDetailed: vi.fn<() => Promise<{ context: string; matches: never[] }>>(async () => ({
+          context: '',
+          matches: [],
+        })),
       },
       messageRepository: {
-        listMessages: vi.fn(() => []),
+        listMessages: vi.fn<() => never[]>(() => []),
       },
     });
 

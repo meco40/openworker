@@ -64,8 +64,8 @@ function buildRepository(
 
 describe('MessageService.deleteConversation', () => {
   it('aborts in-flight generation and clears in-memory summary state for deleted conversation', () => {
-    const deleteConversation = vi.fn(() => true);
-    const deleteMessage = vi.fn(() => true);
+    const deleteConversation = vi.fn<() => boolean>(() => true);
+    const deleteMessage = vi.fn<() => boolean>(() => true);
     const service = new MessageService(buildRepository(deleteConversation, deleteMessage));
 
     const summaryService = (
@@ -99,8 +99,8 @@ describe('MessageService.deleteConversation', () => {
 
 describe('MessageService.deleteMessage', () => {
   it('clears conversation-local in-memory summary state and deletes the message', () => {
-    const deleteConversation = vi.fn(() => true);
-    const deleteMessage = vi.fn(() => true);
+    const deleteConversation = vi.fn<() => boolean>(() => true);
+    const deleteMessage = vi.fn<() => boolean>(() => true);
     const service = new MessageService(buildRepository(deleteConversation, deleteMessage));
 
     const summaryService = (

@@ -5,18 +5,20 @@ import type { Conversation } from '@/shared/domain/types';
 import { LEGACY_LOCAL_USER_ID } from '@/server/auth/constants';
 
 const dispatchWithFallbackMock = vi.hoisted(() =>
-  vi.fn(async () => ({
-    ok: true,
-    text: 'AI fallback response',
-    provider: 'test-provider',
-    model: 'test-model',
-  })),
+  vi.fn<() => Promise<{ ok: boolean; text: string; provider: string; model: string }>>(
+    async () => ({
+      ok: true,
+      text: 'AI fallback response',
+      provider: 'test-provider',
+      model: 'test-model',
+    }),
+  ),
 );
 
-const deliverOutboundMock = vi.hoisted(() => vi.fn(async () => {}));
-const broadcastToUserMock = vi.hoisted(() => vi.fn());
+const deliverOutboundMock = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => {}));
+const broadcastToUserMock = vi.hoisted(() => vi.fn<MockProcedure>());
 const memoryStoreMock = vi.hoisted(() =>
-  vi.fn(async () => ({
+  vi.fn<() => Promise<{ id: string }>>(async () => ({
     id: 'mem-1',
   })),
 );
@@ -43,6 +45,7 @@ vi.mock('../../../src/server/memory/runtime', () => ({
 }));
 
 import { MessageService } from '@/server/channels/messages/service';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function buildRepository(
   personaId: string | null,

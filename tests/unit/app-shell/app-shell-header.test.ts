@@ -32,7 +32,8 @@ describe('AppShellHeader', () => {
     expect(html).toMatch(/1[,.]5 GB/);
     expect(html).toContain('Bridge Online');
     expect(html).not.toContain('Active Bridge Node');
-    expect(html).toContain('role="status"');
+    // The bridge status is an <output>, whose implicit ARIA role is "status".
+    expect(html).toContain('<output');
     expect(html).toContain('aria-live="polite"');
     expect(html).toContain('hidden items-center space-x-6 md:flex');
     expect(html).toContain('whitespace-nowrap');

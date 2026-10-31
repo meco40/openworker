@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelHubRepository } from '@/server/model-hub/repository';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 /**
  * Tests for the ModelHub service dispatchWithFallback method.
@@ -10,18 +11,18 @@ import type { ModelHubRepository } from '@/server/model-hub/repository';
 
 function createMockRepository(overrides: Partial<ModelHubRepository> = {}): ModelHubRepository {
   return {
-    listPipelineModels: vi.fn().mockReturnValue([]),
-    getAccountRecordById: vi.fn().mockReturnValue(null),
-    updatePipelineModelStatus: vi.fn(),
-    updatePipelineModelPriority: vi.fn(),
-    listAccounts: vi.fn().mockReturnValue([]),
-    createAccount: vi.fn(),
-    deleteAccount: vi.fn(),
-    updateAccountCredentials: vi.fn(),
-    setHealthStatus: vi.fn(),
-    addPipelineModel: vi.fn(),
-    removePipelineModel: vi.fn(),
-    replacePipeline: vi.fn(),
+    listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([]),
+    getAccountRecordById: vi.fn<MockProcedure>().mockReturnValue(null),
+    updatePipelineModelStatus: vi.fn<MockProcedure>(),
+    updatePipelineModelPriority: vi.fn<MockProcedure>(),
+    listAccounts: vi.fn<MockProcedure>().mockReturnValue([]),
+    createAccount: vi.fn<MockProcedure>(),
+    deleteAccount: vi.fn<MockProcedure>(),
+    updateAccountCredentials: vi.fn<MockProcedure>(),
+    setHealthStatus: vi.fn<MockProcedure>(),
+    addPipelineModel: vi.fn<MockProcedure>(),
+    removePipelineModel: vi.fn<MockProcedure>(),
+    replacePipeline: vi.fn<MockProcedure>(),
     ...overrides,
   };
 }
@@ -31,7 +32,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([]),
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([]),
     });
 
     const service = new ModelHubService(repo);
@@ -47,7 +48,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([
         {
           id: 'm1',
           modelName: 'gpt-4',
@@ -71,7 +72,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
 
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([
         {
           id: 'm1',
           modelName: 'gemini-2.5-flash',
@@ -80,7 +81,7 @@ describe('ModelHubService.dispatchWithFallback', () => {
           status: 'active',
         },
       ]),
-      getAccountRecordById: vi.fn().mockReturnValue(null),
+      getAccountRecordById: vi.fn<MockProcedure>().mockReturnValue(null),
     });
 
     const service = new ModelHubService(repo);
@@ -129,9 +130,9 @@ describe('ModelHubService.movePipelineModel', () => {
   it('moves a model up and swaps priorities with the previous model', async () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
 
-    const updatePriority = vi.fn();
+    const updatePriority = vi.fn<MockProcedure>();
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([
         { id: 'm1', priority: 1, modelName: 'alpha', status: 'active' },
         { id: 'm2', priority: 2, modelName: 'beta', status: 'active' },
         { id: 'm3', priority: 3, modelName: 'gamma', status: 'active' },
@@ -151,9 +152,9 @@ describe('ModelHubService.movePipelineModel', () => {
   it('returns false when moving the first model up', async () => {
     const { ModelHubService } = await import('@/server/model-hub/service');
 
-    const updatePriority = vi.fn();
+    const updatePriority = vi.fn<MockProcedure>();
     const repo = createMockRepository({
-      listPipelineModels: vi.fn().mockReturnValue([
+      listPipelineModels: vi.fn<MockProcedure>().mockReturnValue([
         { id: 'm1', priority: 1, modelName: 'alpha', status: 'active' },
         { id: 'm2', priority: 2, modelName: 'beta', status: 'active' },
       ]),

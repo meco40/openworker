@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 let executeAction: typeof import('@/server/world-model/services/actionService').executeAction;
 
-const start = vi.fn();
-const finish = vi.fn();
+const start = vi.fn<MockProcedure>();
+const finish = vi.fn<MockProcedure>();
 
 vi.mock('@/server/world-model/repositories/actionAttemptRepository', () => ({
   startActionAttempt: (...args: unknown[]) => start(...args),
@@ -41,7 +42,7 @@ describe('executeAction', () => {
       attempt: { id: 'a-old', status: 'succeeded' },
       created: false,
     });
-    const runSpy = vi.fn(async () => ({ ok: true }));
+    const runSpy = vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
     const result = await executeAction({
       scope,
       actionType: 'send_email',

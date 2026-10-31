@@ -7,7 +7,9 @@ import { ToolManager } from '@/server/channels/messages/service/toolManager';
 import { getSkillRepository } from '@/server/skills/skillRepository';
 import { getTestArtifactsRoot } from '../../helpers/testArtifacts';
 
-const generateContentMock = vi.hoisted(() => vi.fn(async () => ({ text: 'vision-ok' })));
+const generateContentMock = vi.hoisted(() =>
+  vi.fn<() => Promise<{ text: string }>>(async () => ({ text: 'vision-ok' })),
+);
 
 vi.mock('@google/genai', () => ({
   GoogleGenAI: class MockGoogleGenAI {

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MasterEntryPage from '@/modules/master/components/MasterEntryPage';
+import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 vi.mock('@/modules/master/components/MasterFaceCanvasThree', () => ({
   __esModule: true,
@@ -19,11 +20,11 @@ vi.mock('@/modules/master/voice/grok/useGrokVoiceAgent', () => ({
     sttSupported: true,
     ttsSupported: true,
     connected: false,
-    startListening: vi.fn(async () => {}),
-    stopListening: vi.fn(),
-    cancel: vi.fn(),
-    submitText: vi.fn(async () => {}),
-    replay: vi.fn(),
+    startListening: vi.fn<() => Promise<void>>(async () => {}),
+    stopListening: vi.fn<MockProcedure>(),
+    cancel: vi.fn<MockProcedure>(),
+    submitText: vi.fn<() => Promise<void>>(async () => {}),
+    replay: vi.fn<MockProcedure>(),
     subscribeOutputAudio: () => () => {},
   }),
 }));
@@ -43,7 +44,13 @@ describe('MasterEntryPage viewport behavior', () => {
 
   it('hides 3D avatar under 380px and shows compact fallback', async () => {
     setViewportWidth(360);
-    render(<MasterEntryPage onEnterDashboard={vi.fn()} personaId="p1" workspaceId="main" />);
+    render(
+      <MasterEntryPage
+        onEnterDashboard={vi.fn<MockProcedure>()}
+        personaId="p1"
+        workspaceId="main"
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.queryByTestId('master-face-canvas')).not.toBeInTheDocument();
@@ -53,7 +60,13 @@ describe('MasterEntryPage viewport behavior', () => {
 
   it('renders 3D avatar for viewports >= 380px', async () => {
     setViewportWidth(420);
-    render(<MasterEntryPage onEnterDashboard={vi.fn()} personaId="p1" workspaceId="main" />);
+    render(
+      <MasterEntryPage
+        onEnterDashboard={vi.fn<MockProcedure>()}
+        personaId="p1"
+        workspaceId="main"
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('master-face-canvas')).toBeInTheDocument();

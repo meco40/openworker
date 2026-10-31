@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { GatewayClient } from '@/server/gateway/client-registry';
 import type { RequestFrame } from '@/server/gateway/protocol';
+import type { MockProcedure } from '../../helpers/mockProcedure';
 
 function makeClient(userId = 'user-1'): GatewayClient {
   return {
@@ -9,8 +10,8 @@ function makeClient(userId = 'user-1'): GatewayClient {
       readyState: 1,
       OPEN: 1,
       bufferedAmount: 0,
-      send: vi.fn(),
-      close: vi.fn(),
+      send: vi.fn<MockProcedure>(),
+      close: vi.fn<MockProcedure>(),
     } as unknown as GatewayClient['socket'],
     connId: 'conn-1',
     userId,
@@ -25,15 +26,22 @@ function makeClient(userId = 'user-1'): GatewayClient {
 async function setupForChannelsTests() {
   vi.resetModules();
 
-  const broadcastToUser = vi.fn();
-  const upsertChannelBinding = vi.fn();
-  const pairChannel = vi.fn(async () => ({
+  const broadcastToUser = vi.fn<MockProcedure>();
+  const upsertChannelBinding = vi.fn<MockProcedure>();
+  const pairChannel = vi.fn<
+    () => Promise<{
+      status: string;
+      transport: string;
+      peerName: string;
+      details: Record<string, unknown>;
+    }>
+  >(async () => ({
     status: 'connected',
     transport: 'webhook',
     peerName: 'telegram:test',
     details: {},
   }));
-  const unpairChannel = vi.fn(async () => {});
+  const unpairChannel = vi.fn<() => Promise<void>>(async () => {});
 
   vi.doMock('../../../src/server/gateway/broadcast', () => ({
     broadcastToUser,

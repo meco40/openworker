@@ -40,7 +40,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   const { activePersona, personas, activePersonaId, setActivePersonaId } = usePersona();
   const [showPersonaDropdown, setShowPersonaDropdown] = useState(false);
   const [conversationSearchQuery, setConversationSearchQuery] = useState('');
-  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const searchMatchRefs = useRef<Array<HTMLSpanElement | null>>([]);
   const streamDebugLabel =
@@ -93,12 +93,13 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   );
 
   const messageSearchOffsets = useMemo(() => {
+    const offsets: number[] = [];
     let offset = 0;
-    return messageSearchRanges.map((ranges) => {
-      const current = offset;
+    for (const ranges of messageSearchRanges) {
+      offsets.push(offset);
       offset += ranges.length;
-      return current;
-    });
+    }
+    return offsets;
   }, [messageSearchRanges]);
 
   const totalSearchMatches = useMemo(
@@ -106,19 +107,21 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
     [messageSearchRanges],
   );
 
-  useEffect(() => {
+  // A different conversation starts with an empty search (reset during render).
+  const [searchConversationId, setSearchConversationId] = useState(activeConversation?.id);
+  if (searchConversationId !== activeConversation?.id) {
+    setSearchConversationId(activeConversation?.id);
     setConversationSearchQuery('');
-    setActiveSearchMatchIndex(0);
+    setSearchMatchIndex(0);
+  }
+
+  useEffect(() => {
     searchMatchRefs.current = [];
   }, [activeConversation?.id]);
 
-  useEffect(() => {
-    if (totalSearchMatches <= 0) {
-      setActiveSearchMatchIndex(0);
-      return;
-    }
-    setActiveSearchMatchIndex((previous) => Math.min(previous, totalSearchMatches - 1));
-  }, [totalSearchMatches]);
+  // The stored index can outlive a shrinking result list; clamp it when read.
+  const activeSearchMatchIndex =
+    totalSearchMatches <= 0 ? 0 : Math.min(searchMatchIndex, totalSearchMatches - 1);
 
   useEffect(() => {
     if (totalSearchMatches <= 0) return;
@@ -130,13 +133,13 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
   }, [activeSearchMatchIndex, totalSearchMatches]);
 
   const handleFindNext = () => {
-    setActiveSearchMatchIndex((previous) =>
+    setSearchMatchIndex((previous) =>
       stepConversationSearchIndex(previous, totalSearchMatches, 'next'),
     );
   };
 
   const handleFindPrevious = () => {
-    setActiveSearchMatchIndex((previous) =>
+    setSearchMatchIndex((previous) =>
       stepConversationSearchIndex(previous, totalSearchMatches, 'prev'),
     );
   };
@@ -237,7 +240,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
               value={conversationSearchQuery}
               onChange={(event) => {
                 setConversationSearchQuery(event.target.value);
-                setActiveSearchMatchIndex(0);
+                setSearchMatchIndex(0);
               }}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return;
@@ -355,7 +358,7 @@ const ChatMainPane: React.FC<ChatMainPaneProps> = ({
 
       <div
         ref={scrollRef}
-        className="scrollbar-thin flex-1 space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.05),transparent)] p-6"
+        className="flex-1 scrollbar-thin space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.05),transparent)] p-6"
       >
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center space-y-4 opacity-20">
