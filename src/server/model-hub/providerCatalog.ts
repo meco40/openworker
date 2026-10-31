@@ -68,6 +68,17 @@ export const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     docsUrl: 'https://opencode.ai/docs/zen',
   },
   {
+    id: 'refuseless',
+    name: 'Refuseless',
+    icon: 'RF',
+    authMethods: ['api_key'],
+    endpointType: 'openai-compatible',
+    capabilities: ['chat', 'tools'],
+    defaultModels: ['deepseek-v4.1-flash-abliterated'],
+    apiBaseUrl: 'https://api.refuseless.com/v1',
+    docsUrl: 'https://docs.refuseless.com/introduction',
+  },
+  {
     id: 'ollama',
     name: 'Ollama (Local)',
     icon: 'OL',

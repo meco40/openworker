@@ -98,9 +98,10 @@ export function mapPipelineReasoningEffort(
   if (!reasoningEffort) {
     return undefined;
   }
-  // OpenCode's OpenAI-compatible endpoint uses `none` to disable reasoning.
+  // OpenCode and Refuseless use `none` to disable reasoning.
   // Other providers retain the historical omission semantics for `off`.
-  if (reasoningEffort === 'off') return providerId === 'opencode' ? 'none' : undefined;
+  if (reasoningEffort === 'off')
+    return providerId === 'opencode' || providerId === 'refuseless' ? 'none' : undefined;
   if (reasoningEffort === 'minimal') {
     return 'low';
   }

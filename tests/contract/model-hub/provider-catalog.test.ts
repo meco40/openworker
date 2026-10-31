@@ -12,6 +12,7 @@ describe('provider catalog coverage', () => {
       'gemini',
       'openrouter',
       'opencode',
+      'refuseless',
       'zai',
       'kimi',
       'bytedance',

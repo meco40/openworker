@@ -1,7 +1,7 @@
 //! Port of `src/server/model-hub/Models/registry.ts` plus the provider adapters
 //! of `src/server/model-hub/Models/<provider>/index.ts`.
 //!
-//! Fifteen adapters are ported — every catalog entry, in `registry.ts` order:
+//! Sixteen adapters are ported — every catalog entry, in `registry.ts` order:
 //!
 //! | Adapter | Kind |
 //! | --- | --- |
@@ -9,12 +9,12 @@
 //! | [`cohere`] | native v2 wire format end to end (own `message.content[]` / `usage.tokens` shape) |
 //! | [`openai_codex`] | native Responses wire format end to end (own SSE event names, `chatgpt-account-id` header, usage and rate-limit parsers) |
 //! | [`github_copilot`] | native model discovery, OpenAI-compatible dispatch |
-//! | [`ollama`], [`opencode`] | own model discovery, OpenAI-compatible dispatch |
+//! | [`ollama`], [`opencode`], [`refuseless`] | own model discovery, OpenAI-compatible dispatch |
 //! | [`openai`], [`openrouter`], [`lmstudio`], [`mistral`], [`kimi`], [`zai`], [`bytedance`] | pure configuration of the shared OpenAI-compatible layer |
 //!
 //! `cohere` and `openai-codex` were the last two entries and closed S4.
 //! [`DEFERRED_PROVIDER_IDS`] is therefore empty, and the two lists together cover
-//! all fifteen catalog ids.
+//! all sixteen catalog ids.
 //!
 //! [`get_provider_adapter`] now returns `None` only for an id that is not in the
 //! catalog at all — `getProviderAdapter` (`registry.ts:36-38`) has the same
@@ -48,6 +48,7 @@ pub mod openai;
 pub mod openai_codex;
 pub mod opencode;
 pub mod openrouter;
+pub mod refuseless;
 pub mod xai;
 pub mod zai;
 
@@ -111,6 +112,7 @@ fn adapter_for(provider_id: &str) -> Option<&'static dyn ProviderAdapter> {
     static KIMI: kimi::KimiAdapter = kimi::KimiAdapter;
     static OLLAMA: ollama::OllamaAdapter = ollama::OllamaAdapter;
     static OPENCODE: opencode::OpenCodeAdapter = opencode::OpenCodeAdapter;
+    static REFUSELESS: refuseless::RefuselessAdapter = refuseless::RefuselessAdapter;
     static GITHUB_COPILOT: github_copilot::GithubCopilotAdapter =
         github_copilot::GithubCopilotAdapter;
 
@@ -120,6 +122,7 @@ fn adapter_for(provider_id: &str) -> Option<&'static dyn ProviderAdapter> {
         "openai-codex" => Some(&OPENAI_CODEX),
         "anthropic" => Some(&ANTHROPIC),
         "opencode" => Some(&OPENCODE),
+        "refuseless" => Some(&REFUSELESS),
         "openrouter" => Some(&OPENROUTER),
         "ollama" => Some(&OLLAMA),
         "lmstudio" => Some(&LMSTUDIO),
@@ -146,6 +149,7 @@ pub const PORTED_PROVIDER_IDS: &[&str] = &[
     "openai-codex",
     "anthropic",
     "opencode",
+    "refuseless",
     "openrouter",
     "ollama",
     "lmstudio",
@@ -175,7 +179,7 @@ mod tests {
     use super::*;
     use crate::model_hub::provider_catalog::catalog_ids;
 
-    /// All fifteen catalog ids resolve: `PORTED_PROVIDER_IDS` plus the (now empty)
+    /// All sixteen catalog ids resolve: `PORTED_PROVIDER_IDS` plus the (now empty)
     /// `DEFERRED_PROVIDER_IDS` partition `catalog_ids()`, and the registry answers
     /// for every one of them.
     #[test]

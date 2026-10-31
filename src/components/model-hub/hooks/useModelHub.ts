@@ -325,7 +325,9 @@ export function useModelHub(): UseModelHubReturn {
           modelName: selectedModelId,
           reasoningEffort:
             addModelMode === 'graphiti' ||
-            (addModelMode === 'pipeline' && selectedAccount.providerId === 'openai-codex')
+            (addModelMode === 'pipeline' &&
+              (selectedAccount.providerId === 'openai-codex' ||
+                selectedAccount.providerId === 'refuseless'))
               ? selectedReasoningEffort
               : undefined,
           priority: selectedPriority,

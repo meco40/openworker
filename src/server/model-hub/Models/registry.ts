@@ -12,6 +12,7 @@ import openAICodexProviderAdapter from '@/server/model-hub/Models/openai-codex';
 import ollamaProviderAdapter from '@/server/model-hub/Models/ollama';
 import openCodeProviderAdapter from '@/server/model-hub/Models/opencode';
 import openRouterProviderAdapter from '@/server/model-hub/Models/openrouter';
+import refuselessProviderAdapter from '@/server/model-hub/Models/refuseless';
 import xAIProviderAdapter from '@/server/model-hub/Models/xai';
 import zaiProviderAdapter from '@/server/model-hub/Models/zai';
 
@@ -22,6 +23,7 @@ const providerAdapters: Record<string, ProviderAdapter> = {
   [anthropicProviderAdapter.id]: anthropicProviderAdapter,
   [openCodeProviderAdapter.id]: openCodeProviderAdapter,
   [openRouterProviderAdapter.id]: openRouterProviderAdapter,
+  [refuselessProviderAdapter.id]: refuselessProviderAdapter,
   [ollamaProviderAdapter.id]: ollamaProviderAdapter,
   [lmStudioProviderAdapter.id]: lmStudioProviderAdapter,
   [xAIProviderAdapter.id]: xAIProviderAdapter,

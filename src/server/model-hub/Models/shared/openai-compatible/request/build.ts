@@ -154,7 +154,10 @@ export function buildRequestBody(
 
   if (
     request.reasoning_effort &&
-    (providerId === 'openai' || providerId === 'openai-codex' || providerId === 'opencode')
+    (providerId === 'openai' ||
+      providerId === 'openai-codex' ||
+      providerId === 'opencode' ||
+      providerId === 'refuseless')
   ) {
     body.reasoning_effort = request.reasoning_effort;
   }

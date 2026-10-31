@@ -1,12 +1,12 @@
 # Model Hub Provider Matrix (Production Reference)
 
-Stand: 2026-08-22
+Stand: 2026-10-31 (Code-Stand; kein Produktionsnachweis)
 
 ## Ziel
 
 Dieses Dokument hält die aktuellen Provider-, Auth- und Endpoint-Baselines des produktiven Model Hub fest.
 
-## Provider (15)
+## Provider (16)
 
 | Provider                | Primäre Auth  | OAuth | API Base / Health-Orientierung             | Notes                                                                 |
 | ----------------------- | ------------- | ----- | ------------------------------------------ | --------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ Dieses Dokument hält die aktuellen Provider-, Auth- und Endpoint-Baselines des 
 | Anthropic               | API Key       | Nein  | `https://api.anthropic.com/v1`             | Native Messages API                                                   |
 | OpenRouter              | API Key       | Ja    | `https://openrouter.ai/api/v1`             | OpenAI-kompatibel + OAuth                                             |
 | OpenCode                | API Key       | Nein  | `https://opencode.ai/zen/v1`               | OpenCode Zen; dynamischer `/models`-Katalog; Chat-Completions-Modelle |
+| Refuseless              | API Key       | Nein  | `https://api.refuseless.com/v1`            | OpenAI-kompatibel; Chat, Streaming, Tools und Reasoning               |
 | Ollama (Local)          | none/API Key  | Nein  | `http://localhost:11434/v1`                | Lokaler OpenAI-kompatibler Endpoint                                   |
 | LM Studio (Local)       | none/API Key  | Nein  | `http://localhost:1234/v1`                 | Lokaler OpenAI-kompatibler Endpoint                                   |
 | xAI                     | API Key       | Nein  | `https://api.x.ai/v1`                      | Native xAI-Adapter                                                    |
@@ -39,6 +40,7 @@ Dieses Dokument hält die aktuellen Provider-, Auth- und Endpoint-Baselines des 
 - Anthropic: https://docs.anthropic.com/en/api/messages
 - OpenRouter: https://openrouter.ai/docs/quickstart
 - OpenCode Zen: https://opencode.ai/docs/zen
+- Refuseless: https://docs.refuseless.com/introduction
 - Ollama: https://ollama.com/blog/openai-compatibility
 - LM Studio: https://lmstudio.ai/docs/app/api/endpoints/openai
 - xAI: https://docs.x.ai/docs/overview
@@ -58,3 +60,20 @@ Der Model Hub verwendet für Chat-Requests den OpenAI-kompatiblen Endpoint
 `/responses`- und `/messages`-Endpoints; diese Wire-APIs sind im generischen
 Model-Hub-Adapter noch nicht enthalten und dürfen daher nicht als vollständig
 kompatibel vorausgesetzt werden.
+
+## Refuseless
+
+Authentifizierung erfolgt über einen eigenen Refuseless-API-Key als Bearer-Token.
+Der Model Hub ruft `/models` und `/chat/completions` auf und bietet
+`deepseek-v4.1-flash-abliterated` auch als vorbelegtes Modell an. Anzeigename:
+`DeepSeek V4.1 Flash 1017 Abliterated`, Kontext: 1.048.576 Tokens, maximale
+Ausgabe: 131.072 Tokens. Diese Metadaten entsprechen der
+[Anbieterkonfiguration](https://refuseless.com/).
+
+Chat, Streaming und Tool-Aufrufe verwenden den gemeinsamen OpenAI-kompatiblen
+Adapter. Die Denkstufe `off` wird als `none` übertragen, `minimal`/`low` und
+`medium` als `low`, `high`/`xhigh` als `high`; Refuseless dokumentiert keine
+Stufe `medium`. Ausgabeanforderungen für das vorbelegte DeepSeek-Modell werden
+auf dessen maximale Ausgabe begrenzt. Ein erfolgreicher Katalogabruf allein
+beweist keine erfolgreiche Modellantwort; dafür ist ein echter Chat-Test mit
+einem gültigen Key erforderlich.

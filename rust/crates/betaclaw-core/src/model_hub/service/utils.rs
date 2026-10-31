@@ -164,7 +164,7 @@ fn push_trimmed(text: &str, contents: &mut Vec<String>) {
 
 /// `mapPipelineReasoningEffort` from `utils.ts:94-113`.
 ///
-/// The one provider-specific rule is `off`: OpenCode uses `none` to disable
+/// The provider-specific rule is `off`: OpenCode and Refuseless use `none` to disable
 /// reasoning, every other provider keeps the historical omission semantics, i.e.
 /// `None` here means "leave the caller's value in place".
 pub fn map_pipeline_reasoning_effort(
@@ -174,7 +174,7 @@ pub fn map_pipeline_reasoning_effort(
     let effort = reasoning_effort?;
     match effort {
         PipelineReasoningEffort::Off => {
-            (provider_id == "opencode").then_some(GatewayReasoningEffort::None)
+            matches!(provider_id, "opencode" | "refuseless").then_some(GatewayReasoningEffort::None)
         }
         PipelineReasoningEffort::Minimal => Some(GatewayReasoningEffort::Low),
         PipelineReasoningEffort::Xhigh => Some(GatewayReasoningEffort::High),

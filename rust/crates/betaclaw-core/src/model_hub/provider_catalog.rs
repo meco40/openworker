@@ -1,9 +1,9 @@
 //! Port of `src/server/model-hub/providerCatalog.ts`.
 //!
-//! The catalog has exactly 15 entries and the adapter registry
-//! (`src/server/model-hub/Models/registry.ts`) has exactly 15 adapters, one per
+//! The catalog has exactly 16 entries and the adapter registry
+//! (`src/server/model-hub/Models/registry.ts`) has exactly 16 adapters, one per
 //! entry — `tests/unit/model-hub/provider-registry.test.ts` asserts that
-//! bijection. All fifteen providers are ported as of this slice: the registry
+//! bijection. All sixteen providers are ported as of this slice: the registry
 //! resolves every catalog id and no id is deferred any more
 //! (`providers/mod.rs:141-157`, `:163`).
 //!
@@ -166,6 +166,17 @@ pub static PROVIDER_CATALOG: LazyLock<Vec<ProviderCatalogEntry>> = LazyLock::new
             docs_url: Some("https://opencode.ai/docs/zen"),
         },
         EntrySpec {
+            id: "refuseless",
+            name: "Refuseless",
+            icon: "RF",
+            auth_methods: &[API_KEY],
+            endpoint_type: ProviderEndpointType::OpenAiCompatible,
+            capabilities: &[CHAT, TOOLS],
+            default_models: &["deepseek-v4.1-flash-abliterated"],
+            api_base_url: Some("https://api.refuseless.com/v1"),
+            docs_url: Some("https://docs.refuseless.com/introduction"),
+        },
+        EntrySpec {
             id: "ollama",
             name: "Ollama (Local)",
             icon: "OL",
@@ -297,15 +308,15 @@ pub fn catalog_ids() -> Vec<&'static str> {
 mod tests {
     use super::*;
 
-    /// The catalog has 15 entries, not 16 — `provider-registry.test.ts` pairs it
-    /// against the 15 adapters of `Models/registry.ts`.
+    /// The catalog has 16 entries — `provider-registry.test.ts` pairs it
+    /// against the 16 adapters of `Models/registry.ts`.
     #[test]
-    fn has_exactly_fifteen_entries_with_unique_ids() {
-        assert_eq!(PROVIDER_CATALOG.len(), 15);
+    fn has_exactly_sixteen_entries_with_unique_ids() {
+        assert_eq!(PROVIDER_CATALOG.len(), 16);
         let mut sorted = catalog_ids();
         sorted.sort_unstable();
         sorted.dedup();
-        assert_eq!(sorted.len(), 15, "duplicate provider id in the catalog");
+        assert_eq!(sorted.len(), 16, "duplicate provider id in the catalog");
     }
 
     #[test]
@@ -319,6 +330,7 @@ mod tests {
                 "anthropic",
                 "openrouter",
                 "opencode",
+                "refuseless",
                 "ollama",
                 "lmstudio",
                 "xai",

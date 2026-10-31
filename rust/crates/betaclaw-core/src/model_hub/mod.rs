@@ -11,7 +11,7 @@
 //! | [`url_origin`] | `urlOrigin.ts` |
 //! | [`types`] | `../shared/contracts/modelHub.ts` + `Models/types.ts` + `repository.ts` |
 //! | [`provider_catalog`] | `providerCatalog.ts` |
-//! | [`providers`] | `Models/<provider>/index.ts` (15 of 15 adapters) |
+//! | [`providers`] | `Models/<provider>/index.ts` (16 of 16 adapters) |
 //! | [`openai_compatible`] | `Models/shared/openai-compatible/` |
 //! | [`http`] | `Models/shared/http.ts` |
 //! | [`env`] | the `process.env` reads of the above |

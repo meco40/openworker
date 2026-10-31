@@ -35,7 +35,8 @@ pub const THINK_BLOCK_REGEX_PATTERN: &str = r"(?is)<think>.*?</think>";
 
 /// The providers `buildRequestBody` forwards `reasoning_effort` to, from the
 /// literal in `request/build.ts:157`.
-pub const REASONING_EFFORT_PROVIDERS: &[&str] = &["openai", "openai-codex", "opencode"];
+pub const REASONING_EFFORT_PROVIDERS: &[&str] =
+    &["openai", "openai-codex", "opencode", "refuseless"];
 
 #[cfg(test)]
 mod tests {

@@ -15,7 +15,7 @@ BetaClaw Gateway ist eine **Next.js-basierte Multi-Channel-KI-Plattform** mit Un
 - **Automation- und Ops-Steuerung** über Scheduler, Ops-API und Runtime-Health
 - **Skill-basiertes Tool-System** mit 34 Built-in Skills (11 Default + 23 opt-in/compat) + ClawHub-Erweiterungen
 - **Konzeptuelles Memory** mit Embedding-basierter Ähnlichkeitssuche
-- **Multi-Provider-KI** (14 Provider: OpenAI, OpenAI Codex, Anthropic, Google Gemini, OpenRouter, Ollama, LM Studio, xAI, Mistral, Cohere, Z.AI, Kimi Code, ByteDance, GitHub Copilot/Models)
+- **Multi-Provider-KI** (16 Provider: OpenAI, OpenAI Codex, Anthropic, Google Gemini, OpenRouter, OpenCode, Refuseless, Ollama, LM Studio, xAI, Mistral, Cohere, Z.AI, Kimi Code, ByteDance, GitHub Copilot/Models)
 
 ---
 
@@ -251,7 +251,7 @@ pnpm run start
 │   │   ├── channels/      # Omnichannel-Messaging
 │   │   ├── skills/        # Skill-Execution Engine
 │   │   ├── memory/        # Konzeptuelles Memory
-│   │   ├── model-hub/     # Multi-Provider-KI (14 Provider)
+│   │   ├── model-hub/     # Multi-Provider-KI (16 Provider)
 │   │   ├── security/      # Security-Checks
 │   │   ├── clawhub/       # ClawHub-Integration
 │   │   ├── knowledge/     # Knowledge Base System
@@ -399,6 +399,8 @@ pwsh -File scripts/e2e/run-browser-in-container.ps1
 | Google Gemini           | API Key         | Google GenAI SDK                   |
 | Anthropic               | API Key         | `api.anthropic.com/v1/messages`    |
 | OpenRouter              | API Key / OAuth | `openrouter.ai/api/v1`             |
+| OpenCode                | API Key         | `opencode.ai/zen/v1`               |
+| Refuseless              | API Key         | `api.refuseless.com/v1`            |
 | Ollama (Local)          | none / API Key  | `localhost:11434/v1`               |
 | LM Studio (Local)       | none / API Key  | `localhost:1234/v1`                |
 | xAI                     | API Key         | `api.x.ai/v1`                      |

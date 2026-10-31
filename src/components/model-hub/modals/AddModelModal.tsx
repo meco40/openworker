@@ -59,7 +59,9 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
   const isEmbeddingMode = mode === 'embedding';
   const isGraphitiMode = mode === 'graphiti';
   const isCodexAccount = selectedAccount?.providerId === 'openai-codex';
-  const supportsReasoningSetting = !isEmbeddingMode && (isCodexAccount || isGraphitiMode);
+  const supportsReasoningSetting =
+    !isEmbeddingMode &&
+    (isCodexAccount || selectedAccount?.providerId === 'refuseless' || isGraphitiMode);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
