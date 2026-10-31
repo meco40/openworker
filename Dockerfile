@@ -58,8 +58,7 @@ COPY --from=builder /app/scripts ./scripts
 
 # Complete flattened production dependency graph for custom entrypoints.
 COPY --from=deps /app/node_modules ./node_modules
-# The production install skips scripts; reuse the builder's matching native SQLite binding.
-COPY --from=builder /app/node_modules/better-sqlite3/build/Release/better_sqlite3.node ./node_modules/better-sqlite3/build/Release/better_sqlite3.node
+# better-sqlite3 ships its native binding in prebuilds/, so the script-free install is complete.
 RUN node node_modules/playwright/cli.js install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/*
 
