@@ -21,3 +21,7 @@ output/**
 # Rust build artifacts are formatted by `cargo fmt`, not by Prettier.
 rust/target
 rust/Cargo.lock
+# Generated fixtures; CI regenerates them and fails on any diff, so their
+# layout belongs to the generator scripts, not to Prettier.
+rust/crates/betaclaw-gateway/src/fixtures
+rust/crates/betaclaw-gateway/tests/fixtures

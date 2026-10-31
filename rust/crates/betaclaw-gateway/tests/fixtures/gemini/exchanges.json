@@ -189,7 +189,9 @@
                         "description": "City name"
                       }
                     },
-                    "required": ["city"]
+                    "required": [
+                      "city"
+                    ]
                   }
                 }
               ]
