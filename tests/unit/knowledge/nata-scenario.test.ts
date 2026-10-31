@@ -20,6 +20,10 @@ import type { StoredMessage } from '@/server/channels/messages/repository';
 import { cleanupSqliteArtifacts } from '../../helpers/sqliteTestArtifacts';
 import type { MockProcedure } from '../../helpers/mockProcedure';
 
+vi.mock('@/server/world-model/projector/projectWindow', () => ({
+  projectWindow: vi.fn<MockProcedure>().mockResolvedValue({}),
+}));
+
 const TEST_DB_DIR = getTestArtifactsRoot();
 let dbPath: string;
 let repo: SqliteKnowledgeRepository;

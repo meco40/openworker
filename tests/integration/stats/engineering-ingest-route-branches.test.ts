@@ -84,6 +84,67 @@ describe('POST /api/internal/stats/engineering/snapshots branch coverage', () =>
     expect(response.status).toBe(503);
   });
 
+  it('rejects absent credentials and timestamps, then accepts the case-insensitive enabled flag', async () => {
+    const { POST } = await import('../../../app/api/internal/stats/engineering/snapshots/route');
+
+    delete process.env.ENGINEERING_INGEST_TOKEN;
+    const missingExpectedToken = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders(),
+        body: JSON.stringify(makeBody()),
+      }),
+    );
+    expect(missingExpectedToken.status).toBe(401);
+
+    process.env.ENGINEERING_INGEST_TOKEN = 'test-ingest-token';
+    for (const providedToken of ['  ', 'xxxx-ingest-token']) {
+      const unauthorized = await POST(
+        new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+          method: 'POST',
+          headers: makeHeaders({ 'x-engineering-ingest-token': providedToken }),
+          body: JSON.stringify(makeBody()),
+        }),
+      );
+      expect(unauthorized.status).toBe(401);
+    }
+
+    for (const timestamp of [
+      '  ',
+      'not-a-date',
+      new Date(Date.now() + 20 * 60_000).toISOString(),
+    ]) {
+      const invalidTimestamp = await POST(
+        new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+          method: 'POST',
+          headers: makeHeaders({ 'x-engineering-ingest-timestamp': timestamp }),
+          body: JSON.stringify(makeBody()),
+        }),
+      );
+      expect(invalidTimestamp.status).toBe(400);
+    }
+
+    delete process.env.ENGINEERING_INGEST_ENABLED;
+    const disabledByDefault = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders(),
+        body: JSON.stringify(makeBody()),
+      }),
+    );
+    expect(disabledByDefault.status).toBe(503);
+
+    process.env.ENGINEERING_INGEST_ENABLED = ' TRUE ';
+    const enabledByBooleanString = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders(),
+        body: JSON.stringify(makeBody()),
+      }),
+    );
+    expect(enabledByBooleanString.status).toBe(200);
+  });
+
   it('rejects missing idempotency keys and invalid non-object bodies', async () => {
     const { POST } = await import('../../../app/api/internal/stats/engineering/snapshots/route');
 
@@ -218,5 +279,144 @@ describe('POST /api/internal/stats/engineering/snapshots branch coverage', () =>
       error_kind: 'redacted-sensitive-error',
       run_url: null,
     });
+  });
+
+  it('normalizes snake-case aliases, defaults optional fields, and keeps rollout writes idempotent', async () => {
+    const { POST } = await import('../../../app/api/internal/stats/engineering/snapshots/route');
+    const now = new Date().toISOString();
+    const baseline = {
+      id: 'baseline-aliases',
+      window_start: '2026-04-01T00:00:00.000Z',
+      window_end: '2026-04-30T00:00:00.000Z',
+      payload: { source: 'test' },
+      baseline_hash: 'alias-hash',
+    };
+    const response = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders(),
+        body: JSON.stringify(
+          makeBody({
+            snapshots: [{ window_days: '7', generated_at: null, source: '   ' }],
+            prFacts: [
+              {
+                pr_number: '42',
+                created_at: now,
+                merged_at: now,
+                additions: 0,
+                deletions: 0,
+                first_pass_blocking: true,
+                reverted: false,
+              },
+            ],
+            events: [
+              {
+                status: 'CANCELLED',
+                startedAt: now,
+                finishedAt: now,
+                durationMs: -5,
+                serviceName: '',
+                lane: ' ',
+                commitSha: 'ABCDEF0123456',
+                errorKind: 'timeout',
+                runUrl: 'https://user:secret@example.test/path?token=secret#private',
+              },
+              {
+                status: 'SKIPPED',
+                started_at: now,
+                finished_at: now,
+                duration_ms: null,
+                service_name: '',
+                lane: 'delivery',
+                commit_sha: '',
+                error_kind: '!!!',
+                run_url: ' ',
+              },
+            ],
+            rollout_baseline: baseline,
+            rollout_gate_run: {
+              phase_id: 'phase-alias',
+              status: 'FAIL',
+              payload: { result: 'blocked' },
+              generated_at: null,
+            },
+          }),
+        ),
+      }),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: { snapshots: 1, prFacts: 1, events: 2, rolloutBaseline: 1, rolloutGateRun: 1 },
+    });
+
+    const { queryAll, queryOne } = await import('@/lib/db');
+    expect(
+      queryOne<{ source: string }>(
+        'SELECT source FROM engineering_metrics_snapshots WHERE window_days = 7',
+      )?.source,
+    ).toBe('github-snapshot');
+    expect(
+      queryOne<{ additions: number; deletions: number; first_pass_blocking: number }>(
+        'SELECT additions, deletions, first_pass_blocking FROM engineering_pr_facts WHERE pr_number = 42',
+      ),
+    ).toEqual({ additions: 0, deletions: 0, first_pass_blocking: 1 });
+    const events = queryAll<{
+      lane: string;
+      service_name: string;
+      status: string;
+      duration_ms: number;
+      commit_sha: string | null;
+      error_kind: string | null;
+      run_url: string | null;
+    }>(
+      'SELECT lane, service_name, status, duration_ms, commit_sha, error_kind, run_url FROM harness_run_events',
+    );
+    expect(events).toEqual(
+      expect.arrayContaining([
+        {
+          lane: 'unknown',
+          service_name: 'github-actions',
+          status: 'cancelled',
+          duration_ms: 0,
+          commit_sha: 'abcdef0123456',
+          error_kind: 'timeout',
+          run_url: 'https://example.test/path',
+        },
+        {
+          lane: 'delivery',
+          service_name: 'github-actions',
+          status: 'skipped',
+          duration_ms: 0,
+          commit_sha: null,
+          error_kind: null,
+          run_url: null,
+        },
+      ]),
+    );
+
+    const duplicateBaseline = await POST(
+      new Request('http://localhost/api/internal/stats/engineering/snapshots', {
+        method: 'POST',
+        headers: makeHeaders({
+          'x-engineering-ingest-idempotency-key': `duplicate-baseline-${Date.now()}`,
+        }),
+        body: JSON.stringify(
+          makeBody({
+            snapshots: [],
+            prFacts: [],
+            events: [],
+            rolloutBaseline: baseline,
+            rolloutGateRun: { status: 'unknown', payload: {} },
+          }),
+        ),
+      }),
+    );
+    expect(duplicateBaseline.status).toBe(200);
+    expect(queryAll('SELECT id FROM engineering_rollout_baselines')).toHaveLength(1);
+    expect(
+      queryAll<{ status: string }>('SELECT status FROM engineering_rollout_gate_runs').map(
+        (row) => row.status,
+      ),
+    ).toEqual(expect.arrayContaining(['fail', 'unknown']));
   });
 });

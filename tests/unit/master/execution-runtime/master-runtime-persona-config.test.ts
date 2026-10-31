@@ -1,18 +1,31 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getTestArtifactsRoot } from '../../../helpers/testArtifacts';
 import type { MockProcedure } from '../../../helpers/mockProcedure';
 
 describe('master runtime persona config', () => {
   const cleanupDirs: string[] = [];
   const cleanupFiles: string[] = [];
+  let previousPersonasDbPath: string | undefined;
+  let previousPersonasRootPath: string | undefined;
+  let closeOpenRepository: (() => void) | undefined;
+
+  beforeEach(() => {
+    vi.resetModules();
+    previousPersonasDbPath = process.env.PERSONAS_DB_PATH;
+    previousPersonasRootPath = process.env.PERSONAS_ROOT_PATH;
+  });
 
   afterEach(() => {
+    closeOpenRepository?.();
+    closeOpenRepository = undefined;
     vi.restoreAllMocks();
     vi.resetModules();
-    delete process.env.PERSONAS_ROOT_PATH;
-    delete process.env.PERSONAS_DB_PATH;
+    if (previousPersonasRootPath === undefined) delete process.env.PERSONAS_ROOT_PATH;
+    else process.env.PERSONAS_ROOT_PATH = previousPersonasRootPath;
+    if (previousPersonasDbPath === undefined) delete process.env.PERSONAS_DB_PATH;
+    else process.env.PERSONAS_DB_PATH = previousPersonasDbPath;
     delete (globalThis as { __modelHubService?: unknown }).__modelHubService;
 
     for (const dirPath of cleanupDirs.splice(0, cleanupDirs.length)) {
@@ -67,6 +80,7 @@ describe('master runtime persona config', () => {
 
     const { getPersonaRepository } = await import('@/server/personas/personaRepository');
     const repo = getPersonaRepository();
+    closeOpenRepository = () => repo.close();
     const { ensureMasterPersona } = await import('@/server/master/systemPersona');
     const master = ensureMasterPersona('user-master', repo);
     repo.updatePersona(master.id, {
@@ -141,6 +155,7 @@ describe('master runtime persona config', () => {
     );
 
     repo.close();
+    closeOpenRepository = undefined;
   });
 
   it('blocks capability execution when the Master allowlist disallows the underlying tool', async () => {
@@ -154,6 +169,7 @@ describe('master runtime persona config', () => {
 
     const { getPersonaRepository } = await import('@/server/personas/personaRepository');
     const repo = getPersonaRepository();
+    closeOpenRepository = () => repo.close();
     const { ensureMasterPersona } = await import('@/server/master/systemPersona');
     const master = ensureMasterPersona('user-master', repo);
     repo.setAllowedToolFunctionNames(master.id, ['shell_execute']);
@@ -205,5 +221,6 @@ describe('master runtime persona config', () => {
     expect(result.output).toContain('not allowed');
 
     repo.close();
+    closeOpenRepository = undefined;
   });
 });

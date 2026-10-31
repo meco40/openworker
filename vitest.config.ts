@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
+const worldModelCoverageDatabaseUrl = process.env.WORLD_MODEL_COVERAGE_TEST_DATABASE_URL?.trim();
+
 export default defineConfig({
   test: {
     environment: 'node',
@@ -37,15 +39,30 @@ export default defineConfig({
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
             'tests/unit/server/summaryService-perf.test.ts',
+            'tests/unit/scripts/cleanup-test-artifacts.test.ts',
             // The lifecycle test observes a process-global event bus. Keep it
             // isolated so module mocks from the fast lane cannot replace the
             // bus instance observed by the test subscriber.
             'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
+            'tests/unit/world-model/metrics-behavior.test.ts',
+            'tests/unit/world-model/graphiti-retrieval.test.ts',
+            'tests/unit/world-model/open-loop-service.test.ts',
+            'tests/unit/world-model/event-service.test.ts',
             // This adapter spies on process-global fetch while other provider tests do the same.
             'tests/unit/model-hub/opencode-adapter.test.ts',
             // This test owns a persona repository and changes its process-global paths.
             'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
+            'tests/unit/world-model/*worker.test.ts',
+            'tests/unit/knowledge/nata-scenario.test.ts',
+            'tests/unit/memory/postgres-memory-client.test.ts',
+            'tests/unit/world-model/project-window.test.ts',
+            'tests/unit/world-model/outbox-dispatcher.test.ts',
+            // These module mocks must not share the fast lane's module cache.
+            'tests/unit/channels/tool-manager-behavior.test.ts',
+            'tests/unit/world-model/mission-control-bridge.test.ts',
+            'tests/unit/agent-v2/extensions-host.test.ts',
+            'tests/unit/agent-v2/session-manager-behavior.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
@@ -59,10 +76,24 @@ export default defineConfig({
             'tests/unit/channels/message-service-*.test.ts',
             'tests/unit/channels/telegram-*.test.ts',
             'tests/unit/server/summaryService-perf.test.ts',
+            'tests/unit/scripts/cleanup-test-artifacts.test.ts',
             'tests/unit/memory/lifecycle.test.ts',
             'tests/unit/world-model/retrieval.test.ts',
+            'tests/unit/world-model/metrics-behavior.test.ts',
+            'tests/unit/world-model/graphiti-retrieval.test.ts',
+            'tests/unit/world-model/open-loop-service.test.ts',
+            'tests/unit/world-model/event-service.test.ts',
             'tests/unit/model-hub/opencode-adapter.test.ts',
             'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
+            'tests/unit/world-model/*worker.test.ts',
+            'tests/unit/knowledge/nata-scenario.test.ts',
+            'tests/unit/memory/postgres-memory-client.test.ts',
+            'tests/unit/world-model/project-window.test.ts',
+            'tests/unit/world-model/outbox-dispatcher.test.ts',
+            'tests/unit/channels/tool-manager-behavior.test.ts',
+            'tests/unit/world-model/mission-control-bridge.test.ts',
+            'tests/unit/agent-v2/extensions-host.test.ts',
+            'tests/unit/agent-v2/session-manager-behavior.test.ts',
           ],
         },
       },
@@ -79,6 +110,23 @@ export default defineConfig({
           ],
         },
       },
+      ...(worldModelCoverageDatabaseUrl
+        ? [
+            {
+              extends: true as const,
+              test: {
+                name: 'world-model-postgres',
+                include: ['tests/integration/world-model/**/*.test.ts'],
+                env: {
+                  WORLD_MODEL_E2E: 'true',
+                  GRAPHITI_SHADOW_E2E: 'true',
+                  WORLD_MODEL_APP_DATABASE_URL: worldModelCoverageDatabaseUrl,
+                  CANONICAL_DATABASE_URL: worldModelCoverageDatabaseUrl,
+                },
+              },
+            },
+          ]
+        : []),
     ],
     coverage: {
       provider: 'v8',
@@ -122,8 +170,6 @@ export default defineConfig({
         'src/server/agent-room/services/turnCompletion.service.ts',
         'src/server/agent-room/services/llmFriction.service.ts',
         'src/server/channels/messages/commands/**',
-        'src/server/memory/mem0/sanitization.ts',
-        'src/server/memory/mem0/deduplication.ts',
         'src/server/master/execution/**',
         'src/server/channels/telegram/voice.ts',
         'src/server/proactive/sqliteProactiveRepository.ts',

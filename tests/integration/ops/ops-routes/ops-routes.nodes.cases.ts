@@ -130,6 +130,11 @@ describe('ops routes', () => {
     expect(payload.nodes.automation.activeRules).toBe(2);
     expect(payload.nodes).not.toHaveProperty('rooms');
     expect(listApprovedCommands).toHaveBeenCalledTimes(1);
+
+    for (const value of ['1', 'on', 'yes']) {
+      await route.GET(new Request(`http://localhost/api/ops/nodes?memoryDiagnostics=${value}`));
+      expect(runHealthCommand).toHaveBeenLastCalledWith({ memoryDiagnosticsEnabled: true });
+    }
   });
 
   it('clamps channel limit query values via shared parser', async () => {
@@ -229,7 +234,9 @@ describe('ops routes', () => {
       (value?: string) => value || 'default',
     );
     const rejectTelegramPendingPairingRequest = vi.fn<MockProcedure>().mockReturnValue(true);
-    const updateChannelBindingPersona = vi.fn<MockProcedure>();
+    let updateChannelBindingPersona: ReturnType<typeof vi.fn<MockProcedure>> | undefined =
+      vi.fn<MockProcedure>();
+    const listChannelBindings = vi.fn<MockProcedure>().mockReturnValue([]);
 
     vi.doMock('../../../../src/commands/healthCommand', () => ({
       runHealthCommand: vi.fn<MockProcedure>().mockResolvedValue({
@@ -250,7 +257,7 @@ describe('ops routes', () => {
     }));
     vi.doMock('../../../../src/server/channels/messages/runtime', () => ({
       getMessageRepository: () => ({
-        listChannelBindings: () => [],
+        listChannelBindings,
         updateChannelBindingPersona,
       }),
     }));
@@ -313,6 +320,17 @@ describe('ops routes', () => {
     }));
 
     const route = await import('../../../../app/api/ops/nodes/route');
+
+    async function postAction(body: unknown) {
+      const response = await route.POST(
+        new Request('http://localhost/api/ops/nodes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
+      );
+      return { response, payload: (await response.json()) as Record<string, unknown> };
+    }
 
     const approveResponse = await route.POST(
       new Request('http://localhost/api/ops/nodes', {
@@ -419,5 +437,131 @@ describe('ops routes', () => {
       cleared: true,
     });
     expect(clearApprovedCommands).toHaveBeenCalledTimes(1);
+
+    const blankPersona = await postAction({
+      action: 'bindings.setPersona',
+      channel: 'telegram',
+      personaId: 42,
+    });
+    expect(blankPersona.response.status).toBe(200);
+    expect(updateChannelBindingPersona).toHaveBeenLastCalledWith('ops-user', 'telegram', null);
+
+    const unknownPersona = await postAction({
+      action: 'bindings.setPersona',
+      channel: 'telegram',
+      personaId: 'missing-persona',
+    });
+    expect(unknownPersona.response.status).toBe(400);
+    expect(unknownPersona.payload.error).toBe('Unknown personaId.');
+
+    const unsupportedBinding = await postAction({
+      action: 'bindings.setPersona',
+      channel: 'unknown',
+    });
+    expect(unsupportedBinding.response.status).toBe(400);
+    expect(unsupportedBinding.payload.error).toBe('Unsupported channel.');
+
+    updateChannelBindingPersona = undefined;
+    const unavailableBinding = await postAction({
+      action: 'bindings.setPersona',
+      channel: 'telegram',
+    });
+    expect(unavailableBinding.response.status).toBe(400);
+    expect(unavailableBinding.payload.error).toBe(
+      'Channel binding persona updates are unavailable.',
+    );
+
+    pairChannel.mockResolvedValueOnce(null);
+    const connectFallback = await postAction({
+      action: 'channels.connect',
+      channel: 'slack',
+      token: 42,
+      accountId: '   ',
+    });
+    expect(connectFallback.response.status).toBe(200);
+    expect(connectFallback.payload.mutation).toMatchObject({
+      action: 'channels.connect',
+      channel: 'slack',
+      status: 'connected',
+    });
+    expect(connectFallback.payload.mutation).not.toHaveProperty('accountId');
+    expect(pairChannel.mock.lastCall).toHaveLength(3);
+    expect(pairChannel.mock.lastCall?.slice(0, 2)).toEqual(['slack', '']);
+
+    const unsupportedConnect = await postAction({ action: 'channels.connect', channel: 'email' });
+    expect(unsupportedConnect.response.status).toBe(400);
+    expect(unsupportedConnect.payload.error).toBe('Unsupported channel for pairing.');
+
+    const blankDisconnect = await postAction({
+      action: 'channels.disconnect',
+      channel: 'telegram',
+      accountId: '   ',
+    });
+    expect(blankDisconnect.response.status).toBe(200);
+    expect(unpairChannel.mock.lastCall).toHaveLength(2);
+    expect(unpairChannel.mock.lastCall?.[0]).toBe('telegram');
+    expect(unpairChannel.mock.lastCall?.at(1)).toBeUndefined();
+
+    const unsupportedDisconnect = await postAction({
+      action: 'channels.disconnect',
+      channel: 'email',
+    });
+    expect(unsupportedDisconnect.response.status).toBe(400);
+    expect(unsupportedDisconnect.payload.error).toBe('Unsupported channel for unpair.');
+
+    const unsupportedRotation = await postAction({
+      action: 'channels.rotateSecret',
+      channel: 'telegram',
+    });
+    expect(unsupportedRotation.response.status).toBe(400);
+    expect(unsupportedRotation.payload.error).toBe(
+      'Secret rotation is only supported for bridge channels.',
+    );
+
+    const fallbackRotation = await postAction({
+      action: 'channels.rotateSecret',
+      channel: 'imessage',
+      accountId: '   ',
+    });
+    expect(fallbackRotation.response.status).toBe(200);
+    expect(normalizeBridgeAccountId).toHaveBeenLastCalledWith(null);
+
+    revokeCommand.mockReturnValueOnce(false);
+    const missingRevoke = await postAction({ action: 'exec.revoke', command: 'missing command' });
+    expect(missingRevoke.response.status).toBe(200);
+    expect(missingRevoke.payload.mutation).toMatchObject({ revoked: false });
+
+    const missingCommand = await postAction({ action: 'exec.approve' });
+    expect(missingCommand.response.status).toBe(400);
+    expect(missingCommand.payload.error).toBe('command must be a string.');
+
+    const blankAction = await postAction({ action: '   ' });
+    expect(blankAction.response.status).toBe(400);
+    expect(blankAction.payload.error).toBe('action is required.');
+
+    const unsupportedAction = await postAction({ action: 'unknown.action' });
+    expect(unsupportedAction.response.status).toBe(400);
+    expect(unsupportedAction.payload.error).toBe('Unsupported action.');
+
+    pairChannel.mockRejectedValueOnce('provider unavailable');
+    const unexpectedFailure = await postAction({
+      action: 'channels.connect',
+      channel: 'telegram',
+    });
+    expect(unexpectedFailure.response.status).toBe(500);
+    expect(unexpectedFailure.payload.error).toBe('Failed to apply nodes action.');
+
+    const malformedBody = await route.POST(
+      new Request('http://localhost/api/ops/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{',
+      }),
+    );
+    expect(malformedBody.status).toBe(500);
+
+    listChannelBindings.mockReturnValueOnce(null);
+    const fallbackBindings = await route.GET(new Request('http://localhost/api/ops/nodes'));
+    expect(fallbackBindings.status).toBe(200);
   });
 });

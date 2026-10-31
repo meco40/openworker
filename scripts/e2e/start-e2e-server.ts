@@ -85,6 +85,7 @@ async function main(): Promise<void> {
 
   env.NODE_ENV = env.NODE_ENV || 'production';
   env.NEXTAUTH_SECRET = env.NEXTAUTH_SECRET || 'e2e-local-nextauth-secret';
+  env.NEXTAUTH_URL = `http://127.0.0.1:${appPort}`;
   // Docker injects HOSTNAME with a container id; force loopback for Playwright health checks.
   env.HOSTNAME = '127.0.0.1';
   env.PORT = String(appPort);
@@ -93,6 +94,9 @@ async function main(): Promise<void> {
   env.MODEL_HUB_TEST_MODE = '1';
   env.BETACLAW_EXEC_APPROVALS_REQUIRED = 'false';
   env.MEMORY_PROVIDER = 'mem0';
+  env.WORLD_MODEL_MODE = 'off';
+  env.WORLD_MODEL_ENABLED = 'false';
+  env.WORLD_MODEL_INGESTION_BRIDGE = 'false';
   env.MEM0_BASE_URL = `http://127.0.0.1:${mem0Port}`;
   env.MEM0_API_KEY = env.MEM0_API_KEY || 'test-mem0-key';
   env.MEM0_API_PATH = '/v1';

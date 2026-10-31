@@ -437,4 +437,242 @@ describe('knowledge runtime', () => {
     runtime.resetKnowledgeRuntimeForTests();
     expect(globals.__knowledgeRepository).toBeUndefined();
   });
+
+  it('triggers one-shot ingestion only when a validated conversation has pending messages', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const listMessages = vi.fn<MockProcedure>();
+    const getIngestionCheckpoint = vi.fn<MockProcedure>();
+    const messageRepository = { listMessages };
+    const knowledgeRepository = { getIngestionCheckpoint };
+    globals.__knowledgeMessageRepository =
+      messageRepository as unknown as RuntimeGlobals['__knowledgeMessageRepository'];
+    globals.__knowledgeRepository =
+      knowledgeRepository as unknown as RuntimeGlobals['__knowledgeRepository'];
+    globals.__knowledgeCursor = {} as RuntimeGlobals['__knowledgeCursor'];
+    globals.__knowledgeExtractor = {} as RuntimeGlobals['__knowledgeExtractor'];
+
+    const instances: Array<{
+      deps: Record<string, unknown>;
+      options: Record<string, unknown>;
+      ingest: ReturnType<typeof vi.fn>;
+    }> = [];
+    class MockKnowledgeIngestionService {
+      ingest = vi.fn<(_input: unknown) => Promise<void>>(async (_input: unknown) => {});
+      constructor(deps: unknown, options: Record<string, unknown>) {
+        instances.push({
+          deps: deps as Record<string, unknown>,
+          options,
+          ingest: this.ingest,
+        });
+      }
+      ingestConversationWindow(input: unknown) {
+        return this.ingest(input);
+      }
+    }
+
+    listMessages
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce([{ seq: 0 }])
+      .mockReturnValueOnce([{ seq: 1 }, { seq: 2 }])
+      .mockReturnValueOnce([{ seq: 0 }, { seq: 2 }, { seq: 4 }, { seq: 5 }]);
+    getIngestionCheckpoint.mockReturnValueOnce(null).mockReturnValue({ lastSeq: 2 });
+    vi.doMock('../../../src/server/knowledge/ingestion/service', () => ({
+      KnowledgeIngestionService: MockKnowledgeIngestionService,
+    }));
+    vi.doMock('../../../src/server/memory/runtime', () => ({
+      getMemoryServiceIfReady: vi.fn<() => null>(() => null),
+      getMemoryService: vi.fn<() => { shouldNotBeUsed: boolean }>(() => ({
+        shouldNotBeUsed: true,
+      })),
+    }));
+    vi.doMock('../../../src/server/personas/personaRepository', () => ({
+      getPersonaRepository: () => ({
+        getPersona: (personaId: string) => {
+          if (personaId === 'broken') throw new Error('repository unavailable');
+          return personaId === 'missing' ? undefined : { name: 'Casey' };
+        },
+      }),
+    }));
+
+    const runtime = await import('@/server/knowledge/runtime');
+
+    await expect(
+      runtime.ensureKnowledgeIngestedForConversation({
+        conversationId: ' ',
+        userId: 'user-a',
+        personaId: 'persona-a',
+      }),
+    ).resolves.toEqual({ triggered: false, pendingMessages: 0 });
+    await expect(
+      runtime.ensureKnowledgeIngestedForConversation({
+        conversationId: 'conv-a',
+        userId: 'user-a',
+        personaId: 'persona-a',
+      }),
+    ).resolves.toEqual({ triggered: false, pendingMessages: 0 });
+    await expect(
+      runtime.ensureKnowledgeIngestedForConversation({
+        conversationId: 'conv-a',
+        userId: 'user-a',
+        personaId: 'persona-a',
+      }),
+    ).resolves.toEqual({ triggered: false, pendingMessages: 0 });
+    await expect(
+      runtime.ensureKnowledgeIngestedForConversation({
+        conversationId: 'conv-a',
+        userId: 'user-a',
+        personaId: 'persona-a',
+      }),
+    ).resolves.toEqual({ triggered: false, pendingMessages: 0 });
+    await expect(
+      runtime.ensureKnowledgeIngestedForConversation({
+        conversationId: 'conv-a',
+        userId: 'user-a',
+        personaId: 'persona-a',
+      }),
+    ).resolves.toEqual({ triggered: false, pendingMessages: 0 });
+    const triggered = await runtime.ensureKnowledgeIngestedForConversation({
+      conversationId: ' conv-a ',
+      userId: ' user-a ',
+      personaId: ' persona-a ',
+    });
+    expect(listMessages.mock.results.map((result) => result.value)).toEqual([
+      null,
+      [],
+      [{ seq: 0 }],
+      [{ seq: 1 }, { seq: 2 }],
+      [{ seq: 0 }, { seq: 2 }, { seq: 4 }, { seq: 5 }],
+    ]);
+    expect(getIngestionCheckpoint.mock.results.map((result) => result.value)).toEqual([
+      null,
+      { lastSeq: 2 },
+      { lastSeq: 2 },
+    ]);
+    expect(triggered).toEqual({ triggered: true, pendingMessages: 2 });
+
+    expect(listMessages).toHaveBeenCalledTimes(5);
+    expect(listMessages).toHaveBeenLastCalledWith('conv-a', 1000, undefined, 'user-a');
+    expect(getIngestionCheckpoint).toHaveBeenCalledTimes(3);
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.options).toEqual({ minMessagesPerBatch: 1 });
+    expect(instances[0]?.ingest).toHaveBeenCalledWith({
+      conversationId: 'conv-a',
+      userId: 'user-a',
+      personaId: 'persona-a',
+      messages: [{ seq: 0 }, { seq: 2 }, { seq: 4 }, { seq: 5 }],
+    });
+    const instance = instances[0];
+    if (!instance) throw new Error('ingestion instance was not created');
+    const dependencies = instance.deps;
+    expect(dependencies.memoryService).toBeNull();
+    expect((dependencies.memoryServiceProvider as () => unknown)()).toBeNull();
+    const resolvePersonaName = dependencies.resolvePersonaName as (id: string) => string | null;
+    expect(resolvePersonaName('persona-a')).toBe('Casey');
+    expect(resolvePersonaName('missing')).toBeNull();
+    expect(resolvePersonaName('broken')).toBeNull();
+    expect(consoleWarn).toHaveBeenCalledWith(
+      '[knowledge] Mem0 unavailable — Mem0 storage will be skipped during ingestion.',
+      'runtime degraded',
+    );
+  });
+
+  it('runs disabled maintenance callbacks across scopes and logs reconciliation failures', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    type RuntimeCallbacks = {
+      enabled: boolean;
+      intervalMs: number;
+      runIngestion: () => Promise<void>;
+      runCleanup: () => Promise<void>;
+      runReconciliation: () => Promise<void>;
+    };
+    let capturedOptions: RuntimeCallbacks | null = null;
+    class MockKnowledgeRuntimeLoop {
+      start = vi.fn<MockProcedure>();
+      stop = vi.fn<MockProcedure>();
+      constructor(options: unknown) {
+        capturedOptions = options as RuntimeCallbacks;
+      }
+    }
+
+    const scopes = [
+      { userId: 'user-a', personaId: 'persona-a' },
+      { userId: 'user-b', personaId: 'persona-b' },
+    ];
+    const listKnowledgeScopes = vi.fn<() => { userId: string; personaId: string }[]>(() => scopes);
+    const listEpisodes = vi.fn<MockProcedure>((input: { userId: string }) =>
+      input.userId === 'user-a'
+        ? [
+            { id: 'ep-1', teaser: 'teaser', facts: ['ordinary fact'], updatedAt: null },
+            { id: 'ep-2', teaser: 'empty', facts: undefined, updatedAt: null },
+          ]
+        : [],
+    );
+    const listMeetingLedger = vi.fn<() => never[]>(() => []);
+    globals.__knowledgeRepository = {
+      listKnowledgeScopes,
+      listEpisodes,
+      listMeetingLedger,
+    } as unknown as RuntimeGlobals['__knowledgeRepository'];
+    const runOnce = vi.fn<() => Promise<void>>(async () => {});
+    globals.__knowledgeIngestionService = {
+      runOnce,
+    } as unknown as RuntimeGlobals['__knowledgeIngestionService'];
+
+    mockKnowledgeConfig({
+      layerEnabled: false,
+      episodeEnabled: false,
+      ledgerEnabled: false,
+      ingestIntervalMs: 3_000,
+    });
+    vi.doMock('../../../src/server/knowledge/runtimeLoop', () => ({
+      KnowledgeRuntimeLoop: MockKnowledgeRuntimeLoop,
+    }));
+    vi.doMock('../../../src/server/knowledge/cleanupDetector', () => ({
+      detectPlaceholder: () => false,
+      detectStaleRelativeTime: () => false,
+      detectLowRelevance: () => false,
+    }));
+    vi.doMock('../../../src/server/knowledge/reconciliation', () => ({
+      detectOrphans: vi.fn<() => { mem0OrphansFound: number; knowledgeOrphansFound: number }>(
+        () => ({ mem0OrphansFound: 0, knowledgeOrphansFound: 0 }),
+      ),
+    }));
+    const getMemoryService = vi.fn<MockProcedure>();
+    vi.doMock('../../../src/server/memory/runtime', () => ({
+      getMemoryServiceIfReady: () => null,
+      getMemoryService,
+    }));
+
+    const runtime = await import('@/server/knowledge/runtime');
+    const loop = runtime.startKnowledgeRuntimeLoop() as unknown as {
+      start: ReturnType<typeof vi.fn>;
+      stop: ReturnType<typeof vi.fn>;
+    };
+    expect(capturedOptions).toMatchObject({ enabled: false, intervalMs: 3_000 });
+    await capturedOptions!.runIngestion();
+    await capturedOptions!.runCleanup();
+    await capturedOptions!.runReconciliation();
+
+    expect(runOnce).toHaveBeenCalledOnce();
+    expect(listKnowledgeScopes).toHaveBeenCalledTimes(2);
+    expect(listEpisodes).toHaveBeenCalledTimes(4);
+    expect(listMeetingLedger).toHaveBeenCalledTimes(2);
+    expect(getMemoryService).not.toHaveBeenCalled();
+    expect(consoleLog).not.toHaveBeenCalled();
+    expect(loop.start).toHaveBeenCalledOnce();
+
+    listKnowledgeScopes.mockImplementationOnce(() => {
+      throw new Error('scope index unavailable');
+    });
+    await capturedOptions!.runReconciliation();
+    expect(consoleWarn).toHaveBeenCalledWith(
+      '[knowledge] reconciliation skipped:',
+      expect.any(Error),
+    );
+
+    runtime.resetKnowledgeRuntimeForTests();
+    expect(loop.stop).toHaveBeenCalledOnce();
+  });
 });

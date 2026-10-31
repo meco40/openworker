@@ -24,11 +24,15 @@ describe('ws chat abort e2e', () => {
       personaId: 'persona-nexus',
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    const abortResponse = await client.request('chat.abort', { conversationId });
-
-    expect(abortResponse.ok).toBe(true);
-    expect((abortResponse.payload as { aborted: boolean }).aborted).toBe(true);
+    const abortDeadline = Date.now() + 15_000;
+    let aborted = false;
+    while (!aborted && Date.now() < abortDeadline) {
+      const response = await client.request('chat.abort', { conversationId });
+      expect(response.ok).toBe(true);
+      aborted = Boolean((response.payload as { aborted?: boolean }).aborted);
+      if (!aborted) await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    expect(aborted).toBe(true);
 
     const frames = await streamPromise;
     expect(frames.some((frame) => frame.done)).toBe(true);

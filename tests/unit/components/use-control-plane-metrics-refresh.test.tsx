@@ -29,9 +29,8 @@ describe('useControlPlaneMetrics refresh lifecycle', () => {
   });
 
   it('refreshes on mount and at the interval while visible', async () => {
-    const { result, unmount } = await import('@/modules/app-shell/useControlPlaneMetrics').then(
-      ({ useControlPlaneMetrics }) => renderHook(() => useControlPlaneMetrics()),
-    );
+    const { useControlPlaneMetrics } = await import('@/modules/app-shell/useControlPlaneMetrics');
+    const { result, unmount } = renderHook(() => useControlPlaneMetrics());
 
     await act(async () => {
       await Promise.resolve();

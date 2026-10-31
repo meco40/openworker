@@ -3,6 +3,26 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelType } from '@/shared/domain/types';
 import { getTestArtifactsRoot } from '../helpers/testArtifacts';
+import type { MockProcedure } from '../helpers/mockProcedure';
+
+vi.mock('@/server/world-model/metrics', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/server/world-model/metrics')>();
+  return {
+    ...actual,
+    getWorldModelMetrics: vi.fn<MockProcedure>(async () =>
+      actual.summarizeWorldModelMetrics(
+        {
+          pendingObservations: 0,
+          outboxAgeMs: 0,
+          outboxDeadLetters: 0,
+          dueOpenLoops: 0,
+          projectionLagMs: 0,
+        },
+        'off',
+      ),
+    ),
+  };
+});
 
 type GlobalSingletons = typeof globalThis & {
   __tokenUsageRepository?: unknown;

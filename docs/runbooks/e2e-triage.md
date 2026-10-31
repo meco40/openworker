@@ -2,9 +2,9 @@
 
 ## 1. Determine failing lane
 
-- Smoke: `npm run test:e2e:smoke`
-- Browser: `npm run test:e2e:browser`
-- Live: `npm run test:e2e:live`
+- Smoke: `pnpm run test:e2e:smoke`
+- Browser: `pnpm run test:e2e:browser`
+- Live: `pnpm run test:e2e:live`
 
 ## 2. Fast local reproduction
 
@@ -17,6 +17,17 @@
 - Missing `MODEL_HUB_TEST_MODE=1` in E2E server bootstrap
 - Missing test selectors (`data-testid`) after UI refactor
 - Live lane env missing (`MEM0_BASE_URL`, `MEM0_API_KEY`)
+- Smoke and browser fixtures use mocked Mem0 and explicitly disable World Model mode,
+  its legacy enable flag, and ingestion bridge. Local canonical settings must not
+  make these lanes connect to PostgreSQL. Run the PostgreSQL integration lane separately.
+- Keep `TEST_ARTIFACTS_ROOT` inside the workspace under `.local/test-artifacts`.
+  SQL and external-skill fixtures enforce the workspace boundary. Concurrent runs
+  need separate child directories so cleanup cannot remove another run's fixtures.
+- On Windows, bind-mounted source can cause import and repository-scan timeouts.
+  Reproduce using the same working-tree files in the container filesystem before
+  changing application code or test timeouts.
+- Graphiti live tests require its configured Model-Hub adapter to be running;
+  Graphiti's health endpoint alone does not verify that the adapter is reachable.
 
 ## 4. Decision
 

@@ -317,6 +317,10 @@ pnpm run rust:fmt:check
 $env:WORLD_MODEL_E2E='true'
 corepack pnpm exec vitest run tests/integration/world-model
 
+# Coverage einschließlich PostgreSQL-World-Model-Pfaden (isolierte Testdatenbank)
+$env:WORLD_MODEL_COVERAGE_TEST_DATABASE_URL=$env:WORLD_MODEL_APP_DATABASE_URL
+pnpm run test:coverage
+
 # E2E Baseline (Alias auf Smoke-Lane)
 pnpm run test:e2e
 

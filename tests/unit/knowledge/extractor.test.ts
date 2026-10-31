@@ -162,4 +162,171 @@ describe('KnowledgeExtractor', () => {
     expect(result.facts.some((fact) => /^hallo$/i.test(fact))).toBe(false);
     expect(result.facts.some((fact) => /niemals zu spät kommen/i.test(fact))).toBe(true);
   });
+
+  it('uses a safe generic fallback when the conversation has no meaningful user content', async () => {
+    const result = await new KnowledgeExtractor().extract({
+      conversationId: 'conv-empty',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      messages: [
+        {
+          ...buildMeetingTranscript()[0],
+          id: 'system',
+          role: 'system',
+          content: 'Andreas hat entschieden: vertraulich',
+          seq: 1,
+        },
+        {
+          ...buildMeetingTranscript()[0],
+          id: 'empty',
+          role: 'user',
+          content: 'Hallo',
+          seq: 0,
+        },
+      ],
+    });
+
+    expect(result.facts).toEqual(['Wichtige Details aus dem Verlauf wurden besprochen.']);
+    expect(result.meetingLedger).toMatchObject({
+      topicKey: 'general-meeting',
+      counterpart: null,
+      participants: ['Ich'],
+      sourceRefs: [],
+      confidence: 0.35,
+    });
+    expect(result.teaser).toContain('den Termin');
+    expect(wordCount(result.episode)).toBeGreaterThanOrEqual(400);
+  });
+
+  it.each(['not-json', 'null', '[]'])(
+    'falls back when the model returns an invalid payload: %s',
+    async (response) => {
+      const extractor = new KnowledgeExtractor({ runExtractionModel: async () => response });
+      const result = await extractor.extract({
+        conversationId: 'conv-1',
+        userId: 'user-1',
+        personaId: 'persona-1',
+        messages: buildMeetingTranscript(),
+      });
+
+      expect(result.facts.length).toBeGreaterThan(0);
+      expect(result.meetingLedger.counterpart).toBe('Andreas');
+    },
+  );
+
+  it('fills empty model fields from the transcript when structured sections are invalid', async () => {
+    const extractor = new KnowledgeExtractor({
+      runExtractionModel: async () =>
+        JSON.stringify({
+          facts: null,
+          teaser: '',
+          episode: '',
+          meetingLedger: [],
+          events: 'invalid',
+          entities: null,
+        }),
+    });
+
+    const result = await extractor.extract({
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      messages: buildMeetingTranscript(),
+    });
+
+    expect(result.facts.length).toBeGreaterThan(0);
+    expect(wordCount(result.teaser)).toBe(80);
+    expect(wordCount(result.episode)).toBe(400);
+    expect(result.events).toEqual([]);
+    expect(result.entities).toEqual([]);
+    expect(result.meetingLedger).toMatchObject({
+      topicKey: 'general-meeting',
+      counterpart: 'Andreas',
+      participants: [],
+      sourceRefs: expect.arrayContaining([
+        { seq: 1, quote: 'Wir starten das Meeting mit Andreas um 09:00 Uhr.' },
+      ]),
+      confidence: 0.6,
+    });
+  });
+
+  it('normalizes malformed model fields, source references, events, and confidence', async () => {
+    const input = {
+      conversationId: 'conv-1',
+      userId: 'user-1',
+      personaId: 'persona-1',
+      messages: buildMeetingTranscript(),
+    };
+    const teaser = Array.from({ length: 180 }, (_, idx) => `teaser${idx}`).join(' ');
+    const episode = Array.from({ length: 900 }, (_, idx) => `episode${idx}`).join(' ');
+    const extractor = new KnowledgeExtractor({
+      runExtractionModel: async () =>
+        JSON.stringify({
+          facts: [0, ' ', 'Erneut vereinbart: Der Vertrag gilt bis Freitag.'],
+          teaser,
+          episode,
+          meetingLedger: {
+            topicKey: ' ',
+            counterpart: '',
+            participants: 'not-an-array',
+            decisions: [0, ' Entscheidung bestätigt '],
+            negotiatedTerms: null,
+            openPoints: [false],
+            actionItems: [' Aufgabe senden '],
+            sourceRefs: [
+              null,
+              'not-a-reference',
+              { seq: 'not-finite', quote: 'invalid' },
+              { seq: 3, quote: '  ' },
+              { seq: 2.9, quote: '  belegte Aussage  ' },
+            ],
+            confidence: 'not-finite',
+          },
+          events: [
+            null,
+            'not-an-event',
+            {},
+            { eventType: 'meeting', speakerRole: '', sourceSeq: 'not-an-array' },
+            {
+              eventType: 'trip',
+              speakerRole: 'user',
+              relationLabel: ' Beziehung ',
+              dayCount: -2,
+              sourceSeq: [1, 'not-finite', 2],
+            },
+          ],
+          entities: [],
+        }),
+    });
+
+    const result = await extractor.extract(input);
+
+    expect(result.facts).toEqual(['Erneut vereinbart: Der Vertrag gilt bis Freitag.']);
+    expect(wordCount(result.teaser)).toBe(150);
+    expect(wordCount(result.episode)).toBe(800);
+    expect(result.meetingLedger).toMatchObject({
+      topicKey: 'general-meeting',
+      counterpart: 'Andreas',
+      participants: [],
+      decisions: ['Entscheidung bestätigt'],
+      negotiatedTerms: [],
+      openPoints: [],
+      actionItems: ['Aufgabe senden'],
+      sourceRefs: [{ seq: 2, quote: 'belegte Aussage' }],
+      confidence: 0.6,
+    });
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0]).toMatchObject({
+      speakerRole: 'assistant',
+      relationLabel: null,
+      sourceSeq: [],
+    });
+    expect(result.events[1]).toMatchObject({
+      speakerRole: 'user',
+      relationLabel: 'Beziehung',
+      dayCount: 1,
+      sourceSeq: [1, 2],
+    });
+    expect(result.entities).toEqual([]);
+  });
 });

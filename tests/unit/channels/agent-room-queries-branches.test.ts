@@ -58,7 +58,7 @@ describe('AgentRoomQueries branches', () => {
       units: [{ personaId: 'persona-1', role: 'lead' }],
       status: 'mystery' as never,
       currentPhase: 'weird' as never,
-      consensusScore: Number.NaN,
+      consensusScore: 0.25,
       holdFlag: true,
       artifact: '{"ok":true}',
       artifactHistory: ['v1'],
@@ -78,7 +78,9 @@ describe('AgentRoomQueries branches', () => {
     expect(created.userId).toBe('user-1');
     expect(created.status).toBe('idle');
     expect(created.currentPhase).toBe('analysis');
+    expect(created.consensusScore).toBe(0.25);
     expect(queries.listAgentRoomSwarms(' user-1 ', 999)).toHaveLength(1);
+    expect(queries.listAgentRoomSwarms(' user-1 ', 0)).toHaveLength(1);
     expect(queries.getAgentRoomSwarm(created.id, 'USER-1')?.id).toBe(created.id);
     expect(queries.getAgentRoomSwarm('missing', 'user-1')).toBeNull();
     expect(queries.isAgentRoomConversation('conv-1', 'USER-1')).toBe(true);
@@ -101,10 +103,36 @@ describe('AgentRoomQueries branches', () => {
     db.prepare(
       'UPDATE agent_room_swarms SET phase_buffer_json = ?, status = ?, hold_flag = 0 WHERE id = ?',
     ).run(
-      JSON.stringify(['agentsession:persona-x:session-x:7', 'speaker:persona-y', 'invalid']),
+      JSON.stringify([
+        { type: 'speaker', personaId: 'persona-typed' },
+        42,
+        'agentsession:persona-x:session-x:7',
+        'agentsession:persona-zero:session-zero:not-a-number',
+        'agentsession:short',
+        'speaker:persona-y',
+        'speaker:   ',
+        'invalid',
+      ]),
       'unknown',
       created.id,
     );
+
+    expect(queries.getAgentRoomSwarm(created.id, 'user-2')?.phaseBuffer).toEqual([
+      { type: 'speaker', personaId: 'persona-typed' },
+      { type: 'agentsession', personaId: 'persona-x', sessionId: 'session-x', lastSeq: 7 },
+      { type: 'agentsession', personaId: 'persona-zero', sessionId: 'session-zero', lastSeq: 0 },
+      { type: 'speaker', personaId: 'persona-y' },
+    ]);
+
+    db.prepare('UPDATE agent_room_swarms SET status = ?, current_phase = ? WHERE id = ?').run(
+      '',
+      '',
+      created.id,
+    );
+    expect(queries.getAgentRoomSwarm(created.id, 'user-2')).toMatchObject({
+      status: 'idle',
+      currentPhase: 'analysis',
+    });
 
     const patched = queries.updateAgentRoomSwarm(created.id, 'user-2', {
       sessionId: 'sess-2',
@@ -141,6 +169,39 @@ describe('AgentRoomQueries branches', () => {
     });
     expect(patched?.phaseBuffer).toEqual([{ type: 'speaker', personaId: 'persona-z' }]);
     expect(queries.updateAgentRoomSwarm('missing', 'user-2', { title: 'nope' })).toBeNull();
+    expect(queries.updateAgentRoomSwarm(created.id, 'user-2', {})).toMatchObject({
+      title: 'Updated',
+      status: 'completed',
+      lastSeq: 22,
+    });
+    expect(
+      queries.updateAgentRoomSwarm(created.id, 'user-2', {
+        sessionId: '',
+        holdFlag: true,
+        currentDeployCommandId: '',
+        searchEnabled: true,
+        swarmTemplate: 'template-2',
+        pauseBetweenPhases: true,
+      }),
+    ).toMatchObject({
+      sessionId: null,
+      holdFlag: true,
+      currentDeployCommandId: null,
+      searchEnabled: true,
+      swarmTemplate: 'template-2',
+      pauseBetweenPhases: true,
+    });
+
+    db.prepare('UPDATE agent_room_swarms SET phase_buffer_json = ? WHERE id = ?').run(
+      '{malformed-json',
+      created.id,
+    );
+    expect(queries.getAgentRoomSwarm(created.id, 'user-2')?.phaseBuffer).toEqual([]);
+    db.prepare('UPDATE agent_room_swarms SET phase_buffer_json = ? WHERE id = ?').run(
+      '{}',
+      created.id,
+    );
+    expect(queries.getAgentRoomSwarm(created.id, 'user-2')?.phaseBuffer).toEqual([]);
 
     queries.createAgentRoomSwarm({
       conversationId: 'conv-3',
@@ -152,11 +213,18 @@ describe('AgentRoomQueries branches', () => {
       status: 'running',
     });
     expect(queries.recoverRunningSwarms()).toBe(1);
+    expect(queries.recoverRunningSwarms()).toBe(0);
     expect(queries.listRunningSwarms(500)).toHaveLength(0);
+    expect(queries.listRunningSwarms(0)).toHaveLength(0);
   });
 
   it('deletes swarms and computes metrics with fallback values', () => {
     const { queries } = createQueries();
+    expect(queries.getAgentRoomSwarmMetrics('missing-user')).toEqual({
+      runningSwarms: 0,
+      holdSwarms: 0,
+      lastErrorAt: null,
+    });
     const running = queries.createAgentRoomSwarm({
       conversationId: 'conv-4',
       userId: 'user-3',

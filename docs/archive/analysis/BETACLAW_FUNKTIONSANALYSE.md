@@ -1,7 +1,7 @@
 # BetaClaw Funktionsanalyse für WebApp-Integration
 
 **Analysedatum:** 2025-02-11  
-**Quelle:** BetaClaw Demo Repository (demo/betaclaw-main)<br>
+**Quelle:** BetaClaw Demo Repository (demo/betaclaw-main)  
 **Ziel:** Identifikation wertvoller Funktionen für unsere WebApp
 
 ---

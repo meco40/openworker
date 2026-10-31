@@ -76,8 +76,8 @@ describe('telegram polling lease coordination', () => {
       'polling_lease_until',
       new Date(Date.now() + 10_000).toISOString(),
     );
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, result: [] }), { status: 200 }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () => new Response(JSON.stringify({ ok: true, result: [] }), { status: 200 }),
     );
 
     await startTelegramPolling();
@@ -96,8 +96,8 @@ describe('telegram polling lease coordination', () => {
       'polling_lease_until',
       new Date(Date.now() + 5_000).toISOString(),
     );
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, result: [] }), { status: 200 }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () => new Response(JSON.stringify({ ok: true, result: [] }), { status: 200 }),
     );
 
     await startTelegramPolling();

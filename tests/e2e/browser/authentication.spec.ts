@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Authentication & User Management', () => {
   test('load application without errors', async ({ page }) => {
     await page.goto('/');
+    await expect(page).toHaveTitle('BetaClaw Gateway');
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 });
   });
 

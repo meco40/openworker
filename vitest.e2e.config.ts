@@ -5,6 +5,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    env: {
+      WORLD_MODEL_MODE: 'off',
+      WORLD_MODEL_ENABLED: 'false',
+      WORLD_MODEL_INGESTION_BRIDGE: 'false',
+    },
     globalSetup: ['tests/setup/test-artifacts.global-setup.ts'],
     setupFiles: ['tests/setup/test-artifacts.setup.ts'],
     include: ['tests/e2e/**/*.e2e.test.ts'],
