@@ -101,7 +101,7 @@ pub fn built_in_skills() -> Vec<BuiltInSkillSeed> {
             manifest: SkillManifest {
                 id: "shell-access",
                 name: "Shell",
-                description: "Runs commands on the host in the workspace directory. Not sandboxed: commands run with the server user permissions. Set BETACLAW_EXEC_APPROVALS_REQUIRED=true to require approval.",
+                description: "Runs commands on the host in the workspace directory. Not sandboxed: commands run with the server user permissions. Unapproved commands require approval by default; set BETACLAW_EXEC_APPROVALS_REQUIRED=false to disable it.",
                 version: "2.1.0",
                 category: "Automation",
                 function_name: "shell_execute",

@@ -22,6 +22,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
+import { areExecApprovalsRequired } from '@/server/skills/execApprovalPolicy';
 import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
@@ -131,10 +132,8 @@ export async function processManagerHandler(
       };
     }
 
-    const requiresApproval =
-      String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
     if (
-      requiresApproval &&
+      areExecApprovalsRequired() &&
       !context?.bypassApproval &&
       !isCommandApproved(normalizeCommand(command))
     ) {

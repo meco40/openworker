@@ -228,6 +228,43 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
 
 ## 7. Fortschrittsnotizen
 
+### 2026-10-31 — Refuseless im Model Hub
+
+Refuseless ist in beiden Provider-Katalogen und Adapter-Registries ergänzt
+(16 Anbieter). Rust und TypeScript nutzen den gemeinsamen OpenAI-kompatiblen
+Transport für Bearer-Auth, Chat, Streaming, Tools und den Verbindungstest.
+Das vorbelegte Modell `deepseek-v4.1-flash-abliterated` erhält den Anzeigenamen
+und das Kontextlimit aus der Anbieterkonfiguration; sein Ausgabelimit ist
+131.072 Tokens. Die Reasoning-Auswahl steht auch im Chat-Profil zur Verfügung.
+`off` wird als `none`, `medium` als unterstütztes `low` übertragen. Ein eigener
+Refuseless-Key ist erforderlich; vorhandene OpenCode-Konten bleiben unverändert.
+
+Verifikation: 25 gezielte TypeScript-Tests und 553 Model-Hub-Tests in Rust
+bestanden. Typecheck, Next.js-Produktionsbuild, Oxlint ohne Diagnosen, Rustfmt
+und Clippy für die Core-Bibliothek mit `-D warnings` erfolgreich. Der laufende
+Rust-Gateway liefert Refuseless über `/api/model-hub/providers` aus. Ein echter
+Provideraufruf bleibt bis zur Verbindung eines Refuseless-Kontos mit API-Key
+offen; keine vollständige Workspace- oder E2E-Suite ausgeführt.
+
+### 2026-10-31 — Review der Exec-Freigaben
+
+- TypeScript bindet `areExecApprovalsRequired` in MessageService und allen vier
+  betroffenen Handlern ein. Die Freigabe bleibt bei fehlenden, leeren oder
+  unbekannten Werten aktiv; nur explizites `false` ohne umgebende Leerzeichen
+  deaktiviert sie, unabhängig von der Großschreibung.
+- Rust verwendet dieselbe Regel über `are_exec_approvals_required` sowohl für
+  `SkillExecConfig` als auch für interaktive Chat-Freigaben. Konfiguration,
+  Skill-Beschreibungen und Regressionstests bilden dieses Verhalten ab.
+- Der neue Playwright-Freigabetest verwendet das unterstützte Unterkommando
+  `test`. Bestehende Ausführungstests übergeben ihre Freigabe explizit und hängen
+  nicht mehr vom früheren offenen Default ab.
+
+Verifikation: 82 TypeScript-Tests in 23 betroffenen Testdateien und 61 gezielte
+Rust-Tests bestanden. Typecheck und Next.js-Produktionsbuild erfolgreich; Oxlint
+meldet in 2083 Dateien keine Diagnosen. Rustfmt, Clippy für die Core-Bibliothek
+mit `-D warnings` und die Formatprüfung der geänderten TS-/Dokudateien bestanden.
+Keine vollständige Workspace- oder E2E-Suite für diese Änderung ausgeführt.
+
 ### 2026-10-31 — Abhängigkeits-Audit und Updates
 
 - `cargo audit` meldete 7 Befunde (`rustls` 0.23.45: RUSTSEC-2026-0346 bis -0349,

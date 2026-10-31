@@ -3,6 +3,7 @@
  * Extracted from the monolithic index.ts
  */
 
+import { areExecApprovalsRequired } from '@/server/skills/execApprovalPolicy';
 import {
   AUTONOMOUS_BUILD_MAX_TOOL_CALLS,
   SUBAGENT_MAX_ACTIVE_PER_CONVERSATION,
@@ -24,7 +25,7 @@ export function getSubagentMaxActivePerConversation(): number {
  * Check if interactive tool approval is required
  */
 export function requiresInteractiveToolApproval(): boolean {
-  return String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
+  return areExecApprovalsRequired();
 }
 
 /**

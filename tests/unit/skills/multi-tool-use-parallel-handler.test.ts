@@ -3,18 +3,21 @@ import { multiToolUseParallelHandler } from '@/server/skills/handlers/multiToolU
 
 describe('multiToolUseParallelHandler', () => {
   it('runs supported tool calls in parallel and aggregates successful results', async () => {
-    const result = await multiToolUseParallelHandler({
-      tool_uses: [
-        {
-          recipient_name: 'functions.shell_execute',
-          parameters: { command: 'echo multi-parallel' },
-        },
-        {
-          name: 'file_read',
-          args: { path: 'README.md' },
-        },
-      ],
-    });
+    const result = await multiToolUseParallelHandler(
+      {
+        tool_uses: [
+          {
+            recipient_name: 'functions.shell_execute',
+            parameters: { command: 'echo multi-parallel' },
+          },
+          {
+            name: 'file_read',
+            args: { path: 'README.md' },
+          },
+        ],
+      },
+      { bypassApproval: true },
+    );
 
     const typed = result as {
       status: string;

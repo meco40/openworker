@@ -68,7 +68,10 @@ describe('shellExecuteHandler security', () => {
     const command = process.platform === 'win32' ? '(Get-Location).Path' : 'pwd';
 
     try {
-      const result = (await shellExecuteHandler({ command }, { workspaceCwd: workspaceDir })) as {
+      const result = (await shellExecuteHandler(
+        { command },
+        { workspaceCwd: workspaceDir, bypassApproval: true },
+      )) as {
         stdout?: string;
         exitCode?: number;
       };

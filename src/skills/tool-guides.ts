@@ -54,7 +54,7 @@ const BUILT_IN_GUIDES: Record<string, BaseGuide> = {
   },
   'shell-access': {
     whatItIs:
-      'Shell runs commands on the host (PowerShell on Windows, /bin/sh elsewhere) in the workspace directory with a timeout. Not sandboxed; set BETACLAW_EXEC_APPROVALS_REQUIRED=true to require approval.',
+      'Shell runs commands on the host (PowerShell on Windows, /bin/sh elsewhere) in the workspace directory with a timeout. Not sandboxed; unapproved commands require approval by default. Set BETACLAW_EXEC_APPROVALS_REQUIRED=false to disable it.',
     whatItCanDo: [
       'Run local checks like tests, linting, and build commands.',
       'Inspect files, git state, and environment outputs.',

@@ -5,8 +5,8 @@
 //! unreadable or wrong-version file is an empty store, as in TypeScript.
 //!
 //! [`enforce_exec_approval`] is the gate the shell, python, process and playwright
-//! handlers call. It applies only when `BETACLAW_EXEC_APPROVALS_REQUIRED` is `true`,
-//! which is the TypeScript default.
+//! handlers call. It is enabled by default; only an explicit, case-insensitive
+//! `BETACLAW_EXEC_APPROVALS_REQUIRED=false` disables it, as in TypeScript.
 //!
 //! Listing sorts by byte order. TypeScript used `localeCompare`, so the order of
 //! mixed-case commands can differ. Nothing depends on that order.
@@ -25,6 +25,11 @@ use super::types::{SkillDispatchContext, SkillEnv, SkillError};
 use crate::safe_error_message;
 
 const STORE_VERSION: f64 = 1.0;
+
+/// Mirrors `src/server/skills/execApprovalPolicy.ts`: only explicit `false` opts out.
+pub fn are_exec_approvals_required(value: Option<&str>) -> bool {
+    !value.unwrap_or("").eq_ignore_ascii_case("false")
+}
 
 /// One approved command, as stored in the JSON file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -266,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn gate_is_off_by_default_and_names_the_cli_only_for_shell_style_handlers() {
+    fn gate_respects_config_and_names_the_cli_only_for_shell_style_handlers() {
         let dir = TempDir::new();
         let ctx = SkillDispatchContext::default();
 

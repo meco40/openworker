@@ -14,6 +14,7 @@ use crate::channels::messages::service::types::{
 };
 use crate::channels::messages::service::utils::js_regex::js_regex;
 use crate::model_hub::env::EnvOverrides;
+use crate::skills::exec_approval::are_exec_approvals_required;
 
 /// `/```[\s\S]*?```/g`.
 static CODE_BLOCK_RE: LazyLock<Regex> =
@@ -59,9 +60,7 @@ pub fn get_subagent_max_active_per_conversation(env: &EnvOverrides) -> i64 {
 
 /// `requiresInteractiveToolApproval()` (`configuration.ts:26-28`).
 pub fn requires_interactive_tool_approval(env: &EnvOverrides) -> bool {
-    env.get_or("BETACLAW_EXEC_APPROVALS_REQUIRED", "false")
-        .to_lowercase()
-        == "true"
+    are_exec_approvals_required(env.get("BETACLAW_EXEC_APPROVALS_REQUIRED").as_deref())
 }
 
 /// `resolveAutonomousBuildMaxToolCalls()` (`configuration.ts:33-39`).
@@ -136,14 +135,28 @@ mod tests {
     }
 
     #[test]
-    fn approval_flag_is_case_insensitive_true_only() {
-        assert!(requires_interactive_tool_approval(
-            &EnvOverrides::new().with("BETACLAW_EXEC_APPROVALS_REQUIRED", "TRUE")
-        ));
-        assert!(!requires_interactive_tool_approval(
-            &EnvOverrides::new().with("BETACLAW_EXEC_APPROVALS_REQUIRED", "1")
-        ));
-        assert!(!requires_interactive_tool_approval(&EnvOverrides::new()));
+    fn approval_flag_is_case_insensitive_false_only() {
+        assert!(requires_interactive_tool_approval(&EnvOverrides::new()));
+        for (value, expected) in [
+            ("", true),
+            ("TRUE", true),
+            ("1", true),
+            ("yes", true),
+            (" false", true),
+            ("false ", true),
+            ("0", true),
+            ("false", false),
+            ("FALSE", false),
+            ("False", false),
+        ] {
+            assert_eq!(
+                requires_interactive_tool_approval(
+                    &EnvOverrides::new().with("BETACLAW_EXEC_APPROVALS_REQUIRED", value)
+                ),
+                expected,
+                "value: {value:?}"
+            );
+        }
     }
 
     #[test]

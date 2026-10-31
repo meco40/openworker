@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use serde_json::{Map, Value};
 
-use super::exec_approval::ExecApprovalStore;
+use super::exec_approval::{are_exec_approvals_required, ExecApprovalStore};
 use crate::personas::workspace::PersonaWorkspace;
 
 /// Locks a std mutex, ignoring poisoning. The guarded values are plain buffers and
@@ -46,7 +46,7 @@ pub struct SkillError(pub String);
 /// Exec limits and switches read from the environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkillExecConfig {
-    /// `BETACLAW_EXEC_APPROVALS_REQUIRED`, compared case-insensitively to `"true"`.
+    /// `BETACLAW_EXEC_APPROVALS_REQUIRED`: enabled unless explicitly `"false"`, ignoring case.
     pub approvals_required: bool,
     /// `BETACLAW_SHELL_TIMEOUT_MS`, clamped to 5 s ..= 2 h, default 10 min.
     pub shell_timeout: Duration,
@@ -88,7 +88,7 @@ impl SkillExecConfig {
             .unwrap_or(SHELL_MAX_BUFFER_DEFAULT)
             .clamp(SHELL_MAX_BUFFER_MIN, SHELL_MAX_BUFFER_MAX);
         Self {
-            approvals_required: approvals_required.unwrap_or("").to_lowercase() == "true",
+            approvals_required: are_exec_approvals_required(approvals_required),
             shell_timeout: Duration::from_millis(timeout as u64),
             shell_max_buffer: max_buffer as usize,
             playwright_cli_path: playwright_cli_path
@@ -291,7 +291,7 @@ mod tests {
     #[test]
     fn exec_config_defaults_and_clamps_match_the_env_parsers() {
         let defaults = SkillExecConfig::from_raw(None, None, None, None);
-        assert!(!defaults.approvals_required);
+        assert!(defaults.approvals_required);
         assert_eq!(defaults.shell_timeout, Duration::from_millis(600_000));
         assert_eq!(defaults.shell_max_buffer, 10_000_000);
         assert_eq!(defaults.playwright_cli_path, None);
@@ -305,9 +305,33 @@ mod tests {
 
         let parsed =
             SkillExecConfig::from_raw(Some(" true"), Some("30000ms"), None, Some(" /x/cli.js "));
-        assert!(!parsed.approvals_required, "no trimming, as in TypeScript");
+        assert!(parsed.approvals_required, "no trimming, as in TypeScript");
         assert_eq!(parsed.shell_timeout, Duration::from_millis(30_000));
         assert_eq!(parsed.playwright_cli_path.as_deref(), Some("/x/cli.js"));
+    }
+
+    #[test]
+    fn exec_approval_policy_fails_closed() {
+        for (value, expected) in [
+            (None, true),
+            (Some(""), true),
+            (Some("true"), true),
+            (Some("TRUE"), true),
+            (Some("1"), true),
+            (Some("yes"), true),
+            (Some(" false"), true),
+            (Some("false "), true),
+            (Some("0"), true),
+            (Some("false"), false),
+            (Some("FALSE"), false),
+            (Some("False"), false),
+        ] {
+            assert_eq!(
+                SkillExecConfig::from_raw(value, None, None, None).approvals_required,
+                expected,
+                "value: {value:?}"
+            );
+        }
     }
 
     #[test]

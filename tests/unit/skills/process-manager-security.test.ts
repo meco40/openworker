@@ -55,7 +55,7 @@ describe('processManagerHandler security', () => {
       // while the child still has workspaceDir as its cwd, which blocks deletion on Windows.
       const startResult = (await processManagerHandler(
         { action: 'start', command, start_timeout_ms: 10_000 },
-        { workspaceCwd: workspaceDir },
+        { workspaceCwd: workspaceDir, bypassApproval: true },
       )) as { ok: boolean; result?: string };
 
       expect(startResult.ok).toBe(true);
@@ -63,7 +63,7 @@ describe('processManagerHandler security', () => {
 
       const escapeResult = (await processManagerHandler(
         { action: 'start', command: 'echo hi', cwd: '..' },
-        { workspaceCwd: workspaceDir },
+        { workspaceCwd: workspaceDir, bypassApproval: true },
       )) as { ok: boolean; error?: string };
       expect(escapeResult.ok).toBe(false);
       expect(String(escapeResult.error || '')).toContain('cwd must stay within workspace root.');

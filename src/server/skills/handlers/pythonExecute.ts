@@ -2,6 +2,7 @@ import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
+import { areExecApprovalsRequired } from '@/server/skills/execApprovalPolicy';
 import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
@@ -26,10 +27,8 @@ export async function pythonExecuteHandler(
   const command = buildPythonCommand(code);
   const policy = evaluateNodeCommandPolicy(command);
   if (!policy.allowed) throw new Error(policy.reason || 'Command blocked by security policy.');
-  const requiresApproval =
-    String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
   if (
-    requiresApproval &&
+    areExecApprovalsRequired() &&
     !context?.bypassApproval &&
     !isCommandApproved(policy.normalizedCommand)
   ) {

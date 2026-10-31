@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isCommandApproved } from '@/server/gateway/exec-approval-manager';
+import { areExecApprovalsRequired } from '@/server/skills/execApprovalPolicy';
 import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
@@ -68,10 +69,8 @@ export async function playwrightCliHandler(
     throw new Error(policy.reason || 'Command blocked by security policy.');
   }
 
-  const requiresApproval =
-    String(process.env.BETACLAW_EXEC_APPROVALS_REQUIRED || 'false').toLowerCase() === 'true';
   if (
-    requiresApproval &&
+    areExecApprovalsRequired() &&
     !context?.bypassApproval &&
     !isCommandApproved(normalizeCommand(command))
   ) {
