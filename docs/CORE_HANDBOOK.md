@@ -467,22 +467,20 @@ pnpm install
 copy .env.local.example .env.local
 # Edit .env.local with your configuration
 
-# Run development server (web + scheduler combined)
+# Run the development stack (Rust gateway, Rust scheduler, Next dev server)
 pnpm run dev
 
-# Or run separately:
+# UI only:
 pnpm run dev:next      # Next.js only
-pnpm run dev:scheduler # Scheduler only
 ```
 
 ### Development Modes
 
-| Command                  | Description              | Use Case             |
-| ------------------------ | ------------------------ | -------------------- |
-| `pnpm run dev`           | Web + Scheduler combined | Local development    |
-| `pnpm run dev:next`      | Next.js dev server only  | UI-focused work      |
-| `pnpm run dev:scheduler` | Background tasks only    | Automation testing   |
-| `pnpm run dev:stack`     | Alias for `pnpm run dev` | Standard development |
+| Command              | Description              | Use Case             |
+| -------------------- | ------------------------ | -------------------- |
+| `pnpm run dev`       | Gateway + Scheduler + UI | Local development    |
+| `pnpm run dev:next`  | Next.js dev server only  | UI-focused work      |
+| `pnpm run dev:stack` | Alias for `pnpm run dev` | Standard development |
 
 ### Code Quality Gates
 
@@ -949,8 +947,7 @@ SWARM_RUNNER=server|scheduler
 
 ```bash
 # Development
-pnpm run dev              # Start web + scheduler stack
-pnpm run dev:scheduler    # Start scheduler only
+pnpm run dev              # Start gateway, scheduler and UI stack
 
 # Quality
 pnpm run check            # All checks (type, lint, format)

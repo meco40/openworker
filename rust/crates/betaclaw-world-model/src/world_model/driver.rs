@@ -49,6 +49,7 @@ use serde_json::{Map, Number, Value};
 use sqlx_core::executor::Executor as _;
 use sqlx_core::pool::PoolConnection;
 use sqlx_core::query::query;
+use sqlx_core::raw_sql::raw_sql;
 use sqlx_core::row::Row as _;
 use sqlx_core::sql_str::AssertSqlSafe;
 use sqlx_core::Either;
@@ -199,6 +200,22 @@ impl PgSession for SqlxPgSession {
                 .as_mut()
                 .ok_or_else(|| PgError::new("the session was released"))?;
             run_statement(connection, statement).await
+        })
+    }
+
+    fn execute_script<'a>(&'a self, sql: &'a str) -> BoxFuture<'a, Result<(), PgError>> {
+        Box::pin(async move {
+            let mut guard = self.connection.lock().await;
+            let connection = guard
+                .as_mut()
+                .ok_or_else(|| PgError::new("the session was released"))?;
+            // `raw_sql` sends the text with the simple protocol, so every command of a
+            // migration file runs; `query` would prepare it and reject the second one.
+            raw_sql(AssertSqlSafe(sql.to_string()))
+                .execute(&mut **connection)
+                .await
+                .map(|_| ())
+                .map_err(|error| PgError::new(format!("{error}")))
         })
     }
 

@@ -3,7 +3,7 @@
 //!
 //! The engineering snapshot follows `collectEngineeringMetricsSnapshot` in
 //! `src/server/stats/engineeringMetricsService.ts`. The active domains come from
-//! `src/server/ci/harnessDomainRegistry.ts`, read by [`load_active_domain_ids`],
+//! `src/shared/ci/harnessDomainRegistry.ts`, read by [`load_active_domain_ids`],
 //! which validates the registry as the TypeScript does.
 
 use std::collections::HashSet;
@@ -578,6 +578,10 @@ fn fail(error: impl std::fmt::Display) -> String {
 #[cfg(test)]
 mod tests {
     use axum::http::Method;
+    use betaclaw_core::messages_store::CreateConversationInput;
+    use betaclaw_core::stats::prompt_dispatch::{
+        DispatchKind, DispatchStatus, RecordPromptDispatchInput, TokensSource,
+    };
 
     use super::super::test_support::{app, assert_keys, send, services_in, state_in, Scratch};
     use super::*;
@@ -763,5 +767,256 @@ mod tests {
 
         let (status, _) = send(&router, Method::PATCH, "/api/stats", Some(OWNER), None).await;
         assert_eq!(status, StatusCode::BAD_GATEWAY);
+    }
+
+    fn dispatch(
+        provider: &str,
+        risk: RiskLevel,
+        source: TokensSource,
+        created_at: &str,
+    ) -> RecordPromptDispatchInput {
+        RecordPromptDispatchInput {
+            provider_id: provider.into(),
+            model_name: "gpt-4.1".into(),
+            account_id: None,
+            dispatch_kind: DispatchKind::Chat,
+            prompt_tokens: 120,
+            prompt_tokens_source: source,
+            completion_tokens: 80,
+            total_tokens: 200,
+            status: DispatchStatus::Success,
+            error_message: None,
+            risk_level: risk,
+            risk_score: 0,
+            risk_reasons: vec![],
+            prompt_preview: format!("{provider} preview"),
+            prompt_payload_json: "{\"messages\":[]}".into(),
+            prompt_cost_usd: Some(0.001),
+            completion_cost_usd: Some(0.002),
+            total_cost_usd: Some(0.003),
+            created_at: Some(created_at.into()),
+            conversation_id: None,
+            turn_seq: None,
+            latency_ms: None,
+            tool_calls_json: None,
+            memory_context_json: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn prompt_logs_are_filtered_by_risk_and_provider() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        services
+            .prompt_dispatch
+            .record_dispatch(dispatch(
+                "openai",
+                RiskLevel::Low,
+                TokensSource::Exact,
+                "2026-10-10T10:00:00.000Z",
+            ))
+            .expect("seed");
+        services
+            .prompt_dispatch
+            .record_dispatch(dispatch(
+                "gemini",
+                RiskLevel::High,
+                TokensSource::Estimated,
+                "2026-10-11T10:00:00.000Z",
+            ))
+            .expect("seed");
+        let router = app(&state, &services);
+
+        let (status, body) = send(
+            &router,
+            Method::GET,
+            "/api/stats/prompt-logs?risk=high&provider=gemini",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["total"], 1);
+        assert_eq!(body["entries"].as_array().map(Vec::len), Some(1));
+        assert_eq!(body["summary"]["totalEntries"], 1);
+        assert_eq!(body["summary"]["flaggedEntries"], 1);
+        assert_eq!(body["summary"]["promptTokensEstimatedCount"], 1);
+
+        // The cursor is strict: the older row is the only one before the newer one.
+        let (status, body) = send(
+            &router,
+            Method::GET,
+            "/api/stats/prompt-logs?before=2026-10-11T10:00:00.000Z",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["entries"].as_array().map(Vec::len), Some(1));
+        assert_eq!(body["entries"][0]["providerId"], "openai");
+    }
+
+    #[tokio::test]
+    async fn preset_windows_keep_recent_rows_and_drop_old_ones() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        services
+            .prompt_dispatch
+            .record_dispatch(dispatch(
+                "xai",
+                RiskLevel::Low,
+                TokensSource::Exact,
+                &iso_millis(Utc::now()),
+            ))
+            .expect("seed");
+        services
+            .prompt_dispatch
+            .record_dispatch(dispatch(
+                "xai",
+                RiskLevel::Low,
+                TokensSource::Exact,
+                "2020-01-01T00:00:00.000Z",
+            ))
+            .expect("seed");
+        let router = app(&state, &services);
+
+        for preset in ["today", "week", "month"] {
+            let (status, body) = send(
+                &router,
+                Method::GET,
+                &format!("/api/stats/prompt-logs?preset={preset}"),
+                Some(OWNER),
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{preset}");
+            assert_eq!(body["summary"]["totalEntries"], 1, "{preset}");
+        }
+    }
+
+    #[tokio::test]
+    async fn clearing_prompt_logs_removes_the_rows_and_token_usage() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        services
+            .prompt_dispatch
+            .record_dispatch(dispatch(
+                "openai",
+                RiskLevel::Low,
+                TokensSource::Exact,
+                "2026-10-10T10:00:00.000Z",
+            ))
+            .expect("seed");
+        services
+            .token_usage
+            .record_usage("openai", "gpt-4.1", 120, 80, 200)
+            .expect("seed");
+        let router = app(&state, &services);
+
+        let (status, body) = send(
+            &router,
+            Method::DELETE,
+            "/api/stats/prompt-logs",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["deletedPromptLogs"], 1);
+        assert_eq!(body["deletedTokenUsage"], 1);
+
+        let (status, body) = send(
+            &router,
+            Method::GET,
+            "/api/stats/prompt-logs",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["total"], 0);
+        assert!(body["entries"].as_array().is_some_and(Vec::is_empty));
+    }
+
+    #[tokio::test]
+    async fn prompt_logs_without_a_caller_are_unauthorized() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        let router = app(&state, &services);
+
+        let (status, body) = send(&router, Method::GET, "/api/stats/prompt-logs", None, None).await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+        assert_eq!(body["ok"], false);
+    }
+
+    #[tokio::test]
+    async fn sessions_lens_counts_each_conversation_once_by_channel() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        {
+            let messages = state.messages.lock().await;
+            for (channel, chat) in [("WebChat", "default"), ("Telegram", "tg-1")] {
+                messages
+                    .create_conversation(&CreateConversationInput {
+                        channel_type: channel,
+                        external_chat_id: Some(chat),
+                        title: Some("Session"),
+                        user_id: Some(OWNER),
+                        persona_id: None,
+                    })
+                    .expect("seed");
+            }
+        }
+        let router = app(&state, &services);
+
+        let (status, body) = send(
+            &router,
+            Method::GET,
+            "/api/stats?preset=month&sessions=1",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["sessionLens"]["totalSessions"], 2);
+        assert_eq!(
+            body["sessionLens"]["topSessions"].as_array().map(Vec::len),
+            Some(2)
+        );
+        let by_channel = body["sessionLens"]["byChannel"]
+            .as_array()
+            .expect("byChannel");
+        for channel in ["WebChat", "Telegram"] {
+            assert!(by_channel
+                .iter()
+                .any(|row| row["channelType"] == channel && row["count"] == 1));
+        }
+    }
+
+    #[tokio::test]
+    async fn engineering_without_signals_reports_null_metrics() {
+        let scratch = Scratch::new();
+        let state = state_in(&scratch, false);
+        let services = services_in(&scratch);
+        let router = app(&state, &services);
+
+        let (status, body) = send(
+            &router,
+            Method::GET,
+            "/api/stats/engineering?windowDays=30",
+            Some(OWNER),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["snapshot"]["windowDays"], 30);
+        assert!(body["snapshot"]["leadTimeMedianHours"].is_null());
+        assert!(body["snapshot"]["firstPassCiRate"].is_null());
+        assert_eq!(body["snapshot"]["asyncFailureSlaBreaches"], 0);
     }
 }

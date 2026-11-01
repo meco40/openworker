@@ -11,22 +11,26 @@ wiederaufbaubare Projektionen bzw. explizite Kompatibilitätspfade.
 
 ## Bestandteile
 
-| Datei                                                                  | Inhalt                                                                                                                                                                              |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/server/world-model/config.ts`                                     | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
-| `src/server/world-model/db.ts`                                         | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
-| `src/server/world-model/migrations/001_world_model.sql`                | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
-| `src/server/world-model/migrations/016_canonical_memory.sql`           | Kanonische Memory-Items, Historie, RLS, Idempotenz, Soft Delete und aggregierter Count                                                                                              |
-| `src/server/world-model/migrations/017_canonical_memory_integrity.sql` | Lifecycle-Constraint und Source-Observation-Index                                                                                                                                   |
-| `src/server/world-model/migrations/018_canonical_memory_lifecycle.sql` | Normalisiert den Legacy-Status `active`, synchronisiert Soft-Delete-Status und ergänzt den Active-Recall-Index                                                                      |
-| `src/server/world-model/migrations/002..004*.sql`                      | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
-| `src/server/world-model/repositories/*`                                | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
-| `src/server/world-model/services/eventService.ts`                      | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
-| `src/server/world-model/services/prospectiveEngine.ts`                 | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
-| `src/server/world-model/outboxDispatcher.ts`                           | Transactional-Outbox-Dispatch                                                                                                                                                       |
-| `src/server/world-model/productionGuard.ts`                            | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
-| `docker-compose.postgres.yml`                                          | Kanonische `pgvector/pgvector:pg17`, Port 5434 (nur 127.0.0.1), DB `clawtest`                                                                                                       |
-| `.env.local.example`                                                   | `WORLD_MODEL_*`-Block                                                                                                                                                               |
+| Datei                                                                            | Inhalt                                                                                                                                                                              |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/server/world-model/config.ts`                                               | Env-Konfiguration, `WORLD_MODEL_ENABLED` (default off)                                                                                                                              |
+| `src/server/world-model/db.ts`                                                   | Lazy-`pg.Pool`-Singleton, Advisory-Lock-Migrations-Runner und Transaktions-Helper                                                                                                   |
+| `rust/crates/betaclaw-world-model/migrations/001_world_model.sql`                | Basisschema (Observations, Assertions bitemporal+Modalitaet, Events/Transitions, Tasks/Transitions, Entities/Relations, Open Loops, Standing Intents, Outbox, Embeddings, Volltext) |
+| `rust/crates/betaclaw-world-model/migrations/016_canonical_memory.sql`           | Kanonische Memory-Items, Historie, RLS, Idempotenz, Soft Delete und aggregierter Count                                                                                              |
+| `rust/crates/betaclaw-world-model/migrations/017_canonical_memory_integrity.sql` | Lifecycle-Constraint und Source-Observation-Index                                                                                                                                   |
+| `rust/crates/betaclaw-world-model/migrations/018_canonical_memory_lifecycle.sql` | Normalisiert den Legacy-Status `active`, synchronisiert Soft-Delete-Status und ergänzt den Active-Recall-Index                                                                      |
+| `rust/crates/betaclaw-world-model/migrations/002..004*.sql`                      | Shadow-Ledger, scoped Outbox-/Idempotenz-Nachruestung und workspace-scoped Assertions                                                                                               |
+| `src/server/world-model/repositories/*`                                          | Repositories pro Aggregat (roh-SQL, Transaktion via Client)                                                                                                                         |
+| `src/server/world-model/services/eventService.ts`                                | Plan-/Aenderungs-Referenzfall (Kino/Essen)                                                                                                                                          |
+| `src/server/world-model/services/prospectiveEngine.ts`                           | Open-Loop-Follow-ups, Standing-Intent-Matching, Heartbeat                                                                                                                           |
+| `src/server/world-model/outboxDispatcher.ts`                                     | Transactional-Outbox-Dispatch                                                                                                                                                       |
+| `src/server/world-model/productionGuard.ts`                                      | Prod-Guard (Canonical URL erforderlich, E2E in Prod verboten)                                                                                                                       |
+| `docker-compose.postgres.yml`                                                    | Kanonische `pgvector/pgvector:pg17`, Port 5434 (nur 127.0.0.1), DB `clawtest`                                                                                                       |
+| `.env.local.example`                                                             | `WORLD_MODEL_*`-Block                                                                                                                                                               |
+
+## Betriebsbefehle
+
+Die Befehle `pnpm run world-model:*` laufen als Unterbefehle von `betaclaw-scheduler` (`migrate`, `provision-roles`, `verify-rls`, `reconcile`, `rebuild-projections`, `backfill`) über `scripts/rust-scheduler-ops.mjs`, das `.env.local` lädt. `provision-roles` führt keine Migrationen aus; `migrate --provision-roles` tut das. Ein unbekannter Unterbefehl endet mit Status 2, ohne den Scheduler zu starten.
 
 ## Aktivierung (lokal)
 
@@ -37,7 +41,7 @@ docker compose -f docker-compose.postgres.yml up -d
 #   WORLD_MODEL_ENABLED=true
 #   WORLD_MODEL_MODE=canonical
 #   CANONICAL_DATABASE_URL=postgresql://clawtest:clawtest@127.0.0.1:5434/clawtest
-corepack pnpm run dev:scheduler
+corepack pnpm run dev   # startet den Rust-Scheduler im Stack mit
 ```
 
 Der Scheduler ruft `startOutboxDispatcher()` auf, fuehrt Migrationen aus und

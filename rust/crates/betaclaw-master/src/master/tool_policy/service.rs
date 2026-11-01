@@ -517,6 +517,80 @@ mod tests {
         );
     }
 
+    /// `resolveToolPolicy matches target-context allowlist entries` (`tool-policy-service-branches.test.ts`).
+    #[test]
+    fn target_context_entries_match_the_glob() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        store(
+            &repo,
+            "allowlist",
+            "on_miss",
+            vec!["shell_execute:gateway:/tmp/*"],
+        );
+        let inside = resolve(
+            &repo,
+            "shell_execute",
+            Some("gateway"),
+            Some("/tmp/file.txt"),
+        );
+        assert_eq!(inside.decision, ToolPolicyDecision::Allow);
+        let outside = resolve(&repo, "shell_execute", Some("gateway"), Some("/etc/passwd"));
+        assert_eq!(outside.decision, ToolPolicyDecision::Ask);
+    }
+
+    /// `resolveToolPolicy matches wildcard subject entries`: `*:gateway:*` matches any subject on that host.
+    #[test]
+    fn wildcard_subject_entries_match_any_action_on_their_host() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        store(&repo, "allowlist", "on_miss", vec!["*:gateway:*"]);
+        let result = resolve(&repo, "shell_execute", Some("gateway"), None);
+        assert_eq!(result.decision, ToolPolicyDecision::Allow);
+        let other_host = resolve(&repo, "shell_execute", Some("sandbox"), None);
+        assert_eq!(other_host.decision, ToolPolicyDecision::Ask);
+    }
+
+    /// `resolveToolPolicy matches fingerprint-based entries`.
+    #[test]
+    fn fingerprint_entries_match() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        store(
+            &repo,
+            "allowlist",
+            "on_miss",
+            vec!["shell_execute:gateway:fingerprint-123"],
+        );
+        let result = resolve_tool_policy(&ResolveToolPolicyInput {
+            repo: &repo,
+            scope: &scope(),
+            action_type: "shell_execute",
+            tool_name: None,
+            host: Some("gateway"),
+            target_context: None,
+            fingerprint: Some("fingerprint-123"),
+        })
+        .unwrap();
+        assert_eq!(result.decision, ToolPolicyDecision::Allow);
+    }
+
+    /// `resolveToolPolicy handles empty allowlist entries`: blank entries are
+    /// skipped and a later valid entry still matches.
+    #[test]
+    fn blank_allowlist_entries_are_skipped() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        store(
+            &repo,
+            "allowlist",
+            "on_miss",
+            vec!["", "   ", "shell_execute"],
+        );
+        let result = resolve(&repo, "shell_execute", None, None);
+        assert_eq!(result.decision, ToolPolicyDecision::Allow);
+        assert_eq!(
+            result.matched_allowlist_entry.as_deref(),
+            Some("shell_execute")
+        );
+    }
+
     #[test]
     fn a_host_restricted_entry_only_matches_its_host() {
         let repo = SqliteMasterRepository::open(":memory:").unwrap();

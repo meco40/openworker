@@ -43,3 +43,76 @@ pub async fn deliver_imessage(
         .and_then(value_as_id)
         .or_else(|| answer.get("id").and_then(value_as_id)))
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::channels::pairing::test_support::{isolated_env, json_response, ScriptedTransport};
+
+    #[tokio::test]
+    async fn without_a_bridge_url_nothing_is_sent() {
+        let transport = ScriptedTransport::new();
+        let env = isolated_env();
+
+        let id = deliver_imessage(transport.as_ref(), &env, "chat-1", "Hello")
+            .await
+            .expect("not an error");
+
+        assert_eq!(id, None);
+        assert!(transport.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_chat_guid_and_message_go_to_the_send_route() {
+        let transport = ScriptedTransport::new();
+        transport.then("/send", json_response(200, json!({"messageId": "m-1"})));
+        let env = isolated_env();
+        env.set("IMESSAGE_BRIDGE_URL", "https://bridge.example.com/");
+
+        let id = deliver_imessage(transport.as_ref(), &env, "chat-1", "Hello")
+            .await
+            .expect("delivered");
+
+        assert_eq!(id.as_deref(), Some("m-1"));
+        let calls = transport.calls("/send");
+        assert_eq!(calls[0].url, "https://bridge.example.com/send");
+        assert_eq!(
+            ScriptedTransport::body_of(&calls[0]),
+            json!({"chatGuid": "chat-1", "message": "Hello"})
+        );
+    }
+
+    #[tokio::test]
+    async fn one_trailing_slash_of_the_bridge_url_is_dropped() {
+        let transport = ScriptedTransport::new();
+        transport.then("/send", json_response(200, json!({"id": 7})));
+        let env = isolated_env();
+        env.set("IMESSAGE_BRIDGE_URL", "https://bridge.example.com");
+
+        let id = deliver_imessage(transport.as_ref(), &env, "chat-1", "Hello")
+            .await
+            .expect("delivered");
+
+        assert_eq!(id.as_deref(), Some("7"));
+        assert_eq!(
+            transport.calls("/send")[0].url,
+            "https://bridge.example.com/send"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_non_ok_answer_is_an_error_with_the_status() {
+        let transport = ScriptedTransport::new();
+        transport.then("/send", json_response(500, json!({})));
+        let env = isolated_env();
+        env.set("IMESSAGE_BRIDGE_URL", "https://bridge.example.com/");
+
+        let error = deliver_imessage(transport.as_ref(), &env, "chat-1", "Hello")
+            .await
+            .expect_err("a 500 is an error");
+
+        assert_eq!(error.0, "iMessage delivery failed with status 500");
+    }
+}

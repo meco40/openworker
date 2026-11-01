@@ -390,8 +390,13 @@ mod tests {
             1,
             "one provider call for both"
         );
+        // Only this key: other tests share the process-wide map in parallel.
+        let key = in_flight_key(provider.as_ref(), "same text");
         assert!(
-            IN_FLIGHT.lock().expect("in-flight mutex").is_empty(),
+            !IN_FLIGHT
+                .lock()
+                .expect("in-flight mutex")
+                .contains_key(&key),
             "the entry is removed after the call, so nothing is cached"
         );
     }
@@ -407,7 +412,11 @@ mod tests {
             .expect("bridge")
             .expect_err("failure");
         assert_eq!(error.message, "boom");
-        assert!(IN_FLIGHT.lock().expect("in-flight mutex").is_empty());
+        let key = in_flight_key(failing.as_ref(), "text");
+        assert!(!IN_FLIGHT
+            .lock()
+            .expect("in-flight mutex")
+            .contains_key(&key));
 
         let working: Arc<dyn EmbeddingProvider> = Arc::new(CountingProvider {
             calls: Arc::clone(&calls),

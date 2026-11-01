@@ -118,3 +118,124 @@ impl ChannelPairing {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde_json::json;
+
+    use super::*;
+    use crate::channels::pairing::credentials::{ChannelCredential, ChannelCredentialStore};
+    use crate::channels::pairing::test_support::{
+        isolated_env, json_response, memory_store, RecordingPort, ScriptedTransport,
+    };
+    use crate::channels::pairing::PairChannelType;
+
+    /// A store whose `delete_credentials` keeps the rows, as a failing database would.
+    struct StubbornStore(Arc<dyn ChannelCredentialStore>);
+
+    impl ChannelCredentialStore for StubbornStore {
+        fn get_credential(&self, channel: &str, key: &str) -> Option<String> {
+            self.0.get_credential(channel, key)
+        }
+
+        fn set_credential(&self, channel: &str, key: &str, value: &str) {
+            self.0.set_credential(channel, key, value);
+        }
+
+        fn delete_credential(&self, channel: &str, key: &str) {
+            self.0.delete_credential(channel, key);
+        }
+
+        fn delete_credentials(&self, _channel: &str) {}
+
+        fn list_credentials(&self, channel: &str) -> Vec<ChannelCredential> {
+            self.0.list_credentials(channel)
+        }
+    }
+
+    fn pairing(
+        store: Arc<dyn ChannelCredentialStore>,
+        transport: &Arc<ScriptedTransport>,
+    ) -> ChannelPairing {
+        ChannelPairing::new(
+            store,
+            isolated_env(),
+            transport.clone(),
+            Arc::new(RecordingPort::default()),
+        )
+    }
+
+    #[tokio::test]
+    async fn telegram_unpair_deletes_the_webhook_and_clears_the_credentials() {
+        let transport = ScriptedTransport::new();
+        transport.then("deleteWebhook", json_response(200, json!({"ok": true})));
+        let store = memory_store();
+        store.set_credential("telegram", "bot_token", "1:t");
+        store.set_credential("telegram", "webhook_secret", "s");
+        let pairing = pairing(store.clone(), &transport);
+
+        pairing
+            .unpair_channel(PairChannelType::Telegram, None)
+            .await
+            .expect("unpaired");
+
+        assert_eq!(transport.calls("deleteWebhook").len(), 1);
+        assert_eq!(store.get_credential("telegram", "bot_token"), None);
+        assert_eq!(store.get_credential("telegram", "webhook_secret"), None);
+    }
+
+    #[tokio::test]
+    async fn discord_unpair_clears_the_token_without_an_api_call() {
+        let transport = ScriptedTransport::new();
+        let store = memory_store();
+        store.set_credential("discord", "bot_token", "dc-token");
+        let pairing = pairing(store.clone(), &transport);
+
+        pairing
+            .unpair_channel(PairChannelType::Discord, None)
+            .await
+            .expect("unpaired");
+
+        assert_eq!(store.get_credential("discord", "bot_token"), None);
+        assert!(transport.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn telegram_unpair_stops_the_running_poller() {
+        let transport = ScriptedTransport::new();
+        let store = memory_store();
+        store.set_credential("telegram", "bot_token", "1:t");
+        store.set_credential("telegram", "update_transport", "polling");
+        let pairing = pairing(store, &transport);
+        pairing.start_telegram_polling().await;
+        assert!(pairing.is_telegram_polling_active());
+
+        pairing
+            .unpair_channel(PairChannelType::Telegram, None)
+            .await
+            .expect("unpaired");
+
+        assert!(!pairing.is_telegram_polling_active());
+    }
+
+    #[tokio::test]
+    async fn telegram_unpair_fails_while_the_token_is_still_stored() {
+        let transport = ScriptedTransport::new();
+        let inner = memory_store();
+        inner.set_credential("telegram", "bot_token", "1:t");
+        let store: Arc<dyn ChannelCredentialStore> = Arc::new(StubbornStore(inner));
+        let pairing = pairing(store, &transport);
+
+        let error = pairing
+            .unpair_channel(PairChannelType::Telegram, None)
+            .await
+            .expect_err("the token survived");
+
+        assert_eq!(
+            error.0,
+            "Telegram disconnect incomplete: bot token still present in credential store."
+        );
+    }
+}

@@ -2,19 +2,15 @@
  * `/api/channels/inbox` parity (S3): the v2 page shape and the deprecated v1
  * shape.
  *
- * The TypeScript side drives the same `MessageService.listInbox` the route
- * delegates to and maps it through the `contract.ts` helpers; the Rust side goes
- * over HTTP. Items are filtered to the conversations this family creates, so a
+ * The reference is `golden/inbox.json`, recorded from the TypeScript route before its
+ * removal; the Rust side goes over HTTP. Items are filtered to the conversations this family creates, so a
  * long-lived gateway with leftover conversations does not break the comparison.
  * Volatile fields (ids, timestamps) are normalised.
  *
  * `resync` only feeds the observability counters/logs (OP-2) and changes no
  * response, so it is not part of the comparison.
  */
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { check, rustRequest, bestEffortRemoveDir } from '../harness.mjs';
+import { check, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'inbox';
 
@@ -27,7 +23,8 @@ const SEEDS = [`${TITLE_PREFIX} A`, `${TITLE_PREFIX} B`];
 function normItem(item) {
   return {
     channelType: item.channelType,
-    title: item.title,
+    // The run tag is volatile like an id: the golden reference was recorded with another one.
+    title: item.title.replace(TITLE_PREFIX, 'Parity Inbox <run>'),
     hasConversationId: typeof item.conversationId === 'string' && item.conversationId.length > 0,
     hasUpdatedAt: typeof item.updatedAt === 'string' && item.updatedAt.length > 0,
     lastMessage: item.lastMessage
@@ -49,46 +46,7 @@ function normItems(items) {
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
-/** The response mapping of `app/api/channels/inbox/route.ts`. */
-async function typescriptSide() {
-  const dir = mkdtempSync(join(tmpdir(), 'betaclaw-parity-inbox-'));
-  process.env.MESSAGES_DB_PATH = join(dir, 'messages.db');
-  const { SqliteMessageRepository } =
-    await import('../../../../src/server/channels/messages/sqliteMessageRepository.ts');
-  const { MessageService } = await import('../../../../src/server/channels/messages/service.ts');
-  const { getPrincipalUserId } = await import('../../../../src/server/auth/principal.ts');
-  const { toInboxV1Response, toInboxV2Response } =
-    await import('../../../../src/server/channels/inbox/contract.ts');
-
-  const userId = getPrincipalUserId();
-  const repo = new SqliteMessageRepository(process.env.MESSAGES_DB_PATH);
-  const service = new MessageService(repo);
-  SEEDS.forEach((title, index) => {
-    service.getOrCreateConversation('WebChat', `manual-${userId}-inbox-${index}`, title, userId);
-  });
-
-  const v2 = toInboxV2Response(service.listInbox({ userId, limit: 100 }));
-  const v1 = toInboxV1Response(service.listInbox({ userId, limit: 100 }));
-
-  const result = {
-    v2: {
-      ok: v2.ok,
-      items: normItems(v2.items),
-      limit: v2.page.limit,
-      hasMore: v2.page.hasMore,
-      returned: normItems(v2.items).length,
-    },
-    v1: {
-      ok: v1.ok,
-      items: normItems(v1.items),
-      nextCursor: v1.nextCursor,
-    },
-  };
-  repo.close();
-  bestEffortRemoveDir(dir);
-  return result;
-}
-
+/** The response shape of the route. */
 async function rustCollect() {
   for (const [index, title] of SEEDS.entries()) {
     await rustRequest('POST', '/api/channels/conversations', {
@@ -117,7 +75,7 @@ async function rustCollect() {
 }
 
 export async function run() {
-  const ts = await typescriptSide();
+  const ts = await goldenReference(name, 'typescript');
   const rust = await rustCollect();
 
   console.log('--- v2 ---');

@@ -1,16 +1,23 @@
-/** The shared trace is asserted by Rust's real tick test and the actual TS orchestrator. */
-import { spawnSync } from 'node:child_process';
+/**
+ * Agent-room swarm trace.
+ *
+ * The Rust tick test asserts the trace fixture `rust/crates/betaclaw-gateway/tests/fixtures/swarm-parity.json`.
+ * This family checks that the fixture still equals the reference recorded from the
+ * TypeScript orchestrator (`golden/swarm.json`). It runs no TypeScript itself.
+ */
+import { check, goldenReference } from '../harness.mjs';
+import { readFileSync } from 'node:fs';
+
 export const name = 'swarm';
+
+const TRACE_FIXTURE = new URL(
+  '../../../../rust/crates/betaclaw-gateway/tests/fixtures/swarm-parity.json',
+  import.meta.url,
+);
+
 export async function run() {
-  const result = spawnSync(
-    process.execPath,
-    [
-      'node_modules/vitest/vitest.mjs',
-      'run',
-      '--project=core-isolated',
-      'tests/integration/agent-room-rust-parity.test.ts',
-    ],
-    { stdio: 'inherit', env: process.env },
-  );
-  if (result.status !== 0) throw new Error('Rust/TypeScript swarm trace differs.');
+  const trace = JSON.parse(readFileSync(TRACE_FIXTURE, 'utf8'));
+  for (const key of ['dispatch', 'commands', 'completion']) {
+    check(`Trace ${key}`, trace[key], await goldenReference(name, key));
+  }
 }

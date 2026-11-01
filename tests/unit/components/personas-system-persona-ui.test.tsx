@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PersonasSidebar } from '@/components/personas/PersonasSidebar';
 import { FormHeader } from '@/components/personas/editor/components/FormHeader';
 import { SystemPromptSection } from '@/components/personas/editor/components/SystemPromptSection';
-import type { PersonaWithFiles } from '@/server/personas/personaTypes';
+import type { PersonaWithFiles } from '@/shared/personas/personaTypes';
 import type { MockProcedure } from '../../helpers/mockProcedure';
 
 const masterPersona: PersonaWithFiles = {

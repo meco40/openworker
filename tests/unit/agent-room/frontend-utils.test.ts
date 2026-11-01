@@ -11,7 +11,7 @@ import {
   consumeReplayForCommand,
   shouldFallbackToSessionSnapshot,
 } from '@/modules/agent-room/utils/replay.utils';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 
 // ─── artifact.utils ─────────────────────────────────────────────
 

@@ -1,0 +1,87 @@
+{
+  "values": {
+    "typescript": {
+      "status": {
+        "ok": true,
+        "checks": [
+          {
+            "id": "firewall",
+            "label": "Active Firewall",
+            "status": "ok"
+          },
+          {
+            "id": "encryption",
+            "label": "HTTPS / WebCrypto",
+            "status": "warning"
+          },
+          {
+            "id": "audit",
+            "label": "Audit Logging",
+            "status": "ok"
+          },
+          {
+            "id": "isolation",
+            "label": "Command Policy",
+            "status": "ok"
+          }
+        ],
+        "summary": {
+          "ok": 3,
+          "warning": 1,
+          "critical": 0
+        },
+        "channels": [
+          {
+            "channel": "telegram",
+            "verification": "signed",
+            "secretConfigured": false,
+            "status": "warning"
+          },
+          {
+            "channel": "discord",
+            "verification": "signed",
+            "secretConfigured": false,
+            "status": "warning"
+          },
+          {
+            "channel": "whatsapp",
+            "verification": "shared_secret",
+            "secretConfigured": false,
+            "status": "warning"
+          },
+          {
+            "channel": "imessage",
+            "verification": "shared_secret",
+            "secretConfigured": false,
+            "status": "warning"
+          },
+          {
+            "channel": "slack",
+            "verification": "shared_secret",
+            "secretConfigured": false,
+            "status": "warning"
+          }
+        ],
+        "hasGeneratedAt": true
+      },
+      "policy": {
+        "ok": true,
+        "runtime": {
+          "mode": "main-chat-only",
+          "workerRemoved": true
+        },
+        "channels": {
+          "webchatEnabled": true,
+          "telegramEnabled": true,
+          "slackEnabled": false
+        },
+        "tools": {
+          "browserManaged": true,
+          "browserHeadless": true,
+          "sandboxEnabled": false,
+          "sandboxType": "docker"
+        }
+      }
+    }
+  }
+}

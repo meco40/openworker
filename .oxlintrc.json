@@ -115,7 +115,12 @@
             "img": ["Image"]
           }
         ],
-        "jsx-a11y/control-has-associated-label": ["warn", { "depth": 3 }],
+        "jsx-a11y/control-has-associated-label": [
+          "warn",
+          {
+            "depth": 3
+          }
+        ],
         "jsx-a11y/aria-props": "warn",
         "jsx-a11y/aria-proptypes": "warn",
         "jsx-a11y/aria-unsupported-elements": "warn",
@@ -213,18 +218,6 @@
         "eslint-plugin-unused-imports"
       ],
       "plugins": ["react", "promise"]
-    },
-    {
-      "files": [
-        "src/server/automation/runtime.ts",
-        "src/server/channels/messages/runtime.ts",
-        "src/server/channels/messages/service.ts",
-        "src/server/channels/pairing/telegramInbound.ts",
-        "src/server/channels/pairing/telegramPolling.ts"
-      ],
-      "rules": {
-        "import-x/no-cycle": "off"
-      }
     },
     {
       "files": ["src/modules/personas/PersonaContext.tsx"],

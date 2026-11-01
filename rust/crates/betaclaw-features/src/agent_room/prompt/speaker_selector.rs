@@ -144,4 +144,80 @@ mod tests {
         // Expanded order: l, c, c, c. Turn 1 picks c.
         assert_eq!(choose_next_speaker_persona_id(&params), "c");
     }
+
+    fn speaks(units: &[SwarmUnit], phase: Option<&str>, who: &str, turns: i64) -> usize {
+        (0..turns)
+            .filter(|turn| {
+                choose_next_speaker_persona_id(&SpeakerSelectionParams {
+                    turn_count: *turn,
+                    lead_persona_id: "lead".to_string(),
+                    units: units.to_vec(),
+                    current_phase: phase.map(str::to_string),
+                }) == who
+            })
+            .count()
+    }
+
+    #[test]
+    fn two_personas_alternate_and_a_lone_lead_always_speaks() {
+        let pick = |turn: i64, units: &[SwarmUnit]| {
+            choose_next_speaker_persona_id(&SpeakerSelectionParams {
+                turn_count: turn,
+                lead_persona_id: "lead".to_string(),
+                units: units.to_vec(),
+                current_phase: None,
+            })
+        };
+        let pair = vec![unit("lead", "lead"), unit("spec-a", "specialist")];
+        assert_eq!(pick(0, &pair), "lead");
+        assert_eq!(pick(1, &pair), "spec-a");
+        assert_eq!(pick(2, &pair), "lead");
+        assert_eq!(pick(3, &pair), "spec-a");
+        assert_eq!(pick(8, &[unit("lead", "lead")]), "lead");
+    }
+
+    #[test]
+    fn without_a_phase_or_with_an_unknown_one_every_persona_takes_equal_turns() {
+        let units = vec![
+            unit("lead", "lead"),
+            unit("analyst-1", "analyst"),
+            unit("creative-1", "creative"),
+            unit("critic-1", "critic"),
+        ];
+        for phase in [None, Some("unknown_phase")] {
+            for who in ["lead", "analyst-1", "creative-1", "critic-1"] {
+                assert_eq!(speaks(&units, phase, who, 8), 2);
+            }
+        }
+    }
+
+    #[test]
+    fn each_phase_gives_its_role_more_turns() {
+        let units = vec![
+            unit("lead", "lead"),
+            unit("analyst-1", "analyst"),
+            unit("creative-1", "creative"),
+            unit("critic-1", "critic"),
+        ];
+        assert!(
+            speaks(&units, Some("analysis"), "analyst-1", 20)
+                > speaks(&units, Some("analysis"), "creative-1", 20)
+        );
+        assert!(
+            speaks(&units, Some("ideation"), "creative-1", 20)
+                > speaks(&units, Some("ideation"), "analyst-1", 20)
+        );
+        assert!(
+            speaks(&units, Some("critique"), "critic-1", 20)
+                > speaks(&units, Some("critique"), "analyst-1", 20)
+        );
+    }
+
+    #[test]
+    fn the_lead_is_boosted_in_the_result_phase() {
+        let units = vec![unit("lead", "lead"), unit("spec-1", "specialist")];
+        assert!(
+            speaks(&units, Some("result"), "lead", 8) > speaks(&units, Some("result"), "spec-1", 8)
+        );
+    }
 }

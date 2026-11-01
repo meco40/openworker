@@ -124,4 +124,48 @@ mod tests {
         let ranked = rank_ledger_by_query_at(&rows, "rabatt vertrag", 1_718_447_400_000.0);
         assert_eq!(ranked[0].id, "b");
     }
+
+    #[test]
+    fn a_fresher_entry_outranks_an_older_one_with_the_same_overlap() {
+        let now = 1_718_447_400_000.0;
+        let rows = vec![
+            row(
+                "old",
+                "vertrag",
+                vec!["rabatt gewaehrt"],
+                "2024-01-01T00:00:00.000Z",
+            ),
+            row(
+                "fresh",
+                "vertrag",
+                vec!["rabatt gewaehrt"],
+                "2024-06-15T10:30:00.000Z",
+            ),
+        ];
+        let ranked = rank_ledger_by_query_at(&rows, "rabatt vertrag", now);
+        assert_eq!(ranked[0].id, "fresh");
+    }
+
+    /// Two entries in the same freshness band tie on score, so the newer
+    /// `updated_at` comes first.
+    #[test]
+    fn equal_scores_fall_back_to_the_newer_updated_at() {
+        let now = 1_718_447_400_000.0;
+        let rows = vec![
+            row(
+                "older",
+                "vertrag",
+                vec!["rabatt gewaehrt"],
+                "2024-04-26T10:30:00.000Z",
+            ),
+            row(
+                "newer",
+                "vertrag",
+                vec!["rabatt gewaehrt"],
+                "2024-05-06T10:30:00.000Z",
+            ),
+        ];
+        let ranked = rank_ledger_by_query_at(&rows, "rabatt vertrag", now);
+        assert_eq!(ranked[0].id, "newer");
+    }
 }

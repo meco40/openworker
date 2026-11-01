@@ -4,10 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
 
-function read(relativePath: string): string {
-  return fs.readFileSync(path.resolve(ROOT, relativePath), 'utf8');
-}
-
 function collectFiles(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -38,13 +34,6 @@ function collectImports(content: string): string[] {
 }
 
 describe('agent legibility guards', () => {
-  it('keeps stats engineering route thin by delegating to service', () => {
-    const content = read('app/api/stats/engineering/route.ts');
-    expect(content).toContain('collectEngineeringMetricsSnapshot');
-    expect(content).not.toContain('SELECT ');
-    expect(content).not.toContain('queryAll(');
-  });
-
   it('enforces shared-layer import direction', () => {
     const files = collectFiles(path.resolve(ROOT, 'src/shared'));
     const violations: string[] = [];

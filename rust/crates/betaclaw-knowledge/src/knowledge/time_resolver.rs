@@ -372,4 +372,15 @@ mod tests {
         };
         assert_eq!(resolve_relative_time("heute", &context), None);
     }
+    #[test]
+    fn without_a_timezone_the_relative_day_is_counted_from_the_utc_instant() {
+        // The UTC instant is 2026-02-17 at noon; "gestern" is the 16th for any
+        // system zone between UTC-12 and UTC+11, as in the TypeScript test.
+        let context = TimeResolutionContext {
+            message_timestamp: "2026-02-17T12:00:00Z".to_string(),
+            user_timezone: None,
+        };
+        let resolved = resolve_relative_time("gestern Abend", &context).expect("gestern");
+        assert_eq!(resolved.absolute_date, "2026-02-16");
+    }
 }

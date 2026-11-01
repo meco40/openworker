@@ -99,10 +99,139 @@ fn run_ingestion_once(state: SharedState) -> KnowledgeTaskFuture {
             return Ok(());
         }
 
-        let world_model_config = resolve_world_model_config(&env);
+        let pass = IngestionPass::open(&state.config.messages_db_path, &config)?;
+        let result = pass.run_once(&state, &env).await?;
+        for error in result.errors {
+            warn!(
+                conversation_id = %error.conversation_id,
+                persona_id = %error.persona_id,
+                reason = %error.reason,
+                "[knowledge] ingestion window failed"
+            );
+        }
+        Ok(())
+    })
+}
+
+/// The stores of one ingestion pass. The cursor borrows the message store and the
+/// checkpoint store, so the pass owns them and builds its cursor and service from
+/// them. The scheduler loop and the `knowledge-ingest` subcommand both use it.
+pub struct IngestionPass {
+    messages_db_path: String,
+    message_source: SyncMessagesStore,
+    cursor_repository: SqliteKnowledgeRepository,
+    min_messages_per_batch: f64,
+}
+
+/// The service of one pass, borrowing the stores of its [`IngestionPass`].
+type PassService<'a> = KnowledgeIngestionService<
+    KnowledgeIngestionCursor<'a, SyncMessagesStore, SqliteKnowledgeRepository>,
+    KnowledgeExtractor<KnowledgeModelHubExtractor>,
+    SqliteKnowledgeRepository,
+    GatewayWorldModelPort,
+    KnowledgeMemoryAdapter,
+    SyncMessagesStore,
+>;
+
+impl IngestionPass {
+    /// Opens the message store and the checkpoint store of the pass.
+    pub fn open(messages_db_path: &str, config: &KnowledgeConfig) -> Result<Self, String> {
+        Ok(Self {
+            messages_db_path: messages_db_path.to_string(),
+            message_source: SyncMessagesStore(Mutex::new(
+                MessagesStore::open(messages_db_path).map_err(|error| error.to_string())?,
+            )),
+            cursor_repository: SqliteKnowledgeRepository::open(&default_knowledge_db_path())
+                .map_err(|error| error.to_string())?,
+            min_messages_per_batch: config.min_messages_per_batch as f64,
+        })
+    }
+
+    fn cursor(&self) -> KnowledgeIngestionCursor<'_, SyncMessagesStore, SqliteKnowledgeRepository> {
+        KnowledgeIngestionCursor::new(
+            &self.message_source,
+            &self.cursor_repository,
+            KnowledgeIngestionCursorOptions {
+                min_messages_per_batch: Some(self.min_messages_per_batch),
+            },
+        )
+    }
+
+    /// `getPendingWindows(limit)` of the cursor.
+    pub fn pending_windows(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<betaclaw_core::knowledge::ingestion_cursor::IngestionWindow>, String> {
+        self.cursor()
+            .get_pending_windows(limit)
+            .map_err(|error| error.to_string())
+    }
+
+    /// `service.runOnce()`: every pending window, with the global Mem0 circuit breaker.
+    pub async fn run_once(
+        &self,
+        state: &SharedState,
+        env: &HashMap<String, String>,
+    ) -> Result<betaclaw_core::knowledge::ingestion::types::KnowledgeIngestionRunResult, String>
+    {
+        let service = self.service(state, env).await?;
+        service.run_once().await.map_err(|error| error.to_string())
+    }
+
+    /// `ingestConversationWindow` and `markWindowProcessed` for each window, in batches
+    /// of `concurrency` windows that run together. The outcome of each window is returned
+    /// in the order of `windows`.
+    pub async fn ingest_windows(
+        &self,
+        state: &SharedState,
+        env: &HashMap<String, String>,
+        windows: &[betaclaw_core::knowledge::ingestion_cursor::IngestionWindow],
+        concurrency: usize,
+    ) -> Result<Vec<Result<(), String>>, String> {
+        let service = self.service(state, env).await?;
+        let cursor = self.cursor();
+        let mut outcomes = Vec::with_capacity(windows.len());
+        for batch in windows.chunks(concurrency.max(1)) {
+            let results = futures_util::future::join_all(batch.iter().map(|window| {
+                let service = &service;
+                let cursor = &cursor;
+                async move {
+                    service
+                        .ingest_conversation_window(
+                            betaclaw_core::knowledge::ingestion::types::IngestConversationWindowInput {
+                                conversation_id: window.conversation_id.clone(),
+                                user_id: window.user_id.clone(),
+                                persona_id: window.persona_id.clone(),
+                                workspace_id: None,
+                                messages: window.messages.clone(),
+                                summary_text: None,
+                                persona_context: None,
+                            },
+                        )
+                        .await
+                        .map_err(|error| error.to_string())?;
+                    cursor
+                        .mark_window_processed(window)
+                        .map_err(|error| error.to_string())
+                }
+            }))
+            .await;
+            outcomes.extend(results);
+        }
+        Ok(outcomes)
+    }
+
+    /// The service of one pass: the executor, the memory adapter, the persona names and
+    /// the extraction model, built as the scheduler loop always built them.
+    async fn service(
+        &self,
+        state: &SharedState,
+        env: &HashMap<String, String>,
+    ) -> Result<PassService<'_>, String> {
+        let world_model_config = resolve_world_model_config(env);
         let world_model_active = world_model_config.enabled || world_model_config.e2e_enabled;
         let executor =
-            if world_model_active || configured_provider(&env) == ConfiguredProvider::Postgres {
+            if world_model_active || configured_provider(env) == ConfiguredProvider::Postgres {
                 Some(
                     state
                         .get_world_model_pg_executor(&world_model_config)
@@ -119,27 +248,12 @@ fn run_ingestion_once(state: SharedState) -> KnowledgeTaskFuture {
             _ => GatewayWorldModelPort::Disabled(world_model_config.clone()),
         };
 
-        let message_source = SyncMessagesStore(Mutex::new(
-            MessagesStore::open(&state.config.messages_db_path)
-                .map_err(|error| error.to_string())?,
-        ));
         let message_marker = SyncMessagesStore(Mutex::new(
-            MessagesStore::open(&state.config.messages_db_path)
-                .map_err(|error| error.to_string())?,
+            MessagesStore::open(&self.messages_db_path).map_err(|error| error.to_string())?,
         ));
-        let cursor_repository = SqliteKnowledgeRepository::open(&default_knowledge_db_path())
-            .map_err(|error| error.to_string())?;
         let knowledge_repository = SqliteKnowledgeRepository::open(&default_knowledge_db_path())
             .map_err(|error| error.to_string())?;
-        let cursor = KnowledgeIngestionCursor::new(
-            &message_source,
-            &cursor_repository,
-            KnowledgeIngestionCursorOptions {
-                min_messages_per_batch: Some(config.min_messages_per_batch as f64),
-            },
-        );
-        let memory_service =
-            build_memory_adapter(&state, &env, &world_model_config, executor).await;
+        let memory_service = build_memory_adapter(state, env, &world_model_config, executor).await;
         let resolve_persona_name = PersonaRepository::open_with_workspace(
             &state.config.personas_db_path,
             PersonaWorkspace::new(state.config.personas_root_path.clone()),
@@ -162,9 +276,9 @@ fn run_ingestion_once(state: SharedState) -> KnowledgeTaskFuture {
             transport: ReqwestTransport::with_client(state.upstream.clone()),
             env: EnvOverrides::new(),
         };
-        let service = KnowledgeIngestionService::new(
+        Ok(KnowledgeIngestionService::new(
             KnowledgeIngestionDeps {
-                cursor,
+                cursor: self.cursor(),
                 extractor: KnowledgeExtractor::with_model(model),
                 knowledge_repository,
                 world_model,
@@ -173,24 +287,10 @@ fn run_ingestion_once(state: SharedState) -> KnowledgeTaskFuture {
                 resolve_persona_name,
             },
             betaclaw_core::knowledge::ingestion::types::KnowledgeIngestionServiceOptions {
-                min_messages_per_batch: Some(config.min_messages_per_batch as f64),
+                min_messages_per_batch: Some(self.min_messages_per_batch),
             },
-        );
-
-        let result = service
-            .run_once()
-            .await
-            .map_err(|error| error.to_string())?;
-        for error in result.errors {
-            warn!(
-                conversation_id = %error.conversation_id,
-                persona_id = %error.persona_id,
-                reason = %error.reason,
-                "[knowledge] ingestion window failed"
-            );
-        }
-        Ok(())
-    })
+        ))
+    }
 }
 
 fn run_cleanup_once(_state: SharedState) -> KnowledgeTaskFuture {

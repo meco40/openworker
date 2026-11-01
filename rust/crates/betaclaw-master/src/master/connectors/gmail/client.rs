@@ -747,6 +747,124 @@ mod tests {
         );
     }
 
+    /// Nested HTML parts are stripped to text, missing headers fall back, and an
+    /// unparsable date falls back to the clock (`gmail-client-behavior.test.ts:61-130`).
+    #[tokio::test]
+    async fn maps_nested_html_missing_fields_and_invalid_dates() {
+        let html = "<style>.hidden{display:none}</style><script>ignored()</script><p>Hello   <b>world</b></p>";
+        let html_detail = serde_json::json!({
+            "id": "html",
+            "internalDate": "not-a-date",
+            "payload": {
+                "mimeType": "multipart/mixed",
+                "headers": [{ "name": "x-extra" }, { "name": "FROM", "value": "  alice@example.com  " }],
+                "parts": [
+                    { "mimeType": "application/pdf" },
+                    {
+                        "mimeType": "multipart/alternative",
+                        "parts": [{
+                            "mimeType": "text/html",
+                            "body": { "data": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(html) }
+                        }]
+                    }
+                ]
+            }
+        })
+        .to_string();
+        let empty_detail = serde_json::json!({
+            "id": "empty",
+            "payload": {
+                "mimeType": "",
+                "headers": [
+                    { "value": "unlabeled" },
+                    { "name": "from", "value": "" },
+                    { "name": "to" },
+                    { "name": "subject", "value": "  " }
+                ],
+                "parts": [{ "mimeType": "application/pdf" }]
+            }
+        })
+        .to_string();
+        let transport = StubTransport::new(vec![
+            (
+                StatusCode::OK,
+                "{\"messages\":[{\"id\":\"html\"},{\"id\":\"empty\"},{\"id\":\"metadata\"}]}"
+                    .to_string(),
+            ),
+            (StatusCode::OK, html_detail),
+            (StatusCode::OK, empty_detail),
+            (StatusCode::OK, "{\"id\":\"metadata\"}".to_string()),
+        ]);
+        let client = GmailClient::new("real-token", transport.clone(), MasterEnv::new()).unwrap();
+
+        let messages = client.list_messages("scope-a").await.unwrap();
+
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0].from, "alice@example.com");
+        assert_eq!(messages[0].to, "me");
+        assert_eq!(messages[0].subject, "(metadata unavailable)");
+        assert_eq!(messages[0].body, "Hello world");
+        assert_eq!(messages[0].snippet.as_deref(), Some(""));
+        assert!(chrono::DateTime::parse_from_rfc3339(&messages[0].created_at).is_ok());
+        assert_eq!(messages[1].from, "unknown");
+        assert_eq!(messages[1].to, "me");
+        assert_eq!(messages[1].subject, "(metadata unavailable)");
+        assert_eq!(messages[1].body, "");
+        assert_eq!(messages[2].body, "");
+        assert_eq!(messages[2].snippet.as_deref(), Some(""));
+        assert_eq!(transport.requests.lock().unwrap().len(), 4);
+    }
+
+    /// A list response without a `messages` collection is an empty result for both
+    /// list and search (`gmail-client-behavior.test.ts`, "returns empty results when
+    /// Gmail omits the messages collection").
+    #[tokio::test]
+    async fn an_omitted_messages_collection_is_an_empty_result() {
+        let transport = StubTransport::new(vec![
+            (StatusCode::OK, "{}".to_string()),
+            (StatusCode::OK, "{}".to_string()),
+        ]);
+        let client = GmailClient::new("real-token", transport.clone(), MasterEnv::new()).unwrap();
+
+        assert!(client.list_messages("scope-a").await.unwrap().is_empty());
+        assert!(client
+            .search_messages("scope-a", "hello")
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(transport.requests.lock().unwrap().len(), 2);
+    }
+
+    /// Search results are read in detail, one detail call per match
+    /// (`gmail-client-behavior.test.ts:160-179`).
+    #[tokio::test]
+    async fn search_results_are_fetched_in_detail() {
+        let detail = serde_json::json!({
+            "id": "search-detail",
+            "payload": {
+                "mimeType": "text/plain",
+                "headers": [{ "name": "From", "value": "a@b" }, { "name": "Subject", "value": "Found" }],
+                "body": { "data": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("matched body") }
+            }
+        })
+        .to_string();
+        let transport = StubTransport::new(vec![
+            (
+                StatusCode::OK,
+                "{\"messages\":[{\"id\":\"search-detail\"}]}".to_string(),
+            ),
+            (StatusCode::OK, detail),
+        ]);
+        let client = GmailClient::new("real-token", transport.clone(), MasterEnv::new()).unwrap();
+
+        let results = client.search_messages("scope-a", "matched").await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "search-detail");
+        assert_eq!(results[0].body, "matched body");
+        assert_eq!(transport.requests.lock().unwrap().len(), 2);
+    }
+
     #[tokio::test]
     async fn an_api_error_carries_the_status_and_body() {
         let transport = StubTransport::new(vec![(

@@ -110,6 +110,12 @@ pub enum ServiceError {
     /// The provider call failed at the transport layer.
     #[error("{0}")]
     Transport(String),
+    /// The caller's abort signal fired, or the request timed out, while the provider
+    /// call was in flight. `fetchWithTimeout` (`Models/shared/http.ts:45-47`) rethrows
+    /// the `AbortError` and it escapes the dispatch, so the caller reports
+    /// `Generation aborted.` instead of a provider failure (`aiDispatcher.ts:41-46`).
+    #[error("{0}")]
+    Aborted(String),
 }
 
 impl From<crate::model_hub::crypto::CryptoError> for ServiceError {
@@ -120,7 +126,11 @@ impl From<crate::model_hub::crypto::CryptoError> for ServiceError {
 
 impl From<HttpError> for ServiceError {
     fn from(error: HttpError) -> Self {
-        ServiceError::Transport(error.to_string())
+        match error {
+            // Both are `AbortError` in Node, and both escape the dispatch in TypeScript.
+            HttpError::Aborted | HttpError::Timeout => ServiceError::Aborted(error.to_string()),
+            other => ServiceError::Transport(other.to_string()),
+        }
     }
 }
 

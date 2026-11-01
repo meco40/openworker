@@ -1,0 +1,100 @@
+{
+  "values": {
+    "typescript": {
+      "ok": true,
+      "channels": [
+        {
+          "channel": "webchat",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": null,
+          "supportsInbound": true,
+          "supportsOutbound": false,
+          "supportsPairing": false,
+          "supportsStreaming": true
+        },
+        {
+          "channel": "agent_room",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": null,
+          "supportsInbound": true,
+          "supportsOutbound": false,
+          "supportsPairing": false,
+          "supportsStreaming": true
+        },
+        {
+          "channel": "telegram",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": null,
+          "supportsInbound": true,
+          "supportsOutbound": true,
+          "supportsPairing": true,
+          "supportsStreaming": false
+        },
+        {
+          "channel": "whatsapp",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": [],
+          "supportsInbound": true,
+          "supportsOutbound": true,
+          "supportsPairing": true,
+          "supportsStreaming": false
+        },
+        {
+          "channel": "discord",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": null,
+          "supportsInbound": true,
+          "supportsOutbound": true,
+          "supportsPairing": true,
+          "supportsStreaming": false
+        },
+        {
+          "channel": "imessage",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": [],
+          "supportsInbound": true,
+          "supportsOutbound": true,
+          "supportsPairing": true,
+          "supportsStreaming": false
+        },
+        {
+          "channel": "slack",
+          "status": "idle",
+          "externalPeerId": null,
+          "peerName": null,
+          "transport": null,
+          "lastSeenAt": null,
+          "accounts": null,
+          "supportsInbound": true,
+          "supportsOutbound": true,
+          "supportsPairing": true,
+          "supportsStreaming": false
+        }
+      ]
+    }
+  }
+}

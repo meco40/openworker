@@ -223,4 +223,25 @@ mod tests {
         assert!(prompt.starts_with("SWARM PHASE: Analysis"));
         assert!(prompt.ends_with("TASK: Ship it"));
     }
+
+    #[test]
+    fn labels_are_unique_and_fit_the_marker_format() {
+        let labels: Vec<&str> = SWARM_PHASES.iter().map(|phase| phase.label()).collect();
+        let unique: std::collections::HashSet<&str> = labels.iter().copied().collect();
+        assert_eq!(unique.len(), labels.len());
+        assert_eq!(SwarmPhase::BestCase.label(), "Best Case");
+        for label in labels {
+            let marker = format!("--- {label} ---");
+            assert!(marker.starts_with("--- ") && marker.ends_with(" ---"));
+        }
+    }
+
+    #[test]
+    fn rounds_are_one_except_ideation_and_critique() {
+        assert_eq!(SwarmPhase::Analysis.rounds(), 1);
+        assert_eq!(SwarmPhase::Ideation.rounds(), 2);
+        assert_eq!(SwarmPhase::Critique.rounds(), 3);
+        assert_eq!(SwarmPhase::BestCase.rounds(), 1);
+        assert_eq!(SwarmPhase::Result.rounds(), 1);
+    }
 }

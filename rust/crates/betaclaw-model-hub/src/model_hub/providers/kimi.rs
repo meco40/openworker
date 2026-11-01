@@ -385,6 +385,41 @@ mod tests {
 
     /// The dispatch body is byte-identical to the other seven providers,
     /// including the `kimi` provider id and the hard-coded base URL.
+    /// The probe always targets the Kimi Code endpoint and sends the normalised key,
+    /// whatever shape the stored key has (`connectivity.test.ts:136-190`).
+    #[tokio::test]
+    async fn connectivity_routes_to_the_kimi_code_endpoint_and_normalises_the_key() {
+        let transport = StubTransport::new(models_response(
+            StatusCode::OK,
+            r#"{"data":[{"id":"moonshot-v1-8k"}]}"#,
+        ));
+        let env = EnvOverrides::new();
+        for stored in [
+            "Bearer sk-kimi-test",
+            "sk-moonshot-platform",
+            "\"Bearer sk-kimi-test\\n\"",
+        ] {
+            let result = KimiAdapter
+                .test_connectivity(&context(stored), &call(&transport, &env), None)
+                .await;
+            assert!(result.ok, "{stored}: {}", result.message);
+        }
+
+        let seen = transport.seen.lock().expect("lock");
+        assert_eq!(seen.len(), 3);
+        assert!(seen
+            .iter()
+            .all(|request| request.url == "https://api.kimi.com/coding/v1/models"));
+        assert_eq!(
+            seen[0].headers.get("authorization").expect("authorization"),
+            "Bearer sk-kimi-test"
+        );
+        assert_eq!(
+            seen[2].headers.get("authorization").expect("authorization"),
+            "Bearer sk-kimi-test"
+        );
+    }
+
     #[tokio::test]
     async fn dispatch_posts_to_the_kimi_base_url() {
         let transport = StubTransport::new(models_response(

@@ -1,10 +1,9 @@
 /**
- * `app/api/stats/**`, `debug/**`, `knowledge/**` and `events/**` parity
+ * `/api/stats/**`, `debug/**`, `knowledge/**` and `events/**` parity
  * (8 routes; the `events/stream` SSE route is checked separately).
  *
- * The TypeScript reference is the route handler itself. Each route module is
- * imported in-process and called with a `NextRequest`, so status and body come
- * from the real code and are not transcribed. The Rust side goes over HTTP.
+ * The reference is `golden/stats.json`, recorded from the TypeScript route handlers
+ * before their removal. The Rust side goes over HTTP.
  *
  * Only state-neutral probes run:
  *   - reads of empty stores, missing ids and invalid filters, and
@@ -17,45 +16,14 @@
  * the main probes run and the anonymous auth probes are reported as SKIP. With
  * `REQUIRE_AUTH=true` on both sides only the auth probes run, because every
  * other probe is answered with 401 there.
- *
- * Module-level singletons of earlier families can keep stale store paths; run
- * this family alone with `--family=stats` if a TS-side error names a path.
  */
-import { mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { NextRequest } from 'next/server';
-import { check, checkTrue, rustRequest } from '../harness.mjs';
+import { check, checkTrue, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'stats';
 
-const APP_API = '../../../../app/api/';
 const AUTH_LANE = process.env.REQUIRE_AUTH === 'true';
-
-const STORE_ROOT = join(tmpdir(), `betaclaw-parity-routes-${process.pid}`);
-const STORE_FILES = {
-  DATABASE_PATH: 'mission-control.db',
-  GATEWAY_CONFIG_DB_PATH: 'gateway-config.db',
-  MESSAGES_DB_PATH: 'messages.db',
-  MASTER_DB_PATH: 'master.db',
-  AUTOMATION_DB_PATH: 'automation.db',
-  SKILLS_DB_PATH: 'skills.db',
-  STATS_DB_PATH: 'stats.db',
-  PERSONAS_DB_PATH: 'personas.db',
-  KNOWLEDGE_DB_PATH: 'knowledge.db',
-  MEMORY_DB_PATH: 'memory.db',
-  CLAWHUB_DB_PATH: 'clawhub.db',
-  PROACTIVE_DB_PATH: 'proactive.db',
-  MODEL_HUB_DB_PATH: 'model-hub.db',
-  AUTH_DB_PATH: 'auth.db',
-  SUBAGENT_RUNS_STORE_PATH: 'subagent-runs.json',
-  PROJECTS_PATH: 'projects',
-  WORKSPACE_BASE_PATH: 'workspaces',
-  PERSONAS_ROOT_PATH: 'personas',
-  CHAT_ATTACHMENTS_DIR: 'attachments',
-  BETACLAW_SKILLS_DIR: 'skills',
-  CLAWHUB_WORKDIR: 'clawhub',
-};
+// Auth-lane reference values differ from the default lane (e.g. REQUIRE_AUTH gates first), so they get their own keys.
+const caseKey = (label) => (AUTH_LANE ? `auth lane: ${label}` : label);
 
 const MISSING = 'parity-missing';
 
@@ -65,35 +33,30 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/stats',
-    route: 'stats/route.ts',
     method: 'GET',
     path: '/api/stats',
   },
   {
     kind: 'read',
     label: 'GET /api/stats/engineering',
-    route: 'stats/engineering/route.ts',
     method: 'GET',
     path: '/api/stats/engineering?windowDays=7',
   },
   {
     kind: 'guard',
     label: 'GET /api/stats/engineering (ungültiges windowDays)',
-    route: 'stats/engineering/route.ts',
     method: 'GET',
     path: '/api/stats/engineering?windowDays=0',
   },
   {
     kind: 'read',
     label: 'GET /api/stats/prompt-logs',
-    route: 'stats/prompt-logs/route.ts',
     method: 'GET',
     path: '/api/stats/prompt-logs',
   },
   {
     kind: 'read',
     label: 'GET /api/stats/prompt-logs (preset, limit)',
-    route: 'stats/prompt-logs/route.ts',
     method: 'GET',
     path: '/api/stats/prompt-logs?preset=week&limit=5',
   },
@@ -107,14 +70,12 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/debug/conversations',
-    route: 'debug/conversations/route.ts',
     method: 'GET',
     path: '/api/debug/conversations',
   },
   {
     kind: 'read',
     label: 'GET /api/debug/conversations/[id]/turns (fehlend)',
-    route: 'debug/conversations/[id]/turns/route.ts',
     method: 'GET',
     path: `/api/debug/conversations/${MISSING}/turns`,
     params: { id: MISSING },
@@ -122,7 +83,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/debug/conversations/[id]/replay ohne fromSeq',
-    route: 'debug/conversations/[id]/replay/route.ts',
     method: 'POST',
     path: `/api/debug/conversations/${MISSING}/replay`,
     params: { id: MISSING },
@@ -133,14 +93,12 @@ const CASES = [
   {
     kind: 'guard',
     label: 'GET /api/knowledge/graph ohne personaId',
-    route: 'knowledge/graph/route.ts',
     method: 'GET',
     path: '/api/knowledge/graph',
   },
   {
     kind: 'read',
     label: 'GET /api/knowledge/graph (fehlende Persona)',
-    route: 'knowledge/graph/route.ts',
     method: 'GET',
     path: `/api/knowledge/graph?personaId=${MISSING}`,
   },
@@ -149,14 +107,12 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/events',
-    route: 'events/route.ts',
     method: 'GET',
     path: '/api/events?limit=5',
   },
   {
     kind: 'guard',
     label: 'POST /api/events ohne type/message',
-    route: 'events/route.ts',
     method: 'POST',
     path: '/api/events',
     body: {},
@@ -184,63 +140,6 @@ const AUTH_CASES = [
   { label: 'events', method: 'GET', path: '/api/events' },
   { label: 'events (POST)', method: 'POST', path: '/api/events' },
 ];
-
-function isolateStores() {
-  mkdirSync(STORE_ROOT, { recursive: true });
-  for (const [key, file] of Object.entries(STORE_FILES)) {
-    process.env[key] = join(STORE_ROOT, file);
-  }
-}
-
-const routeModules = new Map();
-function loadRoute(route) {
-  if (!routeModules.has(route)) {
-    routeModules.set(route, import(`${APP_API}${route}`));
-  }
-  return routeModules.get(route);
-}
-
-/** Reads a TS response. SSE bodies are never drained: headers are kept, the stream is cancelled. */
-async function readTsResponse(response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('text/event-stream')) {
-    await response.body?.cancel();
-    return { status: response.status, contentType, json: null, text: '' };
-  }
-  const text = await response.text();
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    // non-JSON body stays raw; the comparison then sees null on both sides
-  }
-  return { status: response.status, contentType, json, text };
-}
-
-/** Calls the real route handler in-process. */
-async function tsCall(route, method, path, { params, body } = {}) {
-  const mod = await loadRoute(route);
-  const handler = mod[method];
-  if (typeof handler !== 'function') {
-    throw new Error(`${route} exportiert kein ${method}`);
-  }
-  const headers = {};
-  let payload;
-  if (body !== undefined) {
-    headers['content-type'] = 'application/json';
-    payload = JSON.stringify(body);
-  }
-  const request = new NextRequest(`http://localhost:3000${path}`, {
-    method,
-    headers,
-    body: payload,
-  });
-  const response =
-    params === undefined
-      ? await handler(request)
-      : await handler(request, { params: Promise.resolve(params) });
-  return readTsResponse(response);
-}
 
 /** Returns the paths where the two JSON values differ in keys or value types. */
 function shapeMismatches(rust, ts, path = '$') {
@@ -287,7 +186,7 @@ function compareJson(label, rust, ts) {
 
 async function runJsonCase(c) {
   const rust = await rustRequest(c.method, c.path, { body: c.body });
-  const ts = await tsCall(c.route, c.method, c.path, { params: c.params, body: c.body });
+  const ts = await goldenReference(name, caseKey(c.label));
   compareJson(c.label, rust, ts);
 }
 
@@ -314,17 +213,12 @@ async function runAuthCase(c) {
 }
 
 export async function run() {
-  isolateStores();
-
   if (AUTH_LANE) {
     console.log('--- Auth-Lauf (REQUIRE_AUTH=true) ---');
     // Without a session, resolveUserIdFromSession answers null; withUserContext and the
     // manual checks turn that into 401 `{ ok: false, error: 'Unauthorized' }`.
-    const { resolveUserIdFromSession } = await import('../../../../src/server/auth/userContext.ts');
-    checkTrue(
-      'TS-Referenz: ohne Session liefert die Auth-Auflösung null',
-      resolveUserIdFromSession(null, true) === null,
-    );
+    const authNull = await goldenReference(name, 'resolveUserIdFromSession(null, true)');
+    checkTrue('TS-Referenz: ohne Session liefert die Auth-Auflösung null', authNull === null);
     for (const c of AUTH_CASES) {
       await runAuthCase(c);
     }

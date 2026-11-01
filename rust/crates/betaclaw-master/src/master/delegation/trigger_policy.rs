@@ -187,4 +187,18 @@ mod tests {
         policy.reset();
         assert!(policy.evaluate(&input(1_000_100, 1_500)).allowed);
     }
+
+    /// `master-delegation-policy.test.ts`, "does not share cooldown across different
+    /// workspace scopes": the cooldown key is the scope plus the capability.
+    #[test]
+    fn the_cooldown_is_keyed_by_workspace_scope() {
+        let mut policy = DelegationTriggerPolicy::new();
+        let other_scope = TriggerPolicyInput {
+            scope_key: "u1::w2".to_string(),
+            ..input(1_000_000, 1_500)
+        };
+        assert!(policy.evaluate(&input(1_000_000, 1_500)).allowed);
+        assert!(!policy.evaluate(&input(1_000_100, 1_500)).allowed);
+        assert!(policy.evaluate(&other_scope).allowed);
+    }
 }

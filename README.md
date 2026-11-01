@@ -57,7 +57,8 @@ docker compose --env-file .env.local ps
 
 Compose startet PostgreSQL, führt die Migrationen aus, provisioniert getrennte
 App-/Worker-Rollen und startet danach Web-App und Scheduler. Der Admin-Zugang
-bleibt ausschließlich im Migrationsdienst. Das Image enthält Python 3 und den
+bleibt ausschließlich im Migrationsdienst. Der Dienst `migrate` nutzt das Gateway-Image und
+ruft `betaclaw-scheduler migrate --provision-roles --apply` auf. Das Image enthält Python 3 und den
 zur installierten Playwright-Version passenden Chromium-Browser.
 Daten, Persona-Dateien und Workspaces liegen in persistenten Compose-Volumes;
 vorhandene Host-Daten unter `.local` werden nicht automatisch importiert.
@@ -105,24 +106,17 @@ Mit `pnpm run dev:static` lässt sich das Gateway auch lokal wie im Produktions-
 vollständig ohne Node-Server ausführen: es exportiert die Oberfläche nach `out/` und
 liefert diese direkt nativ über Axum aus (`BETACLAW_UI_MODE=static`).
 
-Hintergrundjobs (Telegram-Polling, Swarm-Orchestrator, Workspace-Aufräumen)
-unterstützen Tri-State-Besitz (`BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER`,
-`BETACLAW_WORKSPACE_CLEANUP` jeweils `rust | node | off`). In Docker Compose laufen
-sie standardmäßig in Rust; in der lokalen Entwicklung kann das Verhalten über `.env.local`
-gesteuert werden.
+Hintergrundjobs (Telegram-Polling, Swarm-Orchestrator, Workspace-Aufräumen) haben einen
+Besitzer, gesteuert über `BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER` und
+`BETACLAW_WORKSPACE_CLEANUP`. Erlaubt sind `rust` und `off`; `off` deaktiviert den
+jeweiligen Job. Ohne Wert gilt `rust`. Der Wert `node` wird nicht mehr unterstützt:
+Gateway und Scheduler brechen beim Start mit einer Meldung ab, statt den Job still
+abzuschalten. Die Werte müssen in allen Prozessen gleich sein. `SWARM_RUNNER=server|scheduler`
+bestimmt zusätzlich den Prozess für Swarms (Compose: `scheduler`). Workspace-Aufräumen
+läuft im Rust-Scheduler.
 
-Ohne gesetzten Besitzer verwenden beide Implementierungen `node`; Compose setzt
-alle drei Werte auf `rust`. `off` deaktiviert den jeweiligen Job. Die Werte müssen
-für Gateway, Scheduler und einen optionalen Node-Prozess gleich sein.
-`SWARM_RUNNER=server|scheduler` bestimmt zusätzlich den Prozess für Swarms
-(Compose: `scheduler`). Workspace-Cleanup gehört dem Scheduler. Fehlt im Dev-Stack
-das Rust-Scheduler-Binary (unter Windows immer, das Image enthält ein Linux-Binary),
-übernimmt bei `rust` der Node-UI-Server das Aufräumen; im Modus `dev:static` läuft es
-dann nicht, der Dev-Stack meldet das.
-
-Der Node-UI-Server lauscht im Dev-Stack nur dann auf `0.0.0.0`, wenn der Gateway im
-Container läuft (`host.docker.internal`); sonst auf `127.0.0.1`. Einen
-weitergereichten Loopback-Marker übernimmt er nur von einem Loopback-Peer.
+Der Next-Dev-Server (`pnpm run dev`) lauscht nur dann auf `0.0.0.0`, wenn der Gateway im
+Container läuft (`host.docker.internal`); sonst auf `127.0.0.1`.
 
 `BETACLAW_UI_MODE=static|proxy` wird beim Start aufgelöst. Ohne Wert verwendet
 Rust einen vorhandenen Export, sonst den Proxy. `UI_STATIC_DIR` wählt das
@@ -147,18 +141,22 @@ pnpm run dev
 pnpm run dev:import-legacy
 ```
 
+Die Betriebsbefehle der World Model (`world-model:migrate`, `world-model:provision-roles`, `world-model:verify-rls`, `world-model:reconcile`, `world-model:rebuild-projections`, `world-model:backfill`) laufen als Unterbefehle des Rust-Schedulers `betaclaw-scheduler`. `scripts/rust-scheduler-ops.mjs` lädt `.env.local` wie früher die TypeScript-Skripte und startet dann `cargo run` auf das Binary. Flags, Umgebungsvariablen und Ausgaben bleiben gleich. `provision-roles` führt im Gegensatz zu `migrate --provision-roles` keine Migrationen aus.
+
 Mit `cargo` auf dem Host baut `pnpm run dev` beide Rust-Binaries inkrementell, startet
 Kopien aus `.local/rust-dev/bin` und baut und startet sie bei jeder Änderung unter
 `rust/crates` automatisch neu (etwa 10 bis 20 Sekunden, der erste Build dauert einige
 Minuten). Ein fehlgeschlagener Build lässt die laufenden Prozesse stehen. Das Host-Gateway
 nutzt eigene Datenbanken unter `.local/rust-dev`. Die Node-Dateien direkt in `.local`
 bleiben unverändert. Anfragen von Loopback brauchen kein Login, der anonyme Principal ist
-der Admin dieses Datenbestands. Ohne `cargo` fällt der Stack auf das Release-Binary oder
-das Container-Image zurück (`pnpm run rust:build`). Den Stack mit Strg+C beenden, damit er seine
+der Admin dieses Datenbestands. Ohne `cargo` nutzt der Stack das Release-Binary unter `rust/target/release`. Für
+das Gateway gibt es zusätzlich das Container-Image (`pnpm run rust:build`); der Scheduler
+braucht ein Host-Binary. Den Stack mit Strg+C beenden, damit er seine
 Kindprozesse mitnimmt.
 
-Für Fehlersuche am alten Stack steht `pnpm run dev:node` weiterhin zur
-Verfügung. Er startet den Node-Server wie bisher auf Port 3000.
+Der frühere Node-Stack (`dev:node`, `dev:web`, `dev:web-ui`, `dev:scheduler`, `start:web`,
+`start:scheduler`) ist entfernt, ebenso das Compose-Profil `legacy-node-ui`. Der Rust-Stack
+ist die einzige Laufzeit.
 
 Rust-Prüfungen:
 
@@ -166,7 +164,8 @@ Rust-Prüfungen:
 pnpm run rust:test          # 147 Tests
 pnpm run rust:clippy        # clippy mit -D warnings
 pnpm run rust:fmt:check     # cargo fmt --check
-pnpm run verify:logs-parity # Rust gegen TypeScript auf /api/logs
+pnpm run verify:logs-parity # Rust gegen Referenzdaten (golden) auf /api/logs
+pnpm run verify:route-parity # alle Paritätsfamilien gegen Referenzdaten (Gateway läuft)
 ```
 
 Fixtures, die zwischen beiden Sprachen geteilt werden, sind generiert und
@@ -271,12 +270,12 @@ pnpm run start
 │   ├── services/          # Externe Service-Integrationen
 │   ├── shared/            # Geteilte Typen, Config & Utilities
 │   └── skills/            # Skill-Definitionen & Handler
-├── tests/                 # TypeScript-Test-Suite (Oracle während der Migration)
+├── tests/                 # Vitest-Tests (UI, Shared, CLI, Architektur, E2E-Lanes)
 ├── docs/                  # Technische Dokumentation
 │   └── RUST_MIGRATION.md  # Migrationsplan, Reihenfolge, Fortschritt
 ├── scripts/
 │   ├── fixtures/          # Generiert sprachübergreifende Fixtures
-│   └── verify/            # Paritätsprüfungen Rust gegen TypeScript
+│   └── verify/            # Paritätsprüfungen Rust gegen Referenzdaten (golden)
 ├── docker/
 │   └── Dockerfile.gateway # Mehrstufiger Build des Rust-Gateways
 └── ops/                   # Operations-Konfiguration (systemd)
@@ -286,9 +285,10 @@ pnpm run start
 
 ```
 Browser / CLI ──► gateway (Rust, axum)  :3000   öffentlicher Listener
-                    ├── /ws    nativer WebSocket-Gateway
-                    ├── /api/* bereits migrierte Routen
-                    └── Rest ──► web-ui (Next.js) :3001
+                    ├── /ws     nativer WebSocket-Gateway
+                    ├── /api/*  alle API-Routen in Rust
+                    └── Seiten  statischer Export (/app/out) in Compose und dev:static;
+                                in `pnpm run dev` Proxy zum Next-Dev-Server (:3001)
 ```
 
 Der Migrationfortschritt, die Schnittstellen zwischen beiden Implementierungen
@@ -301,7 +301,7 @@ und die Entfernungskriterien für die Proxy-Schicht stehen in
 
 1. **UI-Komponenten** enthalten keine Infrastruktur-Execution.
 2. **API-Routen** parsen Requests und delegieren an Services/Use-Cases.
-3. **Business-Logik** lebt in `src/server/*` bzw. Feature-Services.
+3. **Business-Logik** lebt im Rust-Workspace (`rust/crates/`).
 4. **`src/shared`** darf von Modulen/Server genutzt werden, aber nicht umgekehrt.
 5. Neue Änderungen bleiben **strict-typed** und **testbar**.
 
@@ -335,24 +335,28 @@ pnpm run test:coverage
 # E2E Baseline (Alias auf Smoke-Lane)
 pnpm run test:e2e
 
-# E2E Smoke (deterministisch, Vitest)
+# E2E Smoke (deterministisch, Vitest, Rust-Gateway)
 pnpm run test:e2e:smoke
 
-# E2E Browser-Journeys (Playwright)
+# E2E Browser-Journeys (Playwright, Rust-Gateway mit statischem Export)
 pnpm run test:e2e:browser
-
-# E2E Live (Mem0, opt-in via MEM0_E2E=1)
-pnpm run test:e2e:live
 
 # Vollständiger Check (typecheck + lint + format:check)
 pnpm run check
 ```
 
+Die Smoke- und die Browser-Lane testen das Rust-Backend, kein Node-Server läuft dabei.
+Beide starten `betaclaw-gateway` im Static-Modus (`BETACLAW_UI_MODE=static`) und
+`betaclaw-scheduler` daneben, mit Temp-Datenverzeichnis, mem0-Mock und den bisherigen
+Auth- und Port-Vorgaben. `scripts/e2e/prepare-rust-gateway.mjs` baut die Binaries vorher,
+die Browser-Lane außerdem den UI-Export (`pnpm run build:export`) nach `out/`. Die
+gemeinsame Startlogik liegt in `tests/e2e/_shared/rustGateway.ts`.
+
 Werkzeug-Konventionen:
 
 - `tsc` ist TypeScript 7 (nativer Compiler). TypeScript 7 exportiert die klassische
   Compiler-API nicht mehr. Skripte und Tests, die Quelltext parsen
-  (`scripts/verify/route-coverage.mjs`, `tests/unit/architecture/ast-legibility-guards.test.ts`),
+  (`tests/unit/architecture/ast-legibility-guards.test.ts`),
   importieren sie deshalb aus dem Alias-Paket `typescript-api` (TypeScript 6).
 - `oxlint` meldet `vi.fn()` ohne Typparameter. Mocks mit Implementierung tragen ihre
   Signatur explizit, offene Mocks nutzen `vi.fn<MockProcedure>()` aus
@@ -379,10 +383,14 @@ können:
    `src/shared/domain/constants.ts` generiert
    (`scripts/ci/export-security-rules.mjs`). Beide Prüfungen laufen in CI gegen
    den committeten Stand.
-2. **Verhalten wird gegen die TypeScript-Referenz verglichen.**
-   `scripts/verify/logs-parity.mjs` füttert dieselben Log-Ereignisse in beide
-   Implementierungen und vergleicht Level, Quelle, Kategorie, Reihenfolge,
-   Filterergebnisse und `clear()`-Semantik Feld für Feld.
+2. **Verhalten wird gegen Referenzdaten verglichen.**
+   `scripts/verify/logs-parity.mjs` füttert dieselben Log-Ereignisse ins Rust-Gateway
+   und vergleicht Level, Quelle, Kategorie, Reihenfolge, Filterergebnisse und
+   `clear()`-Semantik Feld für Feld gegen `scripts/verify/parity/golden/logs.json`.
+   Die Referenz stammt aus der TypeScript-Implementierung, bevor sie entfernt wurde,
+   und wurde einmal aufgenommen. Die Paritäts-Suite (`pnpm run verify:route-parity`) lädt
+   keinen TypeScript-Code. Die Referenzdateien sind feste Vorgaben: Eine Änderung ist
+   eine reviewte Änderung in `scripts/verify/parity/golden/`. Eine Neuaufnahme gibt es nicht mehr.
 
 Integrationstests in `rust/crates/betaclaw-gateway/tests/` starten den echten
 axum-Router auf einem ephemeren Port und sprechen HTTP sowie WebSocket über TCP
@@ -545,11 +553,9 @@ Single endpoint path: `/ws` (clients must use `?protocol=v2`)
   akzeptiert `/ws` nur Loopback-Clients; siehe [Netzwerkzugriff und
   Authentifizierung](#netzwerkzugriff-und-authentifizierung).
 - Der Endpunkt wird vom Rust-Gateway terminiert. Der Endpunkt bleibt während der
-  gesamten Migration unverändert, damit Browser, CLI und `src/lib/betaclaw/client.ts`
-  nichts anpassen müssen.
-- Aktuell in Rust: `presence.*` und `logs.*`. Die übrigen Methoden liefert
-  während der Übergangszeit die TypeScript-Implementierung; siehe
-  [`docs/RUST_MIGRATION.md`](docs/RUST_MIGRATION.md).
+  gesamten Migration unverändert, damit Browser und CLI nichts anpassen müssen.
+- Der WebSocket-Endpunkt und seine Methoden laufen im Rust-Gateway. Die TypeScript-Implementierung
+  ist entfernt; siehe [`docs/RUST_MIGRATION.md`](docs/RUST_MIGRATION.md).
 
 ### Rate Limits
 

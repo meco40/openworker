@@ -1,11 +1,20 @@
-/** Real next-auth + application authorize callback versus the Rust auth routes. */
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createRequire } from 'node:module';
-import { AuthHandler, serialize } from '../../../fixtures/nextauth.mjs';
-import { check, checkTrue, rustRequest } from '../harness.mjs';
+/**
+ * Auth routes (`/api/auth/*`) parity against the NextAuth reference.
+ *
+ * The NextAuth reference is `golden/auth.json`, recorded once from the real next-auth
+ * handler and the application authorize callback before the TypeScript backend was
+ * removed. Two values differ per run and are normalised on both sides: the gateway
+ * origin (the port is chosen per run; the reference stores `<origin>`) and session
+ * user ids (minted per login, so only their presence is compared).
+ *
+ * Replaying a cookie minted by the TypeScript side against Rust is no longer
+ * possible (the TypeScript side is gone), so the Rust-issued cookie is checked
+ * against the reference instead.
+ */
+import { check, checkTrue, goldenReference, rustRequest } from '../harness.mjs';
+
 export const name = 'auth';
+
 function cookiePair(value) {
   return value.split(';')[0];
 }
@@ -30,6 +39,17 @@ function cookieHeader(jar, override) {
   }
   return [...cookies].map(([k, v]) => k + '=' + v).join('; ');
 }
+/** Replaces the gateway origin with a placeholder so the reference does not depend on the port. */
+function originless(value, origin) {
+  const text = JSON.stringify(value);
+  return text === undefined ? value : JSON.parse(text.split(origin).join('<origin>'));
+}
+/** Session user ids are minted per login: only their presence is compared. */
+function withoutUserId(user) {
+  if (!user || typeof user.id !== 'string') return user;
+  return { ...user, id: '<id>' };
+}
+
 export async function run() {
   const email = process.env.AUTH_DEFAULT_EMAIL,
     password = process.env.AUTH_DEFAULT_PASSWORD;
@@ -37,151 +57,105 @@ export async function run() {
     throw new Error(
       'Auth parity requires the isolated AUTH_DEFAULT_EMAIL/PASSWORD supplied to the Rust gateway.',
     );
-  const scratch = mkdtempSync(join(tmpdir(), 'auth-parity-'));
-  const previous = process.env.AUTH_DB_PATH;
-  process.env.AUTH_DB_PATH = join(scratch, 'auth.db');
-  const { authOptions } = createRequire(import.meta.url)('../../../../src/auth.ts');
   const base = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '');
-  const rustJar = new Map(),
-    tsJar = new Map();
+  const rustJar = new Map();
   const rust = async (method, path, body, cookie) => {
     const response = await rustRequest(method, path, {
       body,
       headers: { cookie: cookieHeader(rustJar, cookie) },
     });
     updateJar(rustJar, response.setCookies);
-    return response;
+    return { ...response, json: originless(response.json, base) };
   };
-  const reference = async (method, path, body, cookie) => {
-    const response = await AuthHandler({
-      req: new Request(base + path, {
-        method,
-        headers: {
-          host: new URL(base).host,
-          'content-type': 'application/json',
-          cookie: cookieHeader(tsJar, cookie),
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-      }),
-      options: authOptions,
-    });
-    const setCookies = (response.cookies || []).map((c) => serialize(c.name, c.value, c.options));
-    updateJar(tsJar, setCookies);
-    return {
-      status: response.status ?? 200,
-      json: response.redirect ? { url: response.redirect } : response.body,
-      setCookies,
-    };
-  };
-  try {
-    const providers = await reference('GET', '/api/auth/providers');
-    check(
-      'providers: real NextAuth versus Rust',
-      (await rust('GET', '/api/auth/providers')).json,
-      providers.json,
-    );
-    const tsCsrf = await reference('GET', '/api/auth/csrf'),
-      rustCsrf = await rust('GET', '/api/auth/csrf');
-    for (const [label, response] of [
-      ['TS', tsCsrf],
-      ['Rust', rustCsrf],
-    ])
-      checkTrue(
-        label + ' issues token and serialized CSRF cookie',
-        /^[a-f0-9]{64}$/.test(response.json.csrfToken) &&
-          response.setCookies.some((c) => /csrf-token=/.test(c)),
-      );
-    check(
-      'anonymous session',
-      (await rust('GET', '/api/auth/session')).json,
-      (await reference('GET', '/api/auth/session')).json,
-    );
-    const form = (csrfToken, pass = password) => ({
-      email,
-      password: pass,
-      csrfToken,
-      callbackUrl: base + '/',
-      json: 'true',
-    });
-    const tsLogin = await reference(
-      'POST',
-      '/api/auth/callback/credentials',
-      form(tsCsrf.json.csrfToken),
-    );
-    const rustLogin = await rust(
-      'POST',
-      '/api/auth/callback/credentials',
-      form(rustCsrf.json.csrfToken),
-    );
-    check('successful login status', rustLogin.status, tsLogin.status);
-    check('successful login URL', rustLogin.json, tsLogin.json);
-    const tsCookie = sessionCookie(tsLogin.setCookies),
-      rustCookie = sessionCookie(rustLogin.setCookies);
-    checkTrue('both logins issue session cookies', Boolean(tsCookie && rustCookie));
-    if (!tsCookie || !rustCookie) throw new Error('Successful login did not issue both cookies.');
-    for (const [label, cookie] of [
-      ['TS cookie', tsCookie],
-      ['Rust cookie', rustCookie],
-    ]) {
-      const a = await reference('GET', '/api/auth/session', undefined, cookie),
-        b = await rust('GET', '/api/auth/session', undefined, cookie);
-      check(label + ' accepted by both implementations', b.json.user, a.json.user);
-    }
-    const badCsrf = { ...form('invalid'), json: 'true' };
-    const a = await reference('POST', '/api/auth/callback/credentials', badCsrf),
-      b = await rust('POST', '/api/auth/callback/credentials', badCsrf);
-    check('invalid CSRF status', b.status, a.status);
-    check('invalid CSRF redirect', b.json, a.json);
-    for (let attempt = 1; attempt <= 10; attempt++) {
-      const a = await reference(
-        'POST',
-        '/api/auth/callback/credentials',
-        form(tsCsrf.json.csrfToken, 'wrong-parity-password'),
-      );
-      const b = await rust(
-        'POST',
-        '/api/auth/callback/credentials',
-        form(rustCsrf.json.csrfToken, 'wrong-parity-password'),
-      );
-      check('bad password ' + attempt + ' status', b.status, a.status);
-      check('bad password ' + attempt + ' URL', b.json, a.json);
-    }
-    const blockedTs = await reference(
-      'POST',
-      '/api/auth/callback/credentials',
-      form(tsCsrf.json.csrfToken),
-    );
-    const blockedRust = await rust(
-      'POST',
-      '/api/auth/callback/credentials',
-      form(rustCsrf.json.csrfToken),
-    );
-    check('correct password remains locked out', blockedRust.status, blockedTs.status);
+  const reference = (key) => goldenReference(name, key);
+
+  const providers = await reference('providers');
+  check(
+    'providers: NextAuth reference versus Rust',
+    (await rust('GET', '/api/auth/providers')).json,
+    providers.json,
+  );
+  const tsCsrf = await reference('csrf'),
+    rustCsrf = await rust('GET', '/api/auth/csrf');
+  for (const [label, response] of [
+    ['Reference', tsCsrf],
+    ['Rust', rustCsrf],
+  ])
     checkTrue(
-      'lockout is a credential failure',
-      blockedRust.status === 401 && blockedTs.status === 401,
+      label + ' issues token and serialized CSRF cookie',
+      /^[a-f0-9]{64}$/.test(response.json.csrfToken) &&
+        response.setCookies.some((c) => /csrf-token=/.test(c)),
     );
-    const outTs = await reference('POST', '/api/auth/signout', {
-      csrfToken: tsCsrf.json.csrfToken,
-      json: 'true',
-    });
-    const outRust = await rust('POST', '/api/auth/signout', {
-      csrfToken: rustCsrf.json.csrfToken,
-      json: 'true',
-    });
-    check('valid signout', outRust.json, outTs.json);
-    checkTrue(
-      'both signouts delete the session cookie',
-      [outTs, outRust].every((r) => r.setCookies.some((c) => /session-token=;/.test(c))),
+  check(
+    'anonymous session',
+    (await rust('GET', '/api/auth/session')).json,
+    (await reference('anonymous session')).json,
+  );
+  const form = (csrfToken, pass = password) => ({
+    email,
+    password: pass,
+    csrfToken,
+    callbackUrl: base + '/',
+    json: 'true',
+  });
+  const tsLogin = await reference('login');
+  const rustLogin = await rust(
+    'POST',
+    '/api/auth/callback/credentials',
+    form(rustCsrf.json.csrfToken),
+  );
+  check('successful login status', rustLogin.status, tsLogin.status);
+  check('successful login URL', rustLogin.json, tsLogin.json);
+  const tsCookie = sessionCookie(tsLogin.setCookies),
+    rustCookie = sessionCookie(rustLogin.setCookies);
+  checkTrue('both logins issue session cookies', Boolean(tsCookie && rustCookie));
+  if (!rustCookie) throw new Error('Successful login did not issue a session cookie.');
+  console.log(
+    'SKIP Reference-Cookie gegen Rust — das Cookie gilt nur für das Secret seines Laufs und steht nicht im Referenzbestand',
+  );
+  {
+    const a = await reference('session with Rust cookie'),
+      b = await rust('GET', '/api/auth/session', undefined, rustCookie);
+    check(
+      'Rust cookie accepted by both implementations',
+      withoutUserId(b.json.user),
+      withoutUserId(a.json.user),
     );
-  } finally {
-    if (previous === undefined) delete process.env.AUTH_DB_PATH;
-    else process.env.AUTH_DB_PATH = previous;
-    // The TypeScript authorize path keeps its SQLite handle open in a global singleton.
-    // Windows refuses to delete the file while it is open, so close it first.
-    globalThis.__authUserStore?.close();
-    delete globalThis.__authUserStore;
-    // Windows keeps the SQLite file locked for a moment after the handle closes.
-    rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
+  const badCsrf = { ...form('invalid'), json: 'true' };
+  const a = await reference('invalid CSRF'),
+    b = await rust('POST', '/api/auth/callback/credentials', badCsrf);
+  check('invalid CSRF status', b.status, a.status);
+  check('invalid CSRF redirect', b.json, a.json);
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    const a = await reference('bad password ' + attempt);
+    const b = await rust(
+      'POST',
+      '/api/auth/callback/credentials',
+      form(rustCsrf.json.csrfToken, 'wrong-parity-password'),
+    );
+    check('bad password ' + attempt + ' status', b.status, a.status);
+    check('bad password ' + attempt + ' URL', b.json, a.json);
+  }
+  const blockedTs = await reference('correct password locked out');
+  const blockedRust = await rust(
+    'POST',
+    '/api/auth/callback/credentials',
+    form(rustCsrf.json.csrfToken),
+  );
+  check('correct password remains locked out', blockedRust.status, blockedTs.status);
+  checkTrue(
+    'lockout is a credential failure',
+    blockedRust.status === 401 && blockedTs.status === 401,
+  );
+  const outTs = await reference('signout');
+  const outRust = await rust('POST', '/api/auth/signout', {
+    csrfToken: rustCsrf.json.csrfToken,
+    json: 'true',
+  });
+  check('valid signout', outRust.json, outTs.json);
+  checkTrue(
+    'both signouts delete the session cookie',
+    [outTs, outRust].every((r) => r.setCookies.some((c) => /session-token=;/.test(c))),
+  );
 }

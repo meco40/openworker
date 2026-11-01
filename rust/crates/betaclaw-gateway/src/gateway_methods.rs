@@ -727,4 +727,46 @@ mod tests {
     fn log_repository_opens_in_memory() {
         assert!(LogRepository::open(":memory:").is_ok());
     }
+
+    #[tokio::test]
+    async fn a_failed_method_keeps_its_code_and_message() {
+        // The TypeScript router turns a thrown error into UNAVAILABLE with the message.
+        let state = fixture().await;
+        let mut registry = build_registry(&state);
+        registry.register(
+            "test.fail",
+            Arc::new(|_: &Value, _: &ClientHandle, _: &SharedState| {
+                MethodOutcome::Failed(ErrorCode::Unavailable, "Something broke".into())
+            }),
+        );
+        let response = call(
+            &registry,
+            &state,
+            &handle("c0"),
+            FrameId::number(7),
+            "test.fail",
+            Value::Null,
+        )
+        .await;
+        assert_eq!(response["ok"], false);
+        assert_eq!(response["error"]["code"], "UNAVAILABLE");
+        assert_eq!(response["error"]["message"], "Something broke");
+    }
+
+    #[tokio::test]
+    async fn responses_echo_the_request_id() {
+        let state = fixture().await;
+        let registry = build_registry(&state);
+        let response = call(
+            &registry,
+            &state,
+            &handle("c0"),
+            FrameId::number(99),
+            "presence.list",
+            Value::Object(Default::default()),
+        )
+        .await;
+        assert_eq!(response["id"], 99);
+        assert_eq!(response["type"], "res");
+    }
 }

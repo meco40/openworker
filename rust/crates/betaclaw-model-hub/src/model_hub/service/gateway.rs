@@ -650,6 +650,42 @@ mod tests {
         );
     }
 
+    /// A provider call that is aborted or times out in flight is not a transport
+    /// failure: `fetchWithTimeout` rethrows the `AbortError` and it escapes
+    /// `dispatchGatewayRequest` (`Models/shared/http.ts:45-47`). The chat path then
+    /// answers `Generation aborted.` (`aiDispatcher.ts:41-46`).
+    #[tokio::test]
+    async fn a_provider_abort_escapes_as_an_aborted_error() {
+        struct Aborting(HttpError);
+        impl HttpTransport for Aborting {
+            fn send<'a>(
+                &'a self,
+                _request: crate::model_hub::http::HttpRequest,
+            ) -> BoxFuture<'a, Result<HttpResponse, HttpError>> {
+                let error = self.0.clone();
+                Box::pin(async move { Err(error) })
+            }
+        }
+
+        let attachments = StubAttachmentStore::default();
+        let discarded = StubTransport::default();
+        for aborted in [HttpError::Aborted, HttpError::Timeout] {
+            let transport = Aborting(aborted.clone());
+            let deps =
+                ServiceDependencies::for_test(&discarded, &attachments).with_transport(&transport);
+
+            let error = dispatch_gateway_request(&account("openai"), KEY, &request(), None, &deps)
+                .await
+                .expect_err("the abort escapes the dispatch");
+
+            assert_eq!(error.to_string(), aborted.to_string());
+            assert!(
+                matches!(error, crate::model_hub::service::ServiceError::Aborted(_)),
+                "{error:?}"
+            );
+        }
+    }
+
     /// An observer that throws must not turn a working dispatch into a failure
     /// (`gateway.ts:103` and `gateway.ts:188`).
     #[tokio::test]

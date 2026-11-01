@@ -133,4 +133,28 @@ mod tests {
         assert!(prompt.contains("PHASE: Research (Round 1 of 2)"));
         assert!(prompt.contains("1) Start exactly with **[Ada]:**"));
     }
+
+    #[test]
+    fn research_turns_point_the_agent_at_web_search_and_source_urls() {
+        let speaker = ResolvedSwarmUnit {
+            persona_id: "p".to_string(),
+            role: "researcher".to_string(),
+            name: "Research Agent".to_string(),
+            emoji: "🔎".to_string(),
+        };
+        let params = TurnPromptParams {
+            swarm_title: "Test Swarm".to_string(),
+            task: "Find reliable sources".to_string(),
+            phase: SwarmPhase::Research,
+            speaker: speaker.clone(),
+            lead_persona_id: "p".to_string(),
+            recent_history: String::new(),
+            units: vec![speaker],
+            phase_round: None,
+            phase_rounds_total: None,
+        };
+        let prompt = build_simple_turn_prompt(&params);
+        assert!(prompt.contains("\"web_search\""));
+        assert!(prompt.contains("source URLs"));
+    }
 }

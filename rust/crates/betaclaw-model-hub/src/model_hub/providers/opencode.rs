@@ -944,6 +944,33 @@ mod tests {
         assert!(transport.seen.lock().expect("lock").is_empty());
     }
 
+    /// The probe calls the catalogued `/models` URL with the key as a Bearer token
+    /// (`connectivity.test.ts`, "calls OpenCode models endpoint for opencode provider").
+    #[tokio::test]
+    async fn connectivity_calls_the_models_endpoint_with_the_bearer_key() {
+        let transport = ScriptedTransport::single(json_response(
+            StatusCode::OK,
+            r#"{"object":"list","data":[{"id":"big-pickle"}]}"#,
+        ));
+        let env = EnvOverrides::new();
+        let result = OpenCodeAdapter
+            .test_connectivity(
+                &context("oc-sk-test", Some(BASE_URL)),
+                &call(&transport, &env),
+                None,
+            )
+            .await;
+
+        assert!(result.ok);
+        let seen = transport.seen.lock().expect("lock");
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].url, "https://opencode.ai/zen/v1/models");
+        assert_eq!(
+            seen[0].headers.get("authorization").expect("authorization"),
+            "Bearer oc-sk-test"
+        );
+    }
+
     /// The shared probe's two messages (`opencode/index.ts:27-32`).
     #[tokio::test]
     async fn connectivity_uses_the_shared_messages() {

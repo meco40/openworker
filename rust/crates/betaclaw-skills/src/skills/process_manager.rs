@@ -521,12 +521,15 @@ mod tests {
     use super::super::types::test_support::TempDir;
     use super::*;
     use serde_json::json;
+    #[cfg(unix)]
     use std::time::Instant;
 
     fn args(value: Value) -> Map<String, Value> {
         value.as_object().cloned().unwrap_or_default()
     }
 
+    // Only the unix-gated process tests read the id; elsewhere it would be dead code.
+    #[cfg(unix)]
     fn id_of(report: &str) -> String {
         let start = report.find("id=").expect("id") + 3;
         report[start..]
@@ -593,6 +596,35 @@ mod tests {
             .handle(&args(json!({ "action": "kill" })), &ctx, &env)
             .await;
         assert_eq!(err.expect_err("needs id"), "action=kill requires id.");
+    }
+
+    #[tokio::test]
+    async fn start_refuses_encoded_powershell_and_needs_an_approval() {
+        // Port of "blocks encoded powershell payloads for action=start" and
+        // "requires approval when exec approvals are enabled" in
+        // tests/unit/skills/process-manager-security.test.ts.
+        let dir = TempDir::new();
+        let manager = ProcessManager::default();
+        let err = manager
+            .handle(
+                &args(json!({ "action": "start", "command": "powershell -enc SQBFAFgA" })),
+                &SkillDispatchContext::default(),
+                &dir.env(false),
+            )
+            .await
+            .expect_err("blocked");
+        assert_eq!(err, "Command blocked by security policy.");
+
+        let err = manager
+            .handle(
+                &args(json!({ "action": "start", "command": "echo hi" })),
+                &SkillDispatchContext::default(),
+                &dir.env(true),
+            )
+            .await
+            .expect_err("needs approval");
+        assert!(err.starts_with("Command requires approval. Fingerprint: "));
+        assert!(err.contains("npm run cli -- node approve"));
     }
 
     #[tokio::test]

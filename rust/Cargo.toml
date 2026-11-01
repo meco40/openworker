@@ -64,7 +64,9 @@ sqlx-postgres = { version = "0.9", default-features = false, features = [
   "uuid",
 ] }
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
+# `float_roundtrip`: parse floats exactly, as `JSON.parse` does. Without it stored
+# embeddings did not round-trip bit for bit (found in the TS test audit, memory).
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 serde_urlencoded = "0.7"
 sha2 = "0.11"
 subtle = "2"

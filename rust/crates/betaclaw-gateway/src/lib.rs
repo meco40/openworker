@@ -20,6 +20,7 @@ pub mod state;
 pub mod static_ui;
 pub mod swarm_runtime;
 pub mod workspace_cleanup;
+pub mod world_model_ops;
 pub mod ws;
 
 pub use state::{AppState, GatewayRuntime};

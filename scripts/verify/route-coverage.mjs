@@ -1,16 +1,27 @@
 #!/usr/bin/env node
-/** Compare Next route exports with the methods actually declared in Rust routers. */
+/**
+ * Checks the Rust route table against the reviewed reference in
+ * `scripts/verify/route-table.json` (one "METHOD /api/path" entry per route, with
+ * dynamic segments written as `:id`).
+ *
+ * The Rust routers are the only source of declared routes. The TypeScript route
+ * files that used to be the other side of this comparison were removed with the
+ * TypeScript backend, so the reference list is what guards against a route being
+ * dropped or added by accident. Changing a route means changing the reference in the
+ * same reviewed edit.
+ *
+ *   node scripts/verify/route-coverage.mjs                # check against the reference
+ *   node scripts/verify/route-coverage.mjs --print-table  # print the declared table (for a deliberate update)
+ *   node scripts/verify/route-coverage.mjs --self-test
+ */
 import { readdirSync, readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-// The classic compiler API; TypeScript 7 (the project compiler) no longer exports it.
-import ts from 'typescript-api';
 
 const root = process.env.ROUTE_COVERAGE_ROOT || fileURLToPath(new URL('../../', import.meta.url));
-const methods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);
 const normalize = (path) =>
   path.replace(/\[(?:\.\.\.)?[^/\]]+\]|\{[^/}]+\}/g, ':id').replace(/\/$/, '');
 function files(dir, predicate) {
@@ -69,37 +80,42 @@ export function rustRoutes(source) {
   }
   return routes;
 }
-function exportedMethods(file) {
-  const ast = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
-  const found = new Set();
-  for (const node of ast.statements) {
-    if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
-      for (const spec of node.exportClause.elements)
-        if (methods.has(spec.name.text)) found.add(spec.name.text);
+
+/** Declared "METHOD path" entries, sorted, from every Rust router under the gateway crate. */
+export function declaredTable(rootDir) {
+  const declared = new Map();
+  for (const file of files(
+    join(rootDir, 'rust/crates/betaclaw-gateway/src'),
+    (name) => name.endsWith('.rs') && !name.includes('test_support'),
+  )) {
+    for (const [path, verbs] of rustRoutes(readFileSync(file, 'utf8'))) {
+      const all = declared.get(path) || new Set();
+      for (const verb of verbs) all.add(verb);
+      declared.set(path, all);
     }
-    if (!node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) continue;
-    if (ts.isFunctionDeclaration(node) && node.name && methods.has(node.name.text))
-      found.add(node.name.text);
-    if (ts.isVariableStatement(node))
-      for (const declaration of node.declarationList.declarations)
-        if (ts.isIdentifier(declaration.name) && methods.has(declaration.name.text))
-          found.add(declaration.name.text);
   }
-  return found;
+  return [...declared]
+    .flatMap(([path, verbs]) => [...verbs].map((verb) => `${verb} ${path}`))
+    .sort();
 }
-export function missingMethods(required, available) {
-  return [...required].filter((method) => !available?.has(method));
+
+/** Entries in the reference that the Rust table lacks, and entries the table has beyond it. */
+export function diffTable(reference, declared) {
+  const expected = new Set(reference);
+  const actual = new Set(declared);
+  return {
+    missing: [...expected].filter((entry) => !actual.has(entry)).sort(),
+    unreviewed: [...actual].filter((entry) => !expected.has(entry)).sort(),
+  };
 }
+
+function readReference(rootDir) {
+  return JSON.parse(readFileSync(join(rootDir, 'scripts/verify/route-table.json'), 'utf8'));
+}
+
 if (process.argv.includes('--self-test')) {
   const routes = rustRoutes('Router::new().route("/api/items/{id}", get(read).post(write))');
-  assert.deepEqual(
-    missingMethods(new Set(['GET', 'DELETE']), routes.get(normalize('/api/items/[id]'))),
-    ['DELETE'],
-  );
-  assert.deepEqual(
-    missingMethods(new Set(['DELETE']), routes.get('/api/auth/definitely-missing')),
-    ['DELETE'],
-  );
+  assert.deepEqual([...routes.get(normalize('/api/items/[id]'))].sort(), ['GET', 'POST']);
   assert.equal(normalize('/api/items/[id]'), normalize('/api/items/{itemId}'));
   assert.equal(
     rustRoutes('#[cfg(test)] mod tests { router.route("/api/fake", get(fake)); }').size,
@@ -109,67 +125,56 @@ if (process.argv.includes('--self-test')) {
     rustRoutes('// .route("/api/fake", get(fake))\n/* .route("/api/fake", get(fake)) */').size,
     0,
   );
+  assert.deepEqual(diffTable(['GET /a', 'DELETE /a'], ['GET /a', 'POST /b']), {
+    missing: ['DELETE /a'],
+    unreviewed: ['POST /b'],
+  });
   const scratch = mkdtempSync(join(tmpdir(), 'route-coverage-'));
   try {
-    const api = join(scratch, 'app/api/auth/definitely-missing');
-    mkdirSync(api, { recursive: true });
     mkdirSync(join(scratch, 'rust/crates/betaclaw-gateway/src'), { recursive: true });
-    writeFileSync(join(api, 'route.ts'), 'export async function DELETE() {}');
-    const result = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
-      encoding: 'utf8',
-      env: { ...process.env, ROUTE_COVERAGE_ROOT: scratch },
-    });
-    assert.equal(result.status, 1, result.stdout + result.stderr);
-    assert.match(result.stderr, /DELETE \/api\/auth\/definitely-missing/);
+    mkdirSync(join(scratch, 'scripts/verify'), { recursive: true });
+    writeFileSync(
+      join(scratch, 'rust/crates/betaclaw-gateway/src/routes.rs'),
+      'Router::new().route("/api/items/{id}", get(read))',
+    );
+    const run = () =>
+      spawnSync(process.execPath, [fileURLToPath(import.meta.url)], {
+        encoding: 'utf8',
+        env: { ...process.env, ROUTE_COVERAGE_ROOT: scratch },
+      });
+    writeFileSync(
+      join(scratch, 'scripts/verify/route-table.json'),
+      JSON.stringify(['GET /api/items/:id']),
+    );
+    const passing = run();
+    assert.equal(passing.status, 0, passing.stdout + passing.stderr);
+    writeFileSync(
+      join(scratch, 'scripts/verify/route-table.json'),
+      JSON.stringify(['GET /api/items/:id', 'DELETE /api/items/:id']),
+    );
+    const failing = run();
+    assert.equal(failing.status, 1, failing.stdout + failing.stderr);
+    assert.match(failing.stderr, /DELETE \/api\/items\/:id/);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
-  console.log('Route-coverage negative/dynamic/method self-tests passed.');
+  console.log('Route-coverage self-tests passed.');
+} else if (process.argv.includes('--print-table')) {
+  console.log(JSON.stringify(declaredTable(root), null, 2));
 } else {
-  const declared = new Map();
-  for (const file of files(
-    join(root, 'rust/crates/betaclaw-gateway/src'),
-    (name) => name.endsWith('.rs') && !name.includes('test_support'),
-  )) {
-    for (const [path, verbs] of rustRoutes(readFileSync(file, 'utf8'))) {
-      const all = declared.get(path) || new Set();
-      for (const verb of verbs) all.add(verb);
-      declared.set(path, all);
-    }
-  }
-  const missing = [];
-  let checked = 0;
-  for (const file of files(join(root, 'app/api'), (name) => /^route\.[tj]s$/.test(name))) {
-    const path =
-      '/' +
-      relative(join(root, 'app'), file)
-        .replaceAll('\\', '/')
-        .replace(/\/route\.[tj]s$/, '');
-    if (path === '/api/auth/[...nextauth]') {
-      for (const [verb, action] of [
-        ['GET', 'providers'],
-        ['GET', 'csrf'],
-        ['GET', 'session'],
-        ['GET', 'signin'],
-        ['GET', 'signin/credentials'],
-        ['GET', 'error'],
-        ['POST', 'callback/credentials'],
-        ['POST', 'signout'],
-      ]) {
-        checked++;
-        if (!declared.get('/api/auth/' + action)?.has(verb))
-          missing.push(verb + ' /api/auth/' + action);
-      }
-    } else {
-      for (const method of exportedMethods(file)) {
-        checked++;
-        if (!declared.get(normalize(path))?.has(method)) missing.push(method + ' ' + path);
-      }
-    }
-  }
-  console.log(checked + ' route/method contracts checked against Rust declarations.');
-  if (missing.length) {
-    console.error('Missing Rust handlers:\n' + missing.join('\n'));
+  const declared = declaredTable(root);
+  const reference = readReference(root);
+  const { missing, unreviewed } = diffTable(reference, declared);
+  console.log(
+    `${declared.length} route/method pairs declared in Rust, ${reference.length} in the reference.`,
+  );
+  if (missing.length || unreviewed.length) {
+    if (missing.length) console.error('Missing Rust handlers:\n' + missing.join('\n'));
+    if (unreviewed.length)
+      console.error(
+        'Routes not in scripts/verify/route-table.json (review, then add them):\n' +
+          unreviewed.join('\n'),
+      );
     process.exitCode = 1;
-  } else console.log('All required route/method pairs have a Rust declaration.');
+  } else console.log('The Rust route table matches the reviewed reference.');
 }

@@ -553,4 +553,288 @@ mod tests {
         );
         let _ = fs::remove_dir_all(&root);
     }
+
+    #[test]
+    fn a_skills_value_that_is_not_an_object_leaves_the_table_alone() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(
+            &root.join(".clawhub").join("lock.json"),
+            r#"{"version":1,"skills":["weather"]}"#,
+        );
+        seed(&service, "weather");
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].slug, "weather");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn sync_removes_rows_that_are_not_in_the_lockfile_and_skips_unsafe_slugs() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(
+            &root.join(".clawhub").join("lock.json"),
+            r#"{"version":1,"skills":{"weather":{"version":"1"},"bad slug!":{"version":"1"}}}"#,
+        );
+        seed(&service, "weather");
+        seed(&service, "stale");
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].slug, "weather");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Answers every call with the given stdout.
+    #[derive(Clone)]
+    struct CannedRunner {
+        calls: Arc<Mutex<Vec<Vec<String>>>>,
+        stdout: &'static str,
+    }
+
+    impl CommandRunner for CannedRunner {
+        fn execute(
+            &self,
+            _file: &str,
+            args: &[String],
+            _cwd: &Path,
+            _timeout: Duration,
+        ) -> impl Future<Output = Result<ExecOutput, ExecError>> + Send {
+            self.calls.lock().expect("calls").push(args.to_vec());
+            let stdout = self.stdout.to_string();
+            async move {
+                Ok(ExecOutput {
+                    stdout,
+                    stderr: String::new(),
+                })
+            }
+        }
+    }
+
+    fn canned_service(
+        root: &Path,
+        stdout: &'static str,
+    ) -> (ClawHubService<CannedRunner>, CannedRunner) {
+        let runner = CannedRunner {
+            calls: Arc::default(),
+            stdout,
+        };
+        let options = ClawHubCliOptions {
+            workdir: root.to_path_buf(),
+            timeout: Duration::from_secs(5),
+            binary: "clawhub".into(),
+            exe_dir: root.join("node-bin"),
+            windows: false,
+        };
+        let cli = ClawHubCli::new(runner.clone(), options);
+        let repository = ClawHubRepository::in_memory().expect("repository");
+        (
+            ClawHubService::new(cli, repository, root.to_path_buf()),
+            runner,
+        )
+    }
+
+    fn seed<R: CommandRunner>(service: &ClawHubService<R>, slug: &str) {
+        service
+            .repository
+            .upsert_skill(&UpsertSkillInput {
+                slug: slug.into(),
+                version: "1".into(),
+                title: slug.into(),
+                status: SkillStatus::Installed,
+                enabled: None,
+                local_path: format!("skills/{slug}"),
+                installed_at: None,
+                last_action_at: None,
+                last_error: None,
+            })
+            .expect("seed");
+    }
+
+    #[tokio::test]
+    async fn search_clamps_the_limit_and_trims_the_query() {
+        let root = workspace();
+        let (service, runner) = service(&root);
+        service.search("  hello  ", 999).await.expect("search");
+        let call = runner.calls.lock().expect("calls")[0].clone();
+        assert_eq!(call[3..], ["search", "--limit", "200", "hello"]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn explore_parses_json_and_defaults_the_sort_to_newest() {
+        let root = workspace();
+        let (service, runner) =
+            canned_service(&root, r#"[{"slug":"calendar","title":"Calendar"}]"#);
+        let value = service.explore(999, "  ").await.expect("explore");
+        assert_eq!(value[0]["slug"], "calendar");
+        let call = runner.calls.lock().expect("calls")[0].clone();
+        assert_eq!(
+            call[3..],
+            ["explore", "--json", "--limit", "200", "--sort", "newest"]
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn explore_without_json_output_gives_an_empty_list() {
+        let root = workspace();
+        let (service, _) = canned_service(&root, "not-json");
+        let value = service.explore(10, "oldest").await.expect("explore");
+        assert_eq!(value, Value::Array(Vec::new()));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn install_without_force_omits_the_flag() {
+        let root = workspace();
+        let (service, runner) = service(&root);
+        service
+            .install(&InstallInput {
+                slug: "weather".into(),
+                version: None,
+                force: false,
+            })
+            .await
+            .expect("install");
+        let call = runner.calls.lock().expect("calls")[0].clone();
+        assert_eq!(call[3..], ["install", "weather"]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn update_passes_the_version_and_force_for_all_and_for_one_slug() {
+        let root = workspace();
+        let (service, runner) = service(&root);
+        service
+            .update(&UpdateInput {
+                slug: None,
+                all: true,
+                version: Some("2.0.0".into()),
+                force: true,
+            })
+            .await
+            .expect("update all");
+        service
+            .update(&UpdateInput {
+                slug: Some(" weather ".into()),
+                all: false,
+                version: Some("2.0.0".into()),
+                force: true,
+            })
+            .await
+            .expect("update one");
+        let calls = runner.calls.lock().expect("calls").clone();
+        assert_eq!(
+            calls[0][3..],
+            ["update", "--all", "--version", "2.0.0", "--force"]
+        );
+        assert_eq!(
+            calls[1][3..],
+            ["update", "weather", "--version", "2.0.0", "--force"]
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn an_invalid_update_slug_never_reaches_the_cli() {
+        let root = workspace();
+        let (service, runner) = service(&root);
+        let error = service
+            .update(&UpdateInput {
+                slug: Some("bad slug!".into()),
+                all: false,
+                version: None,
+                force: false,
+            })
+            .await
+            .expect_err("invalid slug");
+        assert_eq!(error.http_status(), 400);
+        assert!(runner.calls.lock().expect("calls").is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn uninstall_removes_only_the_row_when_nothing_else_exists() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        seed(&service, "weather");
+        service.uninstall("weather").expect("uninstall");
+        assert!(service
+            .repository
+            .get_skill("weather")
+            .expect("read")
+            .is_none());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn uninstall_removes_only_the_directory_when_nothing_else_exists() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(&root.join("skills/weather/SKILL.md"), "body");
+        service.uninstall("weather").expect("uninstall");
+        assert!(!root.join("skills/weather").exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn without_a_lockfile_sync_returns_the_table_as_it_is() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        seed(&service, "weather");
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].slug, "weather");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_unreadable_lockfile_leaves_the_table_alone() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(&root.join(".clawhub").join("lock.json"), "not json");
+        seed(&service, "weather");
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].slug, "weather");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_empty_skills_object_in_the_lockfile_clears_the_table() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(
+            &root.join(".clawhub").join("lock.json"),
+            r#"{"version":1,"skills":{}}"#,
+        );
+        seed(&service, "weather");
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert!(rows.is_empty());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_slug_is_the_title_when_the_skill_has_no_meta_title() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        write(
+            &root.join(".clawhub").join("lock.json"),
+            r#"{"version":1,"skills":{"weather":{"version":"1"}}}"#,
+        );
+        let rows = service.sync_installed_from_lockfile().expect("sync");
+        assert_eq!(rows[0].title, "weather");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn set_enabled_turns_a_skill_on_and_off() {
+        let root = workspace();
+        let (service, _) = service(&root);
+        seed(&service, "weather");
+        assert!(service.set_enabled("weather", true).expect("on").enabled);
+        assert!(!service.set_enabled("weather", false).expect("off").enabled);
+        let _ = fs::remove_dir_all(&root);
+    }
 }

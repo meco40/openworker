@@ -3,7 +3,7 @@
 //! `collectRunSignals`, `collectMergeSizedChanges`, `collectAsyncFailures`) are in
 //! `engineering_signal_sources`, behind the master and task traits.
 //!
-//! Not ported here: `loadDomainRegistry` (`src/server/ci/harnessDomainRegistry.ts`).
+//! Not ported here: `loadDomainRegistry` (`src/shared/ci/harnessDomainRegistry.ts`).
 //! The caller passes the active domain ids in [`CollectData::active_domains`].
 //!
 //! Payload reads follow the TypeScript: a key counts with its camelCase or its
@@ -668,5 +668,116 @@ mod tests {
         let snapshot = collect_engineering_metrics_snapshot(30, now(), &data(None), signals);
         assert_eq!(snapshot.source, Some(SnapshotSource::Fallback));
         assert_eq!(snapshot.snapshot_age_hours, None);
+    }
+
+    #[test]
+    fn snake_case_payload_keys_are_read() {
+        let snapshot = collect_engineering_metrics_snapshot(
+            7,
+            now(),
+            &data(Some(stored(
+                "2026-06-10T11:00:00.000Z",
+                json!({
+                    "lead_time_median_hours": 3.5,
+                    "merge_throughput_per_week": 30,
+                    "first_pass_ci_rate": 0.7,
+                    "flaky_rate": 0.1,
+                    "revert_rate": 0.03,
+                    "median_pr_size": 200,
+                    "async_failure_sla_breaches": 2,
+                    "critical_fail_auto_reverts": 4
+                }),
+            ))),
+            signals,
+        );
+        assert_eq!(snapshot.source, Some(SnapshotSource::Snapshot));
+        assert_eq!(snapshot.lead_time_median_hours, Some(3.5));
+        assert_eq!(snapshot.merge_throughput_per_week, Some(30.0));
+        assert_eq!(snapshot.first_pass_ci_rate, Some(0.7));
+        assert_eq!(snapshot.flaky_rate, Some(0.1));
+        assert_eq!(snapshot.revert_rate, Some(0.03));
+        assert_eq!(snapshot.median_pr_size, Some(200));
+        assert_eq!(snapshot.async_failure_sla_breaches, 2);
+        assert_eq!(snapshot.critical_fail_auto_reverts, Some(4));
+    }
+
+    #[test]
+    fn a_fresh_snapshot_without_payload_fields_keeps_the_computed_sections() {
+        let snapshot = collect_engineering_metrics_snapshot(
+            30,
+            now(),
+            &data(Some(stored("2026-06-10T11:00:00.000Z", json!({})))),
+            signals,
+        );
+        assert_eq!(snapshot.source, Some(SnapshotSource::Snapshot));
+        assert_eq!(snapshot.lead_time_median_hours, None);
+        assert_eq!(snapshot.merge_throughput_per_week, None);
+        assert_eq!(snapshot.first_pass_ci_rate, None);
+        assert_eq!(snapshot.flaky_rate, None);
+        assert_eq!(snapshot.revert_rate, None);
+        assert_eq!(snapshot.median_pr_size, None);
+        assert_eq!(snapshot.async_failure_sla_breaches, 0);
+        assert!(snapshot.domain_coverage.is_some());
+        assert!(snapshot.scenario_success_rates.is_some());
+        assert!(snapshot.worktree_harness.is_some());
+        assert_eq!(snapshot.critical_fail_auto_reverts, Some(4));
+    }
+
+    #[test]
+    fn scenario_and_worktree_sections_come_from_the_repository_stats() {
+        let mut collected = data(None);
+        collected.scenario_stats = vec![
+            ScenarioStat {
+                scenario: "s1".into(),
+                total_runs: 4,
+                success_runs: 2,
+                flaky_suspicions: 1,
+            },
+            ScenarioStat {
+                scenario: "s2".into(),
+                total_runs: 0,
+                success_runs: 0,
+                flaky_suspicions: 0,
+            },
+        ];
+        collected.worktree_stats = vec![
+            WorktreeStat {
+                worktree_id: "a".into(),
+                total_runs: 3,
+                success_runs: 3,
+                last_finished_at: None,
+            },
+            WorktreeStat {
+                worktree_id: "b".into(),
+                total_runs: 3,
+                success_runs: 1,
+                last_finished_at: None,
+            },
+            WorktreeStat {
+                worktree_id: "c".into(),
+                total_runs: 0,
+                success_runs: 0,
+                last_finished_at: None,
+            },
+        ];
+        let snapshot = collect_engineering_metrics_snapshot(30, now(), &collected, signals);
+        let rates = snapshot.scenario_success_rates.expect("rates");
+        assert_eq!(rates[0].success_rate, Some(0.5));
+        assert_eq!(rates[1].success_rate, None);
+        let worktree = snapshot.worktree_harness.expect("worktree");
+        assert_eq!(worktree.total_worktrees, 3);
+        assert_eq!(worktree.healthy_worktrees, 1);
+        assert_eq!(worktree.success_rate, Some(0.33));
+        assert_eq!(worktree.unstable_worktrees, 1);
+    }
+
+    #[test]
+    fn a_broken_rollout_config_falls_back_to_the_unavailable_config() {
+        let repository = EngineeringSnapshotRepository::open(":memory:").expect("repository");
+        let missing = Path::new("/nonexistent/harness-rollout-config.json");
+        let state = load_rollout_state(missing, &repository);
+        assert_eq!(state.config.version, "unknown");
+        assert!(state.config.phases.is_empty());
+        assert!(state.baseline.is_none());
     }
 }

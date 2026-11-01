@@ -59,53 +59,13 @@ describe('main vitest config', () => {
     expect(unitFastConfig.isolate).toBe(false);
     expect(unitFastConfig.include).toEqual(['tests/unit/**/*.test.ts']);
     expect(unitFastConfig.exclude).toEqual([
-      'tests/unit/channels/message-service-*.test.ts',
-      'tests/unit/channels/telegram-*.test.ts',
-      'tests/unit/server/summaryService-perf.test.ts',
       'tests/unit/scripts/cleanup-test-artifacts.test.ts',
-      'tests/unit/memory/lifecycle.test.ts',
-      'tests/unit/world-model/retrieval.test.ts',
-      'tests/unit/world-model/metrics-behavior.test.ts',
-      'tests/unit/world-model/graphiti-retrieval.test.ts',
-      'tests/unit/world-model/open-loop-service.test.ts',
-      'tests/unit/world-model/event-service.test.ts',
-      'tests/unit/model-hub/opencode-adapter.test.ts',
-      'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
-      'tests/unit/world-model/*worker.test.ts',
-      'tests/unit/knowledge/nata-scenario.test.ts',
-      'tests/unit/memory/postgres-memory-client.test.ts',
-      'tests/unit/world-model/project-window.test.ts',
-      'tests/unit/world-model/outbox-dispatcher.test.ts',
-      'tests/unit/channels/tool-manager-behavior.test.ts',
-      'tests/unit/world-model/mission-control-bridge.test.ts',
-      'tests/unit/agent-v2/extensions-host.test.ts',
-      'tests/unit/agent-v2/session-manager-behavior.test.ts',
       'tests/unit/components/**/*.test.{ts,tsx}',
     ]);
 
     expect(unitIsolatedConfig.isolate).toBe(true);
     expect(unitIsolatedConfig.include).toEqual([
-      'tests/unit/channels/message-service-*.test.ts',
-      'tests/unit/channels/telegram-*.test.ts',
-      'tests/unit/server/summaryService-perf.test.ts',
       'tests/unit/scripts/cleanup-test-artifacts.test.ts',
-      'tests/unit/memory/lifecycle.test.ts',
-      'tests/unit/world-model/retrieval.test.ts',
-      'tests/unit/world-model/metrics-behavior.test.ts',
-      'tests/unit/world-model/graphiti-retrieval.test.ts',
-      'tests/unit/world-model/open-loop-service.test.ts',
-      'tests/unit/world-model/event-service.test.ts',
-      'tests/unit/model-hub/opencode-adapter.test.ts',
-      'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
-      'tests/unit/world-model/*worker.test.ts',
-      'tests/unit/knowledge/nata-scenario.test.ts',
-      'tests/unit/memory/postgres-memory-client.test.ts',
-      'tests/unit/world-model/project-window.test.ts',
-      'tests/unit/world-model/outbox-dispatcher.test.ts',
-      'tests/unit/channels/tool-manager-behavior.test.ts',
-      'tests/unit/world-model/mission-control-bridge.test.ts',
-      'tests/unit/agent-v2/extensions-host.test.ts',
-      'tests/unit/agent-v2/session-manager-behavior.test.ts',
     ]);
 
     expect(coreIsolatedConfig.isolate).toBe(true);

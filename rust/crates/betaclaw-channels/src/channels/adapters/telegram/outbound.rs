@@ -542,4 +542,160 @@ mod tests {
         assert_eq!(body["text"], "Pairing required.");
         assert_eq!(body["show_alert"], true);
     }
+
+    #[test]
+    fn split_of_an_empty_text_is_one_empty_chunk() {
+        assert_eq!(split_telegram_message("", TELEGRAM_MAX_LENGTH), vec![""]);
+    }
+
+    #[test]
+    fn a_run_without_whitespace_is_cut_at_the_telegram_limit() {
+        assert_eq!(
+            split_telegram_message(&"a".repeat(8192), TELEGRAM_MAX_LENGTH),
+            vec!["a".repeat(4096), "a".repeat(4096)]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_text_of_exactly_the_limit_is_sent_in_one_message() {
+        let transport = ScriptedTransport::new();
+        transport.then("sendMessage", json_response(200, json!({"ok": true})));
+        let sender = sender(&transport, Some("1:t"));
+
+        sender
+            .deliver(
+                "42",
+                &"a".repeat(TELEGRAM_MAX_LENGTH),
+                &TelegramTextOptions::default(),
+            )
+            .await
+            .expect("delivered");
+
+        assert_eq!(transport.calls("sendMessage").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_topic_message_carries_its_thread_id() {
+        let transport = ScriptedTransport::new();
+        transport.then("sendMessage", json_response(200, json!({"ok": true})));
+        let sender = sender(&transport, Some("1:t"));
+
+        sender
+            .deliver(
+                "telegram:group:-100123:topic:42",
+                "hello",
+                &TelegramTextOptions::default(),
+            )
+            .await
+            .expect("delivered");
+
+        let calls = transport.calls("sendMessage");
+        let body = ScriptedTransport::body_of(&calls[0]);
+        assert_eq!(body["chat_id"], "-100123");
+        assert_eq!(body["message_thread_id"], 42);
+    }
+
+    #[tokio::test]
+    async fn parse_mode_goes_on_the_first_chunk() {
+        let transport = ScriptedTransport::new();
+        transport.then("sendMessage", json_response(200, json!({"ok": true})));
+        let sender = sender(&transport, Some("1:t"));
+        let options = TelegramTextOptions {
+            parse_mode: Some(ParseMode::Html),
+            ..TelegramTextOptions::default()
+        };
+
+        sender
+            .deliver("42", &"a".repeat(4097), &options)
+            .await
+            .expect("delivered");
+
+        let calls = transport.calls("sendMessage");
+        assert_eq!(calls.len(), 2);
+        assert_eq!(ScriptedTransport::body_of(&calls[0])["parse_mode"], "HTML");
+    }
+
+    #[tokio::test]
+    async fn an_edit_keeps_the_thread_of_a_direct_topic() {
+        let transport = ScriptedTransport::new();
+        transport.then("editMessageText", json_response(200, json!({"ok": true})));
+        let sender = sender(&transport, Some("1:t"));
+
+        sender
+            .edit_message(
+                "telegram:12345:topic:7",
+                11,
+                "updated",
+                &TelegramTextOptions::default(),
+            )
+            .await
+            .expect("edited");
+
+        let calls = transport.calls("editMessageText");
+        let body = ScriptedTransport::body_of(&calls[0]);
+        assert_eq!(body["chat_id"], "12345");
+        assert_eq!(body["message_id"], 11);
+        assert_eq!(body["text"], "updated");
+        assert_eq!(body["message_thread_id"], 7);
+    }
+
+    #[tokio::test]
+    async fn an_edit_without_a_token_sends_nothing() {
+        let transport = ScriptedTransport::new();
+        let sender = sender(&transport, None);
+
+        sender
+            .edit_message("42", 1, "updated", &TelegramTextOptions::default())
+            .await
+            .expect("not an error");
+
+        assert!(transport.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_rejected_edit_is_an_error_naming_the_edit() {
+        let transport = ScriptedTransport::new();
+        transport.then(
+            "editMessageText",
+            json_response(400, json!({"description": "message is not modified"})),
+        );
+        let sender = sender(&transport, Some("1:t"));
+
+        let error = sender
+            .edit_message("42", 1, "updated", &TelegramTextOptions::default())
+            .await
+            .expect_err("a 400 is an error");
+
+        assert!(error.0.starts_with("Telegram edit failed: "));
+    }
+
+    #[tokio::test]
+    async fn a_callback_answer_without_a_token_sends_nothing() {
+        let transport = ScriptedTransport::new();
+        let sender = sender(&transport, None);
+
+        sender
+            .answer_callback_query("cb1", None, false)
+            .await
+            .expect("not an error");
+
+        assert!(transport.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_rejected_callback_answer_is_logged_not_returned() {
+        let transport = ScriptedTransport::new();
+        transport.then(
+            "answerCallbackQuery",
+            json_response(400, json!({"description": "query is too old"})),
+        );
+        let sender = sender(&transport, Some("1:t"));
+
+        sender
+            .answer_callback_query("cb1", None, false)
+            .await
+            .expect("not an error");
+
+        assert_eq!(transport.calls("answerCallbackQuery").len(), 1);
+    }
 }

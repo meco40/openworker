@@ -399,4 +399,32 @@ mod tests {
         let cache = OpenRouterPricingCache::default();
         assert!(cache.needs_refresh(0, DEFAULT_TTL_MS));
     }
+
+    #[test]
+    fn non_finite_and_non_numeric_rates_read_as_zero() {
+        // JSON cannot carry `Infinity`; a string spelling of it still must not price.
+        for raw in [json!("Infinity"), json!("not-a-number"), Value::Null] {
+            assert_eq!(to_number_or_zero(Some(&raw)), 0.0, "{raw}");
+        }
+        assert_eq!(to_number_or_zero(None), 0.0);
+        assert_eq!(to_number_or_zero(Some(&json!("0.5x"))), 0.5);
+    }
+
+    #[test]
+    fn non_object_tiers_are_dropped() {
+        let raw =
+            json!([null, 42, { "min_context": 0, "prompt": "0.000001", "completion": "0.000002" }]);
+        let tiers = parse_pricing(Some(&raw));
+        assert_eq!(tiers.len(), 1);
+        assert_eq!(tiers[0].min_context_tokens, 0);
+        assert!(parse_pricing(Some(&json!(0))).is_empty());
+    }
+
+    #[test]
+    fn invalid_env_values_are_not_positive_integers() {
+        // The settings read `Number.parseInt(value) > 0`, otherwise the default applies.
+        for raw in ["invalid", "0", "-5", ""] {
+            assert_eq!(js_parse_int(raw).filter(|value| *value > 0), None, "{raw}");
+        }
+    }
 }

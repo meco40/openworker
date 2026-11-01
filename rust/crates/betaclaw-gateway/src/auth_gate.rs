@@ -367,6 +367,17 @@ mod tests {
     }
 
     #[test]
+    fn unknown_peer_leaves_the_marker_unset() {
+        // Port of "leaves the marker unset when the peer address is unknown"
+        // (tests/unit/auth/proxy-policy.test.ts).
+        let mut headers = HeaderMap::new();
+        headers.insert(CLIENT_LOOPBACK_HEADER, "1".parse().unwrap());
+        let socket_loopback = betaclaw_core::auth::policy::is_loopback_address(None);
+        set_client_loopback_marker(&mut headers, socket_loopback);
+        assert!(headers.get(CLIENT_LOOPBACK_HEADER).is_none());
+    }
+
+    #[test]
     fn parses_cookie_header() {
         let mut headers = HeaderMap::new();
         headers.insert(

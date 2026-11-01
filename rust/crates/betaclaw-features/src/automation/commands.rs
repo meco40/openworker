@@ -203,4 +203,35 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn list_resume_remove_and_run_take_their_arguments() {
+        assert_eq!(parse_cron_command("/cron list"), ParsedCronCommand::List);
+        assert_eq!(
+            parse_cron_command("/cron resume rule-123"),
+            ParsedCronCommand::Resume {
+                rule_id: "rule-123".to_string()
+            }
+        );
+        assert_eq!(
+            parse_cron_command("/cron remove rule-456"),
+            ParsedCronCommand::Remove {
+                rule_id: "rule-456".to_string()
+            }
+        );
+        assert_eq!(
+            parse_cron_command("/cron run rule-789"),
+            ParsedCronCommand::Run {
+                rule_id: "rule-789".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn an_every_command_with_an_out_of_range_interval_is_unsupported() {
+        assert!(matches!(
+            parse_cron_command(r#"/cron every "999m" --prompt "nope""#),
+            ParsedCronCommand::Unsupported { .. }
+        ));
+    }
 }

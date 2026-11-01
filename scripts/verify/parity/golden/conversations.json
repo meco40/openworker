@@ -1,0 +1,23 @@
+{
+  "values": {
+    "typescript": {
+      "initialHasDefault": true,
+      "initialOk": true,
+      "createdStatus": 200,
+      "created": {
+        "channelType": "WebChat",
+        "title": "Notes",
+        "modelOverride": null,
+        "personaId": null,
+        "externalChatIdIsManual": true,
+        "hasId": true,
+        "hasTimestamps": true
+      },
+      "patchStatus": 200,
+      "mismatchStatus": 409,
+      "deleted": true,
+      "missingIdStatus": 400,
+      "missingIdError": "id query param is required"
+    }
+  }
+}

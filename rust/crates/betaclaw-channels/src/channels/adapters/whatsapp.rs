@@ -69,3 +69,60 @@ pub async fn deliver_whatsapp(
         .and_then(value_as_id)
         .or_else(|| answer.get("id").and_then(value_as_id)))
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+    use crate::channels::pairing::bridge_accounts::scope_bridge_external_chat_id;
+    use crate::channels::pairing::test_support::{isolated_env, json_response, ScriptedTransport};
+
+    #[tokio::test]
+    async fn a_scoped_chat_id_is_split_into_recipient_and_account() {
+        let transport = ScriptedTransport::new();
+        transport.then("/send", json_response(200, json!({"id": "w-1"})));
+        let env = isolated_env();
+        env.set("WHATSAPP_BRIDGE_URL", "http://bridge.local");
+        let scoped = scope_bridge_external_chat_id("sales", "491234@s.whatsapp.net")
+            .expect("valid account id");
+
+        let id = deliver_whatsapp(transport.as_ref(), &env, &scoped, "hello", None)
+            .await
+            .expect("delivered");
+
+        assert_eq!(id.as_deref(), Some("w-1"));
+        let calls = transport.calls("/send");
+        assert_eq!(calls.len(), 1);
+        let body = ScriptedTransport::body_of(&calls[0]);
+        assert_eq!(body["to"], "491234@s.whatsapp.net");
+        assert_eq!(body["accountId"], "sales");
+        assert_eq!(body["message"], "hello");
+        assert_eq!(
+            calls[0]
+                .headers
+                .get("x-betaclaw-account-id")
+                .map(|value| value.to_str().ok()),
+            Some(Some("sales"))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_bridge_url_sends_nothing() {
+        let transport = ScriptedTransport::new();
+        let env = isolated_env();
+
+        let id = deliver_whatsapp(
+            transport.as_ref(),
+            &env,
+            "491234@s.whatsapp.net",
+            "hi",
+            None,
+        )
+        .await
+        .expect("not an error");
+
+        assert_eq!(id, None);
+        assert!(transport.requests().is_empty());
+    }
+}

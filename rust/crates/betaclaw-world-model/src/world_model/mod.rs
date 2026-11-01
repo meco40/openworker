@@ -12,7 +12,9 @@
 //! | [`config`] | `config.ts` |
 //! | [`db`] | `db.ts` |
 //! | [`driver`] | `db.ts` (the `pg` `Pool`/`PoolClient` side) |
-//! | [`migrations`] | `db.ts:130-202` + `migrations/*.sql` |
+//! | [`migrations`] | `db.ts:130-202` + `migrations/*.sql` (now `rust/crates/betaclaw-world-model/migrations`) |
+//! | [`role_provisioning`] | `scripts/world-model-provision-roles.ts` |
+//! | [`role_verification`] | `scripts/world-model-verify-rls.ts` |
 //! | [`production_guard`] | `productionGuard.ts` |
 //! | [`mem0_policy`] | `mem0Policy.ts` |
 //! | [`consolidation`] | `consolidation/policy.ts`, `consolidation/service.ts` |
@@ -74,6 +76,8 @@ pub mod production_guard;
 pub mod projector;
 pub mod repositories;
 pub mod retrieval;
+pub mod role_provisioning;
+pub mod role_verification;
 pub mod runtime;
 pub mod scope;
 pub mod services;

@@ -202,242 +202,37 @@ Recommended for production workloads:
 
 ## Docker Setup
 
-### Optimized Dockerfile
+Two Dockerfiles live in `docker/`:
 
-```dockerfile
-# ============================================================================
-# STAGE 1: Dependencies
-# ============================================================================
-FROM node:22-alpine AS deps
-WORKDIR /app
+- `docker/Dockerfile.gateway` builds the Rust gateway and scheduler binaries, the static UI
+  export (`/app/out`) and the World-Model migrations. `gateway`, `scheduler` and `migrate`
+  run this image.
+- `docker/Dockerfile.probe` is the Node runtime (Playwright, `ws`) of the release smoke probe
+  (`pnpm run test:e2e:production`). It serves no application.
 
-# Install dependencies first (better layer caching)
-COPY package*.json ./
-RUN pnpm install --frozen-lockfile --omit=dev
-
-# ============================================================================
-# STAGE 2: Builder
-# ============================================================================
-FROM node:22-alpine AS builder
-WORKDIR /app
-
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
-
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build application
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-RUN pnpm run build
-
-# ============================================================================
-# STAGE 3: Production Runner
-# ============================================================================
-FROM node:22-alpine AS runner
-WORKDIR /app
-
-# Security: Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Install runtime dependencies only
-RUN apk add --no-cache curl ca-certificates
-
-# Set environment
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-# Copy the regular Next.js output used by the custom WebSocket server.
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# Ensure .local directory exists for SQLite
-RUN mkdir -p /app/.local && chown -R nextjs:nodejs /app/.local
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
-
-# Start application
-CMD ["node", "--import", "tsx", "server.ts"]
-```
-
-### Production docker compose.yml
-
-```yaml
-version: '3.8'
-
-services:
-  # ==========================================================================
-  # Web Service
-  # ==========================================================================
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
-    container_name: betaclaw-web
-    restart: unless-stopped
-    ports:
-      - '${PORT:-3000}:3000'
-    environment:
-      NODE_ENV: production
-      SWARM_RUNNER: server
-      HOSTNAME: 0.0.0.0
-      PORT: 3000
-      # Database
-      MESSAGES_DB_PATH: /app/.local/messages.db
-      MEMORY_DB_PATH: /app/.local/memory.db
-      # Memory Service
-      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-postgres}
-      WORLD_MODEL_MODE: ${WORLD_MODEL_MODE:-canonical}
-      WORLD_MODEL_APP_DATABASE_URL: ${WORLD_MODEL_APP_DATABASE_URL}
-      # AI Provider
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL}
-      # Channel Configuration
-      WHATSAPP_BRIDGE_URL: ${WHATSAPP_BRIDGE_URL}
-      IMESSAGE_BRIDGE_URL: ${IMESSAGE_BRIDGE_URL}
-      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET}
-      DISCORD_PUBLIC_KEY: ${DISCORD_PUBLIC_KEY}
-    volumes:
-      - betaclaw-data:/app/.local
-      - /etc/localtime:/etc/localtime:ro
-    networks:
-      - betaclaw-network
-    healthcheck:
-      test: ['CMD', 'curl', '-fsS', 'http://localhost:3000/api/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-
-  # ==========================================================================
-  # Scheduler Service
-  # ==========================================================================
-  scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
-    container_name: betaclaw-scheduler
-    restart: unless-stopped
-    command: ['node', '--import', 'tsx', 'scheduler.ts']
-    environment:
-      NODE_ENV: production
-      SWARM_RUNNER: scheduler
-      SCHEDULER_INSTANCE_ID: ${SCHEDULER_INSTANCE_ID:-scheduler-1}
-      # Automation Settings
-      AUTOMATION_TICK_INTERVAL_MS: ${AUTOMATION_TICK_INTERVAL_MS:-15000}
-      AUTOMATION_LEASE_TTL_MS: ${AUTOMATION_LEASE_TTL_MS:-30000}
-      AUTOMATION_MAX_CONCURRENT: ${AUTOMATION_MAX_CONCURRENT:-5}
-      # Database (shared with web)
-      MESSAGES_DB_PATH: /app/.local/messages.db
-      MEMORY_DB_PATH: /app/.local/memory.db
-      # Memory Service
-      MEMORY_PROVIDER: ${MEMORY_PROVIDER:-postgres}
-      WORLD_MODEL_MODE: ${WORLD_MODEL_MODE:-canonical}
-      WORLD_MODEL_WORKER_DATABASE_URL: ${WORLD_MODEL_WORKER_DATABASE_URL}
-      # AI Provider
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-    volumes:
-      - betaclaw-data:/app/.local
-      - /etc/localtime:/etc/localtime:ro
-    networks:
-      - betaclaw-network
-    depends_on:
-      web:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-
-  # ==========================================================================
-  # Backup Service (Optional)
-  # ==========================================================================
-  backup:
-    image: alpine:latest
-    container_name: betaclaw-backup
-    restart: unless-stopped
-    command: >
-      sh -c "
-        echo '0 2 * * * /backup/backup.sh' | crontab - &&
-        crond -f
-      "
-    volumes:
-      - betaclaw-data:/data:ro
-      - ./backups:/backup
-      - ./scripts/backup.sh:/backup/backup.sh:ro
-    environment:
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-    depends_on:
-      - web
-
-# ============================================================================
-# Volumes
-# ============================================================================
-volumes:
-  betaclaw-data:
-    driver: local
-
-# ============================================================================
-# Networks
-# ============================================================================
-networks:
-  betaclaw-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-```
+`docker-compose.yml` starts `postgres`, `migrate` (`betaclaw-scheduler migrate --provision-roles
+--apply`), `gateway` and `scheduler`. The gateway owns port 3000 and serves the UI itself. No
+Node application server runs in the stack.
 
 ### Docker Build & Run Commands
 
 ```bash
-# Build image
-docker build -t betaclaw-gateway:latest .
+# Build the gateway image (used by gateway, scheduler and migrate)
+docker compose --env-file .env.local build gateway
 
 # Run with docker compose
-docker compose up -d
+docker compose --env-file .env.local up -d
 
 # View logs
-docker compose logs -f web
-docker compose logs -f scheduler
-
-# Scale web service
-docker compose up -d --scale web=3
-
-# Backup volume
-docker run --rm -v betaclaw_betaclaw-data:/data -v $(pwd)/backups:/backup alpine tar czf /backup/backup-$(date +%Y%m%d).tar.gz -C /data .
+docker compose logs -f gateway scheduler
 ```
 
----
-
 ## Systemd Services
+
+> The units run the Rust binaries `betaclaw-gateway` and `betaclaw-scheduler` from
+> `/opt/betaclaw/bin` (copy them from `rust/target/release`). Run
+> `betaclaw-scheduler migrate --provision-roles --apply` once before the first start.
+> The static UI comes from `UI_STATIC_DIR` (output of `pnpm run build:export`).
 
 ### User and Directory Setup
 
@@ -473,11 +268,12 @@ WorkingDirectory=/opt/betaclaw
 Environment="NODE_ENV=production"
 Environment="PORT=3000"
 Environment="HOSTNAME=0.0.0.0"
-Environment="SWARM_RUNNER=server"
+Environment="SWARM_RUNNER=scheduler"
+Environment="UI_STATIC_DIR=/opt/betaclaw/out"
 EnvironmentFile=-/opt/betaclaw/.env
 
 # Execution
-ExecStart=/usr/bin/node --import tsx server.ts
+ExecStart=/opt/betaclaw/bin/betaclaw-gateway
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Restart policy
@@ -530,7 +326,7 @@ Environment="SCHEDULER_INSTANCE_ID=scheduler-1"
 EnvironmentFile=-/opt/betaclaw/.env
 
 # Execution
-ExecStart=/usr/bin/node --import tsx scheduler.ts
+ExecStart=/opt/betaclaw/bin/betaclaw-scheduler
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Restart policy
@@ -604,7 +400,7 @@ sudo systemctl restart betaclaw-web.service
 | `NODE_ENV`     | `development` | Runtime environment: `development`, `production`, `test` |
 | `HOSTNAME`     | `0.0.0.0`     | Server bind address                                      |
 | `PORT`         | `3000`        | HTTP server port                                         |
-| `SWARM_RUNNER` | `server`      | Swarm runtime role: `server` (default) or `scheduler`    |
+| `SWARM_RUNNER` | `server`      | Swarm process: `server` (gateway) or `scheduler`         |
 
 ### Database Configuration
 
@@ -1224,7 +1020,7 @@ echo "Restore completed successfully"
    # Install dependencies
    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
    sudo apt-get install -y nodejs sqlite3
-   sudo pnpm add -g tsx
+   # Node only for the Playwright tools; the backend is the Rust binaries in /opt/betaclaw/bin
    ```
 
 2. **Restore data**
@@ -1492,7 +1288,7 @@ ls -la /opt/betaclaw/
 ls -la /opt/betaclaw/.local/
 
 # 4. Test configuration
-sudo -u betaclaw node --import tsx -e "console.log('Node.js works')"
+sudo -u betaclaw /opt/betaclaw/bin/betaclaw-scheduler verify-rls
 
 # 5. Check port availability
 sudo ss -tlnp | grep 3000
@@ -1581,16 +1377,12 @@ curl -i -N \
 ### High Memory Usage
 
 ```bash
-# Monitor Node.js heap
-node --expose-gc --max-old-space-size=4096 server.ts
+# Resident memory of the Rust processes
+ps -o pid,rss,cmd -C betaclaw-gateway,betaclaw-scheduler
 
-# Check for memory leaks
-# Add to startup: --inspect=0.0.0.0:9229
-# Use Chrome DevTools to profile
-
-# Restart with memory limit
+# Cap memory with systemd
 systemctl edit betaclaw-web
-# Add: Environment="NODE_OPTIONS=--max-old-space-size=2048"
+# Add under [Service]: MemoryMax=2G
 ```
 
 ### Scheduler Not Processing Jobs

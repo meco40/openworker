@@ -256,27 +256,36 @@ async fn run_connection(socket: WebSocket, state: SharedState, user_id: String) 
             continue;
         };
 
-        if !request_window.record(now_ms(), state.config.gateway_max_requests_per_minute) {
+        let within_budget =
+            request_window.record(now_ms(), state.config.gateway_max_requests_per_minute);
+        client.set_request_count(request_window.count());
+        if !within_budget {
             let _ = client.enqueue_text(rate_limited(&request.id).to_string());
             continue;
         }
 
-        // A streamed family reply writes its own frames and yields no response.
-        let Some(response) = methods
-            .dispatch(
-                &request.id,
-                &request.method,
-                &request.params,
-                &client,
-                &state,
-            )
-            .await
-        else {
-            continue;
-        };
-        if !client.enqueue_text(response.to_string()) {
-            break;
-        }
+        // Each request runs on its own task, as the TypeScript connection handler does
+        // for every `message` event. A running `chat.stream` must not hold back
+        // `chat.abort` on the same socket. Concurrency per socket is not capped; the
+        // request window above bounds the rate.
+        let (methods, client, state) = (methods.clone(), client.clone(), state.clone());
+        tokio::spawn(async move {
+            // A streamed family reply writes its own frames and yields no response.
+            let Some(response) = methods
+                .dispatch(
+                    &request.id,
+                    &request.method,
+                    &request.params,
+                    &client,
+                    &state,
+                )
+                .await
+            else {
+                return;
+            };
+            // A closed socket refuses the reply; the reader ends it on its own.
+            let _ = client.enqueue_text(response.to_string());
+        });
     }
 
     state.registry.unregister(&conn_id);

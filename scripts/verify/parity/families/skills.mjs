@@ -1,9 +1,8 @@
 /**
- * `app/api/skills/**`, `clawhub/**` and `files/**` parity (13 routes).
+ * `/api/skills/**`, `clawhub/**` and `files/**` parity (13 routes).
  *
- * The TypeScript reference is the route handler itself. Each route module is
- * imported in-process and called with a `NextRequest`, so status and body come
- * from the real code and are not transcribed. The Rust side goes over HTTP.
+ * The reference is `golden/skills.json`, recorded from the TypeScript route handlers
+ * before their removal. The Rust side goes over HTTP.
  *
  * Only state-neutral probes run:
  *   - reads of lists and status,
@@ -24,45 +23,14 @@
  * the main probes run and the anonymous auth probes are reported as SKIP. With
  * `REQUIRE_AUTH=true` on both sides only the auth probes run, because every
  * other probe is answered with 401 there.
- *
- * Module-level singletons of earlier families can keep stale store paths; run
- * this family alone with `--family=skills` if a TS-side error names a path.
  */
-import { mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { NextRequest } from 'next/server';
-import { check, checkTrue, rustRequest } from '../harness.mjs';
+import { check, checkTrue, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'skills';
 
-const APP_API = '../../../../app/api/';
 const AUTH_LANE = process.env.REQUIRE_AUTH === 'true';
-
-const STORE_ROOT = join(tmpdir(), `betaclaw-parity-routes-${process.pid}`);
-const STORE_FILES = {
-  DATABASE_PATH: 'mission-control.db',
-  GATEWAY_CONFIG_DB_PATH: 'gateway-config.db',
-  MESSAGES_DB_PATH: 'messages.db',
-  MASTER_DB_PATH: 'master.db',
-  AUTOMATION_DB_PATH: 'automation.db',
-  SKILLS_DB_PATH: 'skills.db',
-  STATS_DB_PATH: 'stats.db',
-  PERSONAS_DB_PATH: 'personas.db',
-  KNOWLEDGE_DB_PATH: 'knowledge.db',
-  MEMORY_DB_PATH: 'memory.db',
-  CLAWHUB_DB_PATH: 'clawhub.db',
-  PROACTIVE_DB_PATH: 'proactive.db',
-  MODEL_HUB_DB_PATH: 'model-hub.db',
-  AUTH_DB_PATH: 'auth.db',
-  SUBAGENT_RUNS_STORE_PATH: 'subagent-runs.json',
-  PROJECTS_PATH: 'projects',
-  WORKSPACE_BASE_PATH: 'workspaces',
-  PERSONAS_ROOT_PATH: 'personas',
-  CHAT_ATTACHMENTS_DIR: 'attachments',
-  BETACLAW_SKILLS_DIR: 'skills',
-  CLAWHUB_WORKDIR: 'clawhub',
-};
+// Auth-lane reference values differ from the default lane (e.g. REQUIRE_AUTH gates first), so they get their own keys.
+const caseKey = (label) => (AUTH_LANE ? `auth lane: ${label}` : label);
 
 const MISSING = 'parity-missing';
 // A slug the ClawHub validator refuses, so the route answers 400 before any registry call.
@@ -75,14 +43,12 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/skills',
-    route: 'skills/route.ts',
     method: 'GET',
     path: '/api/skills',
   },
   {
     kind: 'guard',
     label: 'POST /api/skills ohne source',
-    route: 'skills/route.ts',
     method: 'POST',
     path: '/api/skills',
     body: {},
@@ -90,7 +56,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'PATCH /api/skills/[id] (fehlend)',
-    route: 'skills/[id]/route.ts',
     method: 'PATCH',
     path: `/api/skills/${MISSING}`,
     params: { id: MISSING },
@@ -99,7 +64,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'DELETE /api/skills/[id] (fehlend)',
-    route: 'skills/[id]/route.ts',
     method: 'DELETE',
     path: `/api/skills/${MISSING}`,
     params: { id: MISSING },
@@ -107,7 +71,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/skills/execute (unbekannter Skill)',
-    route: 'skills/execute/route.ts',
     method: 'POST',
     path: '/api/skills/execute',
     body: { name: MISSING },
@@ -115,14 +78,12 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/skills/external-host',
-    route: 'skills/external-host/route.ts',
     method: 'GET',
     path: '/api/skills/external-host',
   },
   {
     kind: 'guard',
     label: 'POST /api/skills/external-host ohne action',
-    route: 'skills/external-host/route.ts',
     method: 'POST',
     path: '/api/skills/external-host',
     body: {},
@@ -130,14 +91,12 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/skills/runtime-config',
-    route: 'skills/runtime-config/route.ts',
     method: 'GET',
     path: '/api/skills/runtime-config',
   },
   {
     kind: 'guard',
     label: 'PUT /api/skills/runtime-config ohne id',
-    route: 'skills/runtime-config/route.ts',
     method: 'PUT',
     path: '/api/skills/runtime-config',
     body: {},
@@ -145,7 +104,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'DELETE /api/skills/runtime-config ohne id',
-    route: 'skills/runtime-config/route.ts',
     method: 'DELETE',
     path: '/api/skills/runtime-config',
     body: {},
@@ -155,14 +113,12 @@ const CASES = [
   {
     kind: 'guard',
     label: 'GET /api/clawhub/search ohne q',
-    route: 'clawhub/search/route.ts',
     method: 'GET',
     path: '/api/clawhub/search',
   },
   {
     kind: 'guard',
     label: 'PATCH /api/clawhub/[slug] (ungültiger Slug)',
-    route: 'clawhub/[slug]/route.ts',
     method: 'PATCH',
     path: `/api/clawhub/${INVALID_SLUG}`,
     params: { slug: INVALID_SLUG_DECODED },
@@ -171,7 +127,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'DELETE /api/clawhub/[slug] (ungültiger Slug)',
-    route: 'clawhub/[slug]/route.ts',
     method: 'DELETE',
     path: `/api/clawhub/${INVALID_SLUG}`,
     params: { slug: INVALID_SLUG_DECODED },
@@ -179,7 +134,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/clawhub/install ohne slug',
-    route: 'clawhub/install/route.ts',
     method: 'POST',
     path: '/api/clawhub/install',
     body: {},
@@ -187,21 +141,18 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/clawhub/prompt',
-    route: 'clawhub/prompt/route.ts',
     method: 'GET',
     path: '/api/clawhub/prompt',
   },
   {
     kind: 'read',
     label: 'GET /api/clawhub/installed',
-    route: 'clawhub/installed/route.ts',
     method: 'GET',
     path: '/api/clawhub/installed',
   },
   {
     kind: 'guard',
     label: 'POST /api/clawhub/update ohne slug/all',
-    route: 'clawhub/update/route.ts',
     method: 'POST',
     path: '/api/clawhub/update',
     body: {},
@@ -211,21 +162,18 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/files/preview ohne path',
-    route: 'files/preview/route.ts',
     method: 'GET',
     path: '/api/files/preview',
   },
   {
     kind: 'read',
     label: 'GET /api/files/preview (kein HTML)',
-    route: 'files/preview/route.ts',
     method: 'GET',
     path: `/api/files/preview?path=${MISSING}.txt`,
   },
   {
     kind: 'guard',
     label: 'POST /api/files/reveal ohne filePath',
-    route: 'files/reveal/route.ts',
     method: 'POST',
     path: '/api/files/reveal',
     body: {},
@@ -258,63 +206,6 @@ const AUTH_CASES = [
   { label: 'files/preview', method: 'GET', path: '/api/files/preview' },
   { label: 'files/reveal', method: 'POST', path: '/api/files/reveal' },
 ];
-
-function isolateStores() {
-  mkdirSync(STORE_ROOT, { recursive: true });
-  for (const [key, file] of Object.entries(STORE_FILES)) {
-    process.env[key] = join(STORE_ROOT, file);
-  }
-}
-
-const routeModules = new Map();
-function loadRoute(route) {
-  if (!routeModules.has(route)) {
-    routeModules.set(route, import(`${APP_API}${route}`));
-  }
-  return routeModules.get(route);
-}
-
-/** Reads a TS response. SSE bodies are never drained: headers are kept, the stream is cancelled. */
-async function readTsResponse(response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('text/event-stream')) {
-    await response.body?.cancel();
-    return { status: response.status, contentType, json: null, text: '' };
-  }
-  const text = await response.text();
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    // non-JSON body stays raw; the comparison then sees null on both sides
-  }
-  return { status: response.status, contentType, json, text };
-}
-
-/** Calls the real route handler in-process. */
-async function tsCall(route, method, path, { params, body } = {}) {
-  const mod = await loadRoute(route);
-  const handler = mod[method];
-  if (typeof handler !== 'function') {
-    throw new Error(`${route} exportiert kein ${method}`);
-  }
-  const headers = {};
-  let payload;
-  if (body !== undefined) {
-    headers['content-type'] = 'application/json';
-    payload = JSON.stringify(body);
-  }
-  const request = new NextRequest(`http://localhost:3000${path}`, {
-    method,
-    headers,
-    body: payload,
-  });
-  const response =
-    params === undefined
-      ? await handler(request)
-      : await handler(request, { params: Promise.resolve(params) });
-  return readTsResponse(response);
-}
 
 /** Returns the paths where the two JSON values differ in keys or value types. */
 function shapeMismatches(rust, ts, path = '$') {
@@ -361,7 +252,7 @@ function compareJson(label, rust, ts) {
 
 async function runJsonCase(c) {
   const rust = await rustRequest(c.method, c.path, { body: c.body });
-  const ts = await tsCall(c.route, c.method, c.path, { params: c.params, body: c.body });
+  const ts = await goldenReference(name, caseKey(c.label));
   compareJson(c.label, rust, ts);
 }
 
@@ -388,17 +279,12 @@ async function runAuthCase(c) {
 }
 
 export async function run() {
-  isolateStores();
-
   if (AUTH_LANE) {
     console.log('--- Auth-Lauf (REQUIRE_AUTH=true) ---');
     // Without a session, resolveUserIdFromSession answers null; withUserContext and the
     // manual checks turn that into 401 `{ ok: false, error: 'Unauthorized' }`.
-    const { resolveUserIdFromSession } = await import('../../../../src/server/auth/userContext.ts');
-    checkTrue(
-      'TS-Referenz: ohne Session liefert die Auth-Auflösung null',
-      resolveUserIdFromSession(null, true) === null,
-    );
+    const authNull = await goldenReference(name, 'resolveUserIdFromSession(null, true)');
+    checkTrue('TS-Referenz: ohne Session liefert die Auth-Auflösung null', authNull === null);
     for (const c of AUTH_CASES) {
       await runAuthCase(c);
     }

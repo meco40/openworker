@@ -451,6 +451,124 @@ mod tests {
         ));
     }
 
+    /// Writes a hash directly, the way a row from an older installation looks.
+    fn set_hash(store: &AuthUserStore, email: &str, hash: &str) {
+        store
+            .connection
+            .execute(
+                "UPDATE auth_users SET password_hash = ?1 WHERE email = ?2",
+                params![hash, email],
+            )
+            .unwrap();
+    }
+
+    fn stored_hash(store: &AuthUserStore, email: &str) -> String {
+        store
+            .connection
+            .query_row(
+                "SELECT password_hash FROM auth_users WHERE email = ?1",
+                params![email],
+                |row| row.get(0),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn wrong_password_on_legacy_hash_does_not_upgrade_it() {
+        // Port of "rejects a wrong password and does not upgrade the stored hash"
+        // (tests/unit/auth/user-store-legacy-verify.test.ts).
+        let mut store =
+            AuthUserStore::open(":memory:", &bootstrap("a@b.c", "uniquepass-1")).unwrap();
+        let legacy = sha256_hex("legacy-password");
+        set_hash(&store, "a@b.c", &legacy);
+
+        assert!(store
+            .verify_credentials("a@b.c", "wrong-password")
+            .unwrap()
+            .is_none());
+        assert_eq!(stored_hash(&store, "a@b.c"), legacy);
+    }
+
+    #[test]
+    fn successful_login_upgrades_legacy_hash_in_the_database() {
+        // Port of "upgrades a legacy hash to scrypt on a successful login". The
+        // older test only checked the verification flag; this checks the row.
+        let mut store =
+            AuthUserStore::open(":memory:", &bootstrap("a@b.c", "uniquepass-1")).unwrap();
+        set_hash(&store, "a@b.c", &sha256_hex("legacy-password"));
+
+        assert!(store
+            .verify_credentials("a@b.c", "legacy-password")
+            .unwrap()
+            .is_some());
+        let upgraded = stored_hash(&store, "a@b.c");
+        assert!(upgraded.starts_with("scrypt$"), "hash was not upgraded");
+        assert!(store
+            .verify_credentials("a@b.c", "legacy-password")
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
+    fn unknown_email_is_hashed_against_a_dummy_for_timing() {
+        // Port of "runs a password hash for unknown emails so timing does not
+        // reveal accounts". The dummy hash is created on the first miss and reused.
+        let mut store =
+            AuthUserStore::open(":memory:", &bootstrap("a@b.c", "uniquepass-1")).unwrap();
+        assert!(store.dummy_hash.is_none());
+        assert!(store
+            .verify_credentials("nobody@b.c", "anything")
+            .unwrap()
+            .is_none());
+        assert!(store.dummy_hash.is_some());
+    }
+
+    #[test]
+    fn development_without_bootstrap_credentials_creates_no_admin() {
+        // Port of "does not create an implicit admin in development".
+        let store = AuthUserStore::open(":memory:", &bootstrap("", "")).unwrap();
+        assert_eq!(store.user_count().unwrap(), 0);
+    }
+
+    #[test]
+    fn production_without_bootstrap_credentials_fails_on_first_start() {
+        // Port of "requires explicit credentials for the first production admin".
+        let production = BootstrapConfig {
+            node_env: "production".to_string(),
+            ..bootstrap("", "")
+        };
+        let Err(error) = AuthUserStore::open(":memory:", &production) else {
+            panic!("production must not start without an admin");
+        };
+        assert!(matches!(error, AuthStoreError::MissingBootstrapCredentials));
+    }
+
+    #[test]
+    fn explicit_bootstrap_recovers_an_account_still_on_the_public_default() {
+        // Port of "blocks an old default password and recovers that account with
+        // explicit credentials". The public default is refused as a new password,
+        // but an existing account that still carries it is re-keyed.
+        let mut store =
+            AuthUserStore::open(":memory:", &bootstrap("a@b.c", "uniquepass-1")).unwrap();
+        set_hash(&store, "a@b.c", &sha256_hex(PUBLIC_DEFAULT_PASSWORD));
+        assert!(store
+            .verify_credentials("a@b.c", PUBLIC_DEFAULT_PASSWORD)
+            .unwrap()
+            .is_none());
+
+        store
+            .ensure_default_user(&bootstrap("a@b.c", "fresh-pass-2"))
+            .unwrap();
+        assert!(store
+            .verify_credentials("a@b.c", "fresh-pass-2")
+            .unwrap()
+            .is_some());
+        assert!(store
+            .verify_credentials("a@b.c", PUBLIC_DEFAULT_PASSWORD)
+            .unwrap()
+            .is_none());
+    }
+
     #[test]
     fn reopens_existing_account() {
         let mut first = AuthUserStore::open(":memory:", &bootstrap("a@b.c", "first-pass")).unwrap();

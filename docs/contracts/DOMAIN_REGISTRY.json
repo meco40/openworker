@@ -8,11 +8,11 @@
       "contract": "docs/contracts/CORE_API_AGENT_CONTRACT.md",
       "tests": ["tests/contract/public-api.contract.test.ts"],
       "paths": [
-        "app/api/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/**",
         "src/lib/db/**",
         "src/lib/events.ts",
-        "src/lib/betaclaw/**",
         "src/lib/types.ts",
         "src/shared/eventsTypes.ts"
       ],
@@ -25,8 +25,13 @@
       "risk": "high",
       "display": "Auth",
       "contract": "docs/contracts/AUTH_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
-      "paths": ["src/auth.ts", "app/api/auth/**", "app/login/**", "src/server/auth/**"],
+      "tests": ["tests/e2e/browser/authentication.spec.ts"],
+      "paths": [
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
+        "app/login/**",
+        "src/server/auth/**"
+      ],
       "owner": "team-security",
       "systemDoc": "docs/AUTH_SYSTEM.md",
       "scenarios": ["auth-session-guard"],
@@ -38,7 +43,8 @@
       "contract": "docs/contracts/SESSION_AGENT_CONTRACT.md",
       "tests": ["tests/integration/persistent-chat-session-v2.contract.test.ts"],
       "paths": [
-        "app/api/channels/state/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/channels/**",
         "src/components/SessionsList.tsx"
       ],
@@ -51,22 +57,14 @@
       "risk": "high",
       "display": "World Model",
       "contract": "docs/contracts/WORLD_MODEL_AGENT_CONTRACT.md",
-      "tests": [
-        "tests/integration/world-model/event-flow.test.ts",
-        "tests/integration/world-model/outbox-flow.test.ts",
-        "tests/integration/world-model/projector-flow.test.ts",
-        "tests/integration/world-model/rls.test.ts",
-        "tests/integration/world-model/scope-and-history.test.ts"
-      ],
+      "tests": ["rust/crates/betaclaw-world-model/src/world_model/role_provisioning.rs"],
       "paths": [
         "src/server/world-model/**",
-        "scripts/world-model-migrate.ts",
-        "scripts/world-model-provision-roles.ts",
-        "scripts/world-model-backfill.ts",
-        "scripts/world-model-reconcile.ts",
-        "scripts/world-model-rebuild-projections.ts",
-        "scripts/world-model-failure-drill.ts",
-        "scripts/mem0-factual-memory-audit.ts"
+        "rust/crates/betaclaw-world-model/migrations/**",
+        "rust/crates/betaclaw-world-model/src/world_model/role_provisioning.rs",
+        "rust/crates/betaclaw-world-model/src/world_model/role_verification.rs",
+        "rust/crates/betaclaw-gateway/src/world_model_ops/**",
+        "scripts/rust-scheduler-ops.mjs"
       ],
       "owner": "team-core",
       "systemDoc": "docs/README.md",
@@ -77,9 +75,10 @@
       "risk": "high",
       "display": "Memory",
       "contract": "docs/contracts/MEMORY_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/memory/memory-route.test.ts"],
+      "tests": ["tests/e2e/memory/memory-operations.spec.ts"],
       "paths": [
-        "app/api/memory/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/memory/**",
         "src/core/memory/**",
         "src/components/MemoryView.tsx",
@@ -97,11 +96,13 @@
       "tests": ["tests/unit/gateway/gateway-contract.test.ts"],
       "paths": [
         "src/server/gateway/**",
-        "app/api/channels/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/modules/gateway/**",
         "src/cli/**",
         "src/services/gateway.ts",
         "src/shared/gatewayTypes.ts",
+        "src/shared/gateway/**",
         "src/messenger/**",
         "src/components/ExposureManager.tsx"
       ],
@@ -114,10 +115,10 @@
       "risk": "high",
       "display": "Model Hub",
       "contract": "docs/contracts/MODEL_HUB_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/model-hub/pipeline-route.test.ts"],
+      "tests": ["rust/crates/betaclaw-model-hub/src/lib.rs"],
       "paths": [
-        "app/api/model-hub/**",
-        "app/api/internal/model-hub/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/model-hub/**",
         "src/components/model-hub/**",
         "src/shared/contracts/modelHub.ts"
@@ -133,11 +134,13 @@
       "contract": "docs/contracts/PERSONA_ROOMS_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/chat-queue-and-persona.spec.ts"],
       "paths": [
-        "app/api/personas/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/personas/**",
         "src/modules/personas/**",
         "src/modules/profile/**",
         "src/shared/personaTypes.ts",
+        "src/shared/personas/**",
         "src/lib/personalityMatrix.ts",
         "src/components/dashboard/PersonalityRadar.tsx",
         "src/components/PersonasView.tsx",
@@ -153,14 +156,14 @@
       "risk": "medium",
       "display": "Ops Observability",
       "contract": "docs/contracts/OPS_OBSERVABILITY_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/stats/engineering-route.test.ts"],
+      "tests": ["tests/e2e/browser/ops-dashboard.spec.ts"],
       "paths": [
-        "app/api/stats/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/components/stats/**",
         "src/server/stats/**",
         "src/components/logs/**",
         "src/components/ActivityLog.tsx",
-        "src/logging/**",
         "src/modules/ops/**",
         "src/modules/conversation-debugger/**"
       ],
@@ -173,8 +176,13 @@
       "risk": "medium",
       "display": "Automation",
       "contract": "docs/contracts/AUTOMATION_AGENT_CONTRACT.md",
-      "tests": ["tests/unit/master/master-notes-reminders-cron.test.ts"],
-      "paths": ["src/server/automation/**", "app/api/master/reminders/**", "src/modules/cron/**"],
+      "tests": ["tests/e2e/browser/automation.spec.ts"],
+      "paths": [
+        "src/server/automation/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
+        "src/modules/cron/**"
+      ],
       "owner": "team-ops",
       "systemDoc": "docs/AUTOMATION_SYSTEM.md",
       "scenarios": ["automation-reminder-cycle"],
@@ -195,7 +203,7 @@
       "risk": "medium",
       "display": "ClawHub",
       "contract": "docs/contracts/CLAWHUB_AGENT_CONTRACT.md",
-      "tests": ["tests/unit/clawhub/clawhub-service.test.ts"],
+      "tests": ["tests/unit/skills/skills-registry.test.ts"],
       "paths": ["src/server/clawhub/**"],
       "owner": "team-runtime",
       "systemDoc": "docs/CLAWHUB_SYSTEM.md",
@@ -206,7 +214,7 @@
       "risk": "medium",
       "display": "Knowledge Base",
       "contract": "docs/contracts/KNOWLEDGE_BASE_AGENT_CONTRACT.md",
-      "tests": ["tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts"],
+      "tests": ["tests/e2e/browser/knowledge-graph.spec.ts"],
       "paths": [
         "src/server/knowledge/**",
         "src/components/knowledge/**",
@@ -221,7 +229,7 @@
       "risk": "high",
       "display": "Security",
       "contract": "docs/contracts/SECURITY_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/channels/omnichannel-security.contract.test.ts"],
+      "tests": ["rust/crates/betaclaw-base/src/auth/policy.rs"],
       "paths": [
         "src/server/auth/**",
         "src/server/security/**",
@@ -239,8 +247,13 @@
       "risk": "high",
       "display": "Master Agent",
       "contract": "docs/contracts/MASTER_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/master/master-runs-route.test.ts"],
-      "paths": ["app/api/master/**", "src/server/master/**", "src/modules/master/**"],
+      "tests": ["tests/e2e/browser/integration-scenarios.spec.ts"],
+      "paths": [
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
+        "src/server/master/**",
+        "src/modules/master/**"
+      ],
       "owner": "team-master",
       "systemDoc": "docs/MASTER_AGENT_SYSTEM.md",
       "scenarios": ["master-run-feedback"],
@@ -250,7 +263,7 @@
       "risk": "medium",
       "display": "Project Workspace",
       "contract": "docs/contracts/PROJECT_WORKSPACE_AGENT_CONTRACT.md",
-      "tests": ["tests/unit/channels/message-service-project-workspace-cwd.test.ts"],
+      "tests": ["tests/e2e/browser/task-management.spec.ts"],
       "paths": [
         "src/server/personas/personaProjectWorkspace.ts",
         "src/server/tasks/taskWorkspace.ts"
@@ -264,8 +277,13 @@
       "risk": "medium",
       "display": "Tasks",
       "contract": "docs/contracts/TASKS_AGENT_CONTRACT.md",
-      "tests": ["tests/integration/mission-control/tasks-route-workspaces.test.ts"],
-      "paths": ["app/api/tasks/**", "src/server/tasks/**", "src/modules/tasks/**"],
+      "tests": ["tests/e2e/browser/task-management.spec.ts"],
+      "paths": [
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
+        "src/server/tasks/**",
+        "src/modules/tasks/**"
+      ],
       "owner": "team-core",
       "systemDoc": "docs/TASKS_SYSTEM.md",
       "scenarios": ["tasks-lifecycle"],
@@ -278,7 +296,8 @@
       "tests": ["tests/e2e/browser/chat-smoke.spec.ts"],
       "paths": [
         "src/modules/chat/**",
-        "app/api/channels/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/channels/messages/**",
         "src/components/ChatInterface.tsx",
         "src/components/ConnectionStatus.tsx"
@@ -306,9 +325,9 @@
         "src/components/DeliverablesList.tsx",
         "src/components/config/**",
         "src/components/planning/**",
-        "src/lib/planning-utils.ts",
         "src/shared/domain/types.ts",
-        "app/api/master/**",
+        "rust/crates/betaclaw-gateway/src/routes/**",
+        "rust/crates/betaclaw-gateway/src/families/**",
         "src/server/master/**",
         "src/components/shared/**",
         "src/modules/agent-room/**"

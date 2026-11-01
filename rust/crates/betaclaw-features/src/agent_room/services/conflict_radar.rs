@@ -182,4 +182,105 @@ mod tests {
             vec!["Critical blocker: \"Das ist fatal und unmöglich.\"".to_string()]
         );
     }
+
+    #[test]
+    fn text_without_any_signal_is_quiet() {
+        let friction =
+            derive_conflict_radar("Everything is going well. The plan looks great.", NOW);
+        assert_eq!(friction.level, FrictionLevel::Low);
+        assert_eq!(friction.confidence, 0);
+        assert!(friction.reasons.is_empty());
+    }
+
+    #[test]
+    fn a_single_english_risk_keyword_scores_25() {
+        let friction = derive_conflict_radar("There is a risk that this approach may fail.", NOW);
+        assert_eq!(friction.level, FrictionLevel::Low);
+        assert_eq!(friction.confidence, 25);
+        assert!(friction.reasons[0].starts_with("Risk keywords (EN)"));
+    }
+
+    #[test]
+    fn a_single_german_risk_keyword_scores_25() {
+        let friction = derive_conflict_radar("Es besteht ein Risiko bei diesem Ansatz.", NOW);
+        assert_eq!(friction.level, FrictionLevel::Low);
+        assert_eq!(friction.confidence, 25);
+        assert!(friction.reasons[0].starts_with("Risk keywords (DE)"));
+    }
+
+    #[test]
+    fn two_risk_signals_reach_medium() {
+        let friction = derive_conflict_radar(
+            "There is a risk here. The team members disagree on the approach strongly.",
+            NOW,
+        );
+        assert_eq!(friction.level, FrictionLevel::Medium);
+        assert_eq!(friction.confidence, 50);
+    }
+
+    #[test]
+    fn a_down_vote_is_a_severe_signal() {
+        let friction = derive_conflict_radar("I strongly [VOTE:DOWN] this proposal.", NOW);
+        assert_eq!(friction.confidence, 35);
+        assert!(friction
+            .reasons
+            .iter()
+            .any(|reason| reason.contains("Agent voted DOWN")));
+    }
+
+    #[test]
+    fn risk_and_severe_signals_combine_to_high() {
+        let friction = derive_conflict_radar(
+            "There is a risk in this approach. Also a conflict exists. [VOTE:DOWN] This is impossible to implement.",
+            NOW,
+        );
+        assert_eq!(friction.level, FrictionLevel::High);
+        assert_eq!(friction.confidence, 95);
+    }
+
+    #[test]
+    fn confidence_is_capped_at_100() {
+        let friction = derive_conflict_radar(
+            "risk conflict blocker unclear doubt contradict inconsistent disagree fatal critical failure impossible [VOTE:DOWN]",
+            NOW,
+        );
+        assert_eq!(friction.confidence, 100);
+        assert_eq!(friction.level, FrictionLevel::High);
+    }
+
+    #[test]
+    fn only_the_text_after_the_last_marker_is_analyzed() {
+        let before = "There is a fatal risk and conflict here.\n--- Analysis Phase ---\nEverything looks great and safe.";
+        let friction = derive_conflict_radar(before, NOW);
+        assert_eq!(friction.confidence, 0);
+        assert!(friction.reasons.is_empty());
+
+        let several = "fatal error here\n--- Analysis Phase ---\nstill a fatal problem here\n--- Ideation Phase ---\nNo issues in this section.";
+        assert_eq!(derive_conflict_radar(several, NOW).confidence, 0);
+    }
+
+    #[test]
+    fn nothing_after_the_last_marker_is_quiet() {
+        let friction =
+            derive_conflict_radar("Some risky content\n--- Analysis Phase ---\n   ", NOW);
+        assert_eq!(friction.level, FrictionLevel::Low);
+        assert_eq!(friction.confidence, 0);
+    }
+
+    #[test]
+    fn excerpts_are_cut_at_120_characters() {
+        let long = format!("There is a risk that {}.", "x".repeat(200));
+        let friction = derive_conflict_radar(&long, NOW);
+        let quoted = friction.reasons[0]
+            .split('"')
+            .nth(1)
+            .expect("quoted excerpt");
+        assert_eq!(quoted.trim_end_matches('…').chars().count(), 120);
+    }
+
+    #[test]
+    fn hold_is_never_set() {
+        assert!(!derive_conflict_radar("fatal critical failure impossible [VOTE:DOWN]", NOW).hold);
+        assert!(!derive_conflict_radar("   ", NOW).hold);
+    }
 }

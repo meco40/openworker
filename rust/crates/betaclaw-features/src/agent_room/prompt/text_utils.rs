@@ -170,4 +170,42 @@ mod tests {
     fn keeps_the_last_paragraphs() {
         assert_eq!(extract_recent_turn_history("a\n\nb\n\nc", 2), "b\n\nc");
     }
+
+    #[test]
+    fn a_duplicated_speaker_label_on_one_line_counts_as_one_turn() {
+        let artifact =
+            "**[Next.js Dev]:** **[Next.js Dev]:** First answer\n\n**[Code Reviewer]:** Second answer";
+        assert_eq!(count_structured_turns(artifact), 2);
+    }
+
+    #[test]
+    fn phase_markers_are_not_turns_and_empty_text_has_none() {
+        assert_eq!(count_structured_turns("--- Analysis ---\n\n**[A]:** x"), 1);
+        assert_eq!(count_structured_turns("   "), 0);
+        assert_eq!(count_turns_in_current_phase(""), 0);
+    }
+
+    #[test]
+    fn without_markers_every_turn_is_in_the_current_phase() {
+        assert_eq!(
+            count_turns_in_current_phase("**[A]:** first\n\n**[B]:** second"),
+            2
+        );
+    }
+
+    #[test]
+    fn every_leading_label_form_is_stripped() {
+        assert_eq!(
+            strip_leading_speaker_prefix("**[Next.js Dev]:** Final answer", "Next.js Dev"),
+            "Final answer"
+        );
+        assert_eq!(
+            strip_leading_speaker_prefix("[Next.js Dev]: Final answer", "Next.js Dev"),
+            "Final answer"
+        );
+        assert_eq!(
+            strip_leading_speaker_prefix("Final answer", "Next.js Dev"),
+            "Final answer"
+        );
+    }
 }

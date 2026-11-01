@@ -151,4 +151,11 @@ mod tests {
         let kept: Vec<&str> = filtered.iter().map(|m| m.id.as_str()).collect();
         assert_eq!(kept, vec!["untagged", "empty", "mine"]);
     }
+    #[test]
+    fn filtering_keeps_nothing_for_an_empty_input_or_an_unknown_persona() {
+        let policy = create_persona_isolation_policy();
+        assert!(policy.filter_by_persona(&[], "persona-a").is_empty());
+        let messages = vec![message("m1", Some("persona-b"))];
+        assert!(policy.filter_by_persona(&messages, "persona-a").is_empty());
+    }
 }

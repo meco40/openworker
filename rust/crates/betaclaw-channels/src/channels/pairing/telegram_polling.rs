@@ -460,4 +460,184 @@ mod tests {
         assert!(s.transport.calls("getUpdates").is_empty());
         assert!(s.port.dispatched.lock().unwrap().is_empty());
     }
+
+    fn lease_held_by_another_runtime(s: &Setup) {
+        s.store.set_credential(CHANNEL, OWNER_KEY, "someone-else");
+        s.store.set_credential(
+            CHANNEL,
+            LEASE_UNTIL_KEY,
+            &(Utc::now() + chrono::Duration::milliseconds(60_000)).to_rfc3339(),
+        );
+    }
+
+    #[tokio::test]
+    async fn start_does_not_begin_while_another_runtime_holds_the_lease() {
+        let s = setup();
+        lease_held_by_another_runtime(&s);
+
+        s.poller.start().await;
+
+        assert!(!s.poller.is_active());
+        assert!(s.transport.requests().is_empty());
+        s.poller.stop();
+    }
+
+    #[tokio::test]
+    async fn start_takes_over_a_lease_that_has_expired() {
+        let s = setup();
+        s.store.set_credential(CHANNEL, OWNER_KEY, "dead-runtime");
+        s.store.set_credential(
+            CHANNEL,
+            LEASE_UNTIL_KEY,
+            &(Utc::now() - chrono::Duration::milliseconds(1_000)).to_rfc3339(),
+        );
+
+        s.poller.start().await;
+
+        assert!(s.poller.is_active());
+        s.poller.stop();
+    }
+
+    #[tokio::test]
+    async fn stop_cancels_the_standby_retry_scheduled_for_a_lost_lease() {
+        let s = setup();
+        lease_held_by_another_runtime(&s);
+        s.poller.start().await;
+        assert!(s.poller.state().standby.is_some());
+
+        s.poller.stop();
+
+        assert!(s.poller.state().standby.is_none());
+        assert!(!s.poller.is_active());
+    }
+
+    use crate::channels::adapters::types::ChannelError;
+    use crate::channels::pairing::telegram_inbound::TelegramInboundPort;
+
+    /// Marks that a dispatch has started and never finishes it, like a long agent run.
+    #[derive(Default)]
+    struct StuckPort {
+        entered: std::sync::atomic::AtomicBool,
+    }
+
+    impl TelegramInboundPort for StuckPort {
+        fn handle_native_command<'a>(
+            &'a self,
+            _chat_id: &'a str,
+            _text: &'a str,
+            _external_chat_id: &'a str,
+        ) -> crate::model_hub::http::BoxFuture<'a, Result<bool, ChannelError>> {
+            Box::pin(async { Ok(false) })
+        }
+
+        fn handle_model_callback<'a>(
+            &'a self,
+            _query: &'a crate::channels::adapters::telegram::types::TelegramCallbackQuery,
+        ) -> crate::model_hub::http::BoxFuture<'a, Result<bool, ChannelError>> {
+            Box::pin(async { Ok(false) })
+        }
+
+        fn dispatch_message<'a>(
+            &'a self,
+            _dispatch: crate::channels::pairing::telegram_inbound::TelegramDispatch<'a>,
+        ) -> crate::model_hub::http::BoxFuture<'a, Result<bool, ChannelError>> {
+            Box::pin(async move {
+                self.entered
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                std::future::pending::<()>().await;
+                Ok(true)
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn the_offset_is_persisted_before_a_long_update_finishes() {
+        let transport = ScriptedTransport::new();
+        transport.then(
+            "getUpdates",
+            json_response(
+                200,
+                json!({"ok": true, "result": [
+                    {"update_id": 41, "message": {"message_id": 1, "chat": {"id": 42, "type": "private"}, "text": "long task"}},
+                ]}),
+            ),
+        );
+        let store = memory_store();
+        store.set_credential(CHANNEL, "bot_token", "1:t");
+        store.set_credential(CHANNEL, "update_transport", "polling");
+        store.set_credential(CHANNEL, "pairing_status", "connected");
+        store.set_credential(CHANNEL, "paired_chat_id", "42");
+        let env = isolated_env();
+        let api = TelegramApi::new(transport.clone());
+        let sender = TelegramSender::new(api.clone(), store.clone(), env.clone());
+        let port = Arc::new(StuckPort::default());
+        let inbound = Arc::new(TelegramInbound::new(
+            store.clone(),
+            env.clone(),
+            sender,
+            port.clone(),
+        ));
+        let poller = TelegramPoller::new(store.clone(), env, api, inbound);
+        let owner = poller.owner_id();
+        assert!(store.claim_lease(
+            CHANNEL,
+            OWNER_KEY,
+            LEASE_UNTIL_KEY,
+            &owner,
+            LEASE_TTL_MS,
+            Utc::now()
+        ));
+
+        let running = {
+            let poller = poller.clone();
+            tokio::spawn(async move { poller.poll_once().await })
+        };
+        for _ in 0..400 {
+            if port.entered.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+
+        assert!(port.entered.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(
+            store.get_credential(CHANNEL, "polling_offset").as_deref(),
+            Some("42")
+        );
+        running.abort();
+        poller.stop();
+    }
+
+    #[tokio::test]
+    async fn start_does_nothing_when_the_transport_is_webhook() {
+        let s = setup();
+        s.store
+            .set_credential(CHANNEL, "update_transport", "webhook");
+
+        s.poller.start().await;
+
+        assert!(!s.poller.is_active());
+        assert!(s.transport.requests().is_empty());
+    }
+
+    #[test]
+    fn creating_the_poller_starts_nothing() {
+        let s = setup();
+
+        assert!(!s.poller.is_active());
+        assert!(s.transport.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_second_start_while_active_changes_nothing() {
+        let s = setup();
+        s.poller.start().await;
+        let generation = s.poller.state().generation;
+
+        s.poller.start().await;
+
+        assert!(s.poller.is_active());
+        assert_eq!(s.poller.state().generation, generation);
+        s.poller.stop();
+    }
 }

@@ -31,11 +31,11 @@ pub struct PersonaPoller {
 }
 
 impl PersonaPoller {
-    pub fn is_enabled_from_env() -> bool {
+    pub fn is_enabled_from_env() -> Result<bool, String> {
         Self::parse_enabled(std::env::var("BETACLAW_TELEGRAM_POLLER").ok().as_deref())
     }
-    pub fn parse_enabled(value: Option<&str>) -> bool {
-        value.is_some_and(|v| v.trim().eq_ignore_ascii_case("rust"))
+    pub fn parse_enabled(value: Option<&str>) -> Result<bool, String> {
+        Ok(crate::background::parse_job_owner("BETACLAW_TELEGRAM_POLLER", value)? == "rust")
     }
     pub fn new(
         client: reqwest::Client,
@@ -304,11 +304,12 @@ mod tests {
             "secret-token"
         )
         .contains("secret-token"));
-        for value in [None, Some(""), Some("node"), Some("off"), Some("false")] {
-            assert!(!PersonaPoller::parse_enabled(value));
+        for value in [Some("off"), Some("false")] {
+            assert_eq!(PersonaPoller::parse_enabled(value), Ok(false));
         }
-        for value in [Some("rust"), Some(" RUST ")] {
-            assert!(PersonaPoller::parse_enabled(value));
+        for value in [None, Some(""), Some("rust"), Some(" RUST ")] {
+            assert_eq!(PersonaPoller::parse_enabled(value), Ok(true));
         }
+        assert!(PersonaPoller::parse_enabled(Some("node")).is_err());
     }
 }

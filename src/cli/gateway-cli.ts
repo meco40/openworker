@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { isMethodAllowed } from '@/server/gateway/method-scopes';
+import { isMethodAllowed } from '@/shared/gateway/method-scopes';
 import { GatewayRpcClient } from '@/cli/lib/gatewayRpc';
 
 function popOption(args: string[], name: string): string | undefined {
@@ -20,7 +20,7 @@ function printGatewayHelp(): void {
   console.log(`betaclaw gateway <command>
 
 Commands:
-  run                            Start local web/gateway server
+  run                            Start the Rust gateway (betaclaw-gateway on PATH)
   status [--url <ws-url>]        Call "health" via gateway RPC
   methods [--url <ws-url>]       Print server methods from hello_ok
   call <method> [--params <json>] [--unsafe] [--url <ws-url>]
@@ -31,7 +31,8 @@ Commands:
 }
 
 async function runGatewayServer(): Promise<never> {
-  const child = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], {
+  // The gateway is the Rust binary; `pnpm run dev:gateway` starts it the same way.
+  const child = spawn('betaclaw-gateway', [], {
     cwd: process.cwd(),
     stdio: 'inherit',
     env: process.env,
@@ -42,7 +43,7 @@ async function runGatewayServer(): Promise<never> {
       process.exit(code ?? 0);
     });
     child.once('error', (error) => {
-      console.error(`Failed to start gateway server: ${String(error)}`);
+      console.error(`Failed to start the Rust gateway: ${String(error)}`);
       process.exit(1);
     });
     child.once('spawn', () => resolve());

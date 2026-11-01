@@ -1,0 +1,738 @@
+{
+  "values": {
+    "DELETE /api/betaclaw/sessions/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Session not found"
+      },
+      "text": "{\"error\":\"Session not found\"}"
+    },
+    "GET /api/betaclaw/models": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "defaultModel": "anthropic/claude-3.7-sonnet",
+        "availableModels": [
+          "anthropic/claude-3.7-sonnet",
+          "big-pickle",
+          "claude-3-7-sonnet-latest",
+          "claude-sonnet-4-5",
+          "command-a-03-2025",
+          "command-r-plus",
+          "deepseek-v4-pro",
+          "deepseek-v4.1-flash-abliterated",
+          "doubao-1-5-lite-32k-250115",
+          "doubao-1-5-pro-32k-250115",
+          "gemini-2.5-flash",
+          "gemini-2.5-pro",
+          "glm-4.5",
+          "glm-4.5-air",
+          "glm-5",
+          "gpt-4.1",
+          "gpt-4.1-mini",
+          "gpt-4o-mini",
+          "gpt-5",
+          "gpt-5-mini",
+          "gpt-5-nano",
+          "gpt-5-pro",
+          "gpt-5.1",
+          "gpt-5.2",
+          "gpt-5.2-pro",
+          "gpt-5.3-codex",
+          "gpt-5.4",
+          "gpt-5.4-mini",
+          "gpt-5.4-nano",
+          "gpt-5.4-pro",
+          "gpt-5.5",
+          "gpt-5.5-pro",
+          "gpt-5.6",
+          "gpt-5.6-luna",
+          "gpt-5.6-sol",
+          "gpt-5.6-terra",
+          "grok-3",
+          "grok-4",
+          "kimi-for-coding",
+          "kimi-k2.5",
+          "llama3.2",
+          "ministral-8b-latest",
+          "mistral-large-latest",
+          "openai/gpt-4.1-mini",
+          "qwen2.5-coder",
+          "qwen2.5-coder-7b-instruct"
+        ]
+      },
+      "text": "{\"defaultModel\":\"anthropic/claude-3.7-sonnet\",\"availableModels\":[\"anthropic/claude-3.7-sonnet\",\"big-pickle\",\"claude-3-7-sonnet-latest\",\"claude-sonnet-4-5\",\"command-a-03-2025\",\"command-r-plus\",\"deepseek-v4-pro\",\"deepseek-v4.1-flash-abliterated\",\"doubao-1-5-lite-32k-250115\",\"doubao-1-5-pro-32k-250115\",\"gemini-2.5-flash\",\"gemini-2.5-pro\",\"glm-4.5\",\"glm-4.5-air\",\"glm-5\",\"gpt-4.1\",\"gpt-4.1-mini\",\"gpt-4o-mini\",\"gpt-5\",\"gpt-5-mini\",\"gpt-5-nano\",\"gpt-5-pro\",\"gpt-5.1\",\"gpt-5.2\",\"gpt-5.2-pro\",\"gpt-5.3-codex\",\"gpt-5.4\",\"gpt-5.4-mini\",\"gpt-5.4-nano\",\"gpt-5.4-pro\",\"gpt-5.5\",\"gpt-5.5-pro\",\"gpt-5.6\",\"gpt-5.6-luna\",\"gpt-5.6-sol\",\"gpt-5.6-terra\",\"grok-3\",\"grok-4\",\"kimi-for-coding\",\"kimi-k2.5\",\"llama3.2\",\"ministral-8b-latest\",\"mistral-large-latest\",\"openai/gpt-4.1-mini\",\"qwen2.5-coder\",\"qwen2.5-coder-7b-instruct\"]}"
+    },
+    "GET /api/betaclaw/sessions/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Session not found"
+      },
+      "text": "{\"error\":\"Session not found\"}"
+    },
+    "GET /api/control-plane/metrics": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "metrics": {
+          "uptimeSeconds": 4,
+          "activeWsSessions": 0,
+          "tokensToday": 0,
+          "vectorNodeCount": 0,
+          "ramUsageBytes": 149422080,
+          "agentRoom": {
+            "runningSwarms": 0,
+            "holdSwarms": 0,
+            "lastErrorAt": null
+          },
+          "automation": {
+            "activeRules": 0,
+            "queuedRuns": 0,
+            "runningRuns": 0,
+            "deadLetterRuns": 0,
+            "leaseAgeSeconds": null
+          },
+          "inbox": {
+            "queries": {
+              "http": 0,
+              "ws": 0
+            },
+            "queryLatencyMs": {
+              "httpP95": null,
+              "httpP99": null,
+              "wsP95": null,
+              "wsP99": null
+            },
+            "liveInsertLatencyMs": {
+              "p95": null,
+              "p99": null
+            },
+            "events": {
+              "emitted": 0,
+              "dropped": 0,
+              "dropRate": null,
+              "upserts": 0,
+              "deletes": 0
+            },
+            "reconnectResyncCount": 0
+          },
+          "rooms": null,
+          "knowledge": {
+            "episodeCount": 0,
+            "ledgerCount": 0,
+            "retrievalErrorCount": 0,
+            "latestIngestionAt": null,
+            "ingestionLagMs": 0
+          },
+          "worldModel": {
+            "mode": "off",
+            "status": "degraded",
+            "pendingObservations": 1258,
+            "outboxDeadLetters": 5,
+            "outboxAgeMs": 6395081490,
+            "dueOpenLoops": 12,
+            "projectionLagMs": 54203721,
+            "embeddingsTotal": 1011
+          },
+          "generatedAt": "2026-10-31T20:10:39.316Z"
+        }
+      },
+      "text": "{\"ok\":true,\"metrics\":{\"uptimeSeconds\":4,\"activeWsSessions\":0,\"tokensToday\":0,\"vectorNodeCount\":0,\"ramUsageBytes\":149422080,\"agentRoom\":{\"runningSwarms\":0,\"holdSwarms\":0,\"lastErrorAt\":null},\"automation\":{\"activeRules\":0,\"queuedRuns\":0,\"runningRuns\":0,\"deadLetterRuns\":0,\"leaseAgeSeconds\":null},\"inbox\":{\"queries\":{\"http\":0,\"ws\":0},\"queryLatencyMs\":{\"httpP95\":null,\"httpP99\":null,\"wsP95\":null,\"wsP99\":null},\"liveInsertLatencyMs\":{\"p95\":null,\"p99\":null},\"events\":{\"emitted\":0,\"dropped\":0,\"dropRate\":null,\"upserts\":0,\"deletes\":0},\"reconnectResyncCount\":0},\"rooms\":null,\"knowledge\":{\"episodeCount\":0,\"ledgerCount\":0,\"retrievalErrorCount\":0,\"latestIngestionAt\":null,\"ingestionLagMs\":0},\"worldModel\":{\"mode\":\"off\",\"status\":\"degraded\",\"pendingObservations\":1258,\"outboxDeadLetters\":5,\"outboxAgeMs\":6395081490,\"dueOpenLoops\":12,\"projectionLagMs\":54203721,\"embeddingsTotal\":1011},\"generatedAt\":\"2026-10-31T20:10:39.316Z\"}}"
+    },
+    "GET /api/doctor": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "status": "degraded",
+        "checks": [
+          {
+            "id": "core.logging_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Logging repository reachable.",
+            "details": {
+              "total": 0
+            },
+            "latencyMs": 1
+          },
+          {
+            "id": "core.stats_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Stats repository reachable.",
+            "details": {
+              "usageEntries": 0
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "core.memory_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Memory repository reachable.",
+            "details": {
+              "nodeCount": 0,
+              "provider": "sqlite"
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "security.snapshot",
+            "category": "security",
+            "status": "warning",
+            "message": "Security snapshot contains warnings.",
+            "latencyMs": 0,
+            "details": {
+              "summary": {
+                "ok": 3,
+                "warning": 1,
+                "critical": 0
+              },
+              "channels": [
+                {
+                  "channel": "telegram",
+                  "verification": "signed",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "discord",
+                  "verification": "signed",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "whatsapp",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "imessage",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "slack",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                }
+              ]
+            }
+          },
+          {
+            "id": "core.gateway_registry",
+            "category": "core",
+            "status": "ok",
+            "message": "Gateway registry readable.",
+            "details": {
+              "activeWsSessions": 0
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.error_budget",
+            "category": "diagnostics",
+            "status": "skipped",
+            "message": "Error budget skipped: insufficient sample size (0/20).",
+            "details": {
+              "total": 0,
+              "errors": 0,
+              "windowMinutes": 15
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.memory_pressure",
+            "category": "diagnostics",
+            "status": "ok",
+            "message": "Memory pressure healthy: 35.4% heap usage.",
+            "details": {
+              "heapUsed": 36538968,
+              "heapTotal": 103145472,
+              "ratio": 0.3542469416398618
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.alert_routing",
+            "category": "diagnostics",
+            "status": "skipped",
+            "message": "Alert routing not configured (optional).",
+            "latencyMs": 0
+          },
+          {
+            "id": "integration.whatsapp_bridge",
+            "category": "integration",
+            "status": "skipped",
+            "message": "WHATSAPP_BRIDGE_URL not configured.",
+            "latencyMs": 0
+          },
+          {
+            "id": "integration.imessage_bridge",
+            "category": "integration",
+            "status": "skipped",
+            "message": "IMESSAGE_BRIDGE_URL not configured.",
+            "latencyMs": 0
+          },
+          {
+            "id": "core.knowledge_layer",
+            "category": "core",
+            "status": "skipped",
+            "message": "Knowledge layer disabled.",
+            "latencyMs": 0
+          }
+        ],
+        "findings": [
+          {
+            "id": "security_warning",
+            "severity": "warning",
+            "title": "Security Warnings Present",
+            "detail": "Security snapshot contains warnings.",
+            "recommendation": "Open `/api/security/status` and resolve the reported warnings before promoting to production."
+          }
+        ],
+        "recommendations": [
+          "Open `/api/security/status` and resolve the reported warnings before promoting to production."
+        ],
+        "generatedAt": "2026-10-31T20:10:39.137Z"
+      },
+      "text": "{\"ok\":true,\"status\":\"degraded\",\"checks\":[{\"id\":\"core.logging_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Logging repository reachable.\",\"details\":{\"total\":0},\"latencyMs\":1},{\"id\":\"core.stats_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Stats repository reachable.\",\"details\":{\"usageEntries\":0},\"latencyMs\":0},{\"id\":\"core.memory_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Memory repository reachable.\",\"details\":{\"nodeCount\":0,\"provider\":\"sqlite\"},\"latencyMs\":0},{\"id\":\"security.snapshot\",\"category\":\"security\",\"status\":\"warning\",\"message\":\"Security snapshot contains warnings.\",\"latencyMs\":0,\"details\":{\"summary\":{\"ok\":3,\"warning\":1,\"critical\":0},\"channels\":[{\"channel\":\"telegram\",\"verification\":\"signed\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"discord\",\"verification\":\"signed\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"whatsapp\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"imessage\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"slack\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"}]}},{\"id\":\"core.gateway_registry\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Gateway registry readable.\",\"details\":{\"activeWsSessions\":0},\"latencyMs\":0},{\"id\":\"diagnostics.error_budget\",\"category\":\"diagnostics\",\"status\":\"skipped\",\"message\":\"Error budget skipped: insufficient sample size (0/20).\",\"details\":{\"total\":0,\"errors\":0,\"windowMinutes\":15},\"latencyMs\":0},{\"id\":\"diagnostics.memory_pressure\",\"category\":\"diagnostics\",\"status\":\"ok\",\"message\":\"Memory pressure healthy: 35.4% heap usage.\",\"details\":{\"heapUsed\":36538968,\"heapTotal\":103145472,\"ratio\":0.3542469416398618},\"latencyMs\":0},{\"id\":\"diagnostics.alert_routing\",\"category\":\"diagnostics\",\"status\":\"skipped\",\"message\":\"Alert routing not configured (optional).\",\"latencyMs\":0},{\"id\":\"integration.whatsapp_bridge\",\"category\":\"integration\",\"status\":\"skipped\",\"message\":\"WHATSAPP_BRIDGE_URL not configured.\",\"latencyMs\":0},{\"id\":\"integration.imessage_bridge\",\"category\":\"integration\",\"status\":\"skipped\",\"message\":\"IMESSAGE_BRIDGE_URL not configured.\",\"latencyMs\":0},{\"id\":\"core.knowledge_layer\",\"category\":\"core\",\"status\":\"skipped\",\"message\":\"Knowledge layer disabled.\",\"latencyMs\":0}],\"findings\":[{\"id\":\"security_warning\",\"severity\":\"warning\",\"title\":\"Security Warnings Present\",\"detail\":\"Security snapshot contains warnings.\",\"recommendation\":\"Open `/api/security/status` and resolve the reported warnings before promoting to production.\"}],\"recommendations\":[\"Open `/api/security/status` and resolve the reported warnings before promoting to production.\"],\"generatedAt\":\"2026-10-31T20:10:39.137Z\"}"
+    },
+    "GET /api/health": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "status": "degraded",
+        "checks": [
+          {
+            "id": "core.logging_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Logging repository reachable.",
+            "details": {
+              "total": 0
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "core.stats_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Stats repository reachable.",
+            "details": {
+              "usageEntries": 0
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "core.memory_repository",
+            "category": "core",
+            "status": "ok",
+            "message": "Memory repository reachable.",
+            "details": {
+              "nodeCount": 0,
+              "provider": "sqlite"
+            },
+            "latencyMs": 1
+          },
+          {
+            "id": "security.snapshot",
+            "category": "security",
+            "status": "warning",
+            "message": "Security snapshot contains warnings.",
+            "latencyMs": 0,
+            "details": {
+              "summary": {
+                "ok": 3,
+                "warning": 1,
+                "critical": 0
+              },
+              "channels": [
+                {
+                  "channel": "telegram",
+                  "verification": "signed",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "discord",
+                  "verification": "signed",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "whatsapp",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "imessage",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                },
+                {
+                  "channel": "slack",
+                  "verification": "shared_secret",
+                  "secretConfigured": false,
+                  "status": "warning",
+                  "detail": "Verification secret missing."
+                }
+              ]
+            }
+          },
+          {
+            "id": "core.gateway_registry",
+            "category": "core",
+            "status": "ok",
+            "message": "Gateway registry readable.",
+            "details": {
+              "activeWsSessions": 0
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.error_budget",
+            "category": "diagnostics",
+            "status": "skipped",
+            "message": "Error budget skipped: insufficient sample size (0/20).",
+            "details": {
+              "total": 0,
+              "errors": 0,
+              "windowMinutes": 15
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.memory_pressure",
+            "category": "diagnostics",
+            "status": "ok",
+            "message": "Memory pressure healthy: 33.8% heap usage.",
+            "details": {
+              "heapUsed": 34830248,
+              "heapTotal": 103145472,
+              "ratio": 0.33768082422464457
+            },
+            "latencyMs": 0
+          },
+          {
+            "id": "diagnostics.alert_routing",
+            "category": "diagnostics",
+            "status": "skipped",
+            "message": "Alert routing not configured (optional).",
+            "latencyMs": 0
+          },
+          {
+            "id": "integration.whatsapp_bridge",
+            "category": "integration",
+            "status": "skipped",
+            "message": "WHATSAPP_BRIDGE_URL not configured.",
+            "latencyMs": 0
+          },
+          {
+            "id": "integration.imessage_bridge",
+            "category": "integration",
+            "status": "skipped",
+            "message": "IMESSAGE_BRIDGE_URL not configured.",
+            "latencyMs": 0
+          },
+          {
+            "id": "core.knowledge_layer",
+            "category": "core",
+            "status": "skipped",
+            "message": "Knowledge layer disabled.",
+            "latencyMs": 0
+          }
+        ],
+        "summary": {
+          "ok": 5,
+          "warning": 1,
+          "critical": 0,
+          "skipped": 5
+        },
+        "generatedAt": "2026-10-31T20:10:39.102Z"
+      },
+      "text": "{\"ok\":true,\"status\":\"degraded\",\"checks\":[{\"id\":\"core.logging_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Logging repository reachable.\",\"details\":{\"total\":0},\"latencyMs\":0},{\"id\":\"core.stats_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Stats repository reachable.\",\"details\":{\"usageEntries\":0},\"latencyMs\":0},{\"id\":\"core.memory_repository\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Memory repository reachable.\",\"details\":{\"nodeCount\":0,\"provider\":\"sqlite\"},\"latencyMs\":1},{\"id\":\"security.snapshot\",\"category\":\"security\",\"status\":\"warning\",\"message\":\"Security snapshot contains warnings.\",\"latencyMs\":0,\"details\":{\"summary\":{\"ok\":3,\"warning\":1,\"critical\":0},\"channels\":[{\"channel\":\"telegram\",\"verification\":\"signed\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"discord\",\"verification\":\"signed\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"whatsapp\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"imessage\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"},{\"channel\":\"slack\",\"verification\":\"shared_secret\",\"secretConfigured\":false,\"status\":\"warning\",\"detail\":\"Verification secret missing.\"}]}},{\"id\":\"core.gateway_registry\",\"category\":\"core\",\"status\":\"ok\",\"message\":\"Gateway registry readable.\",\"details\":{\"activeWsSessions\":0},\"latencyMs\":0},{\"id\":\"diagnostics.error_budget\",\"category\":\"diagnostics\",\"status\":\"skipped\",\"message\":\"Error budget skipped: insufficient sample size (0/20).\",\"details\":{\"total\":0,\"errors\":0,\"windowMinutes\":15},\"latencyMs\":0},{\"id\":\"diagnostics.memory_pressure\",\"category\":\"diagnostics\",\"status\":\"ok\",\"message\":\"Memory pressure healthy: 33.8% heap usage.\",\"details\":{\"heapUsed\":34830248,\"heapTotal\":103145472,\"ratio\":0.33768082422464457},\"latencyMs\":0},{\"id\":\"diagnostics.alert_routing\",\"category\":\"diagnostics\",\"status\":\"skipped\",\"message\":\"Alert routing not configured (optional).\",\"latencyMs\":0},{\"id\":\"integration.whatsapp_bridge\",\"category\":\"integration\",\"status\":\"skipped\",\"message\":\"WHATSAPP_BRIDGE_URL not configured.\",\"latencyMs\":0},{\"id\":\"integration.imessage_bridge\",\"category\":\"integration\",\"status\":\"skipped\",\"message\":\"IMESSAGE_BRIDGE_URL not configured.\",\"latencyMs\":0},{\"id\":\"core.knowledge_layer\",\"category\":\"core\",\"status\":\"skipped\",\"message\":\"Knowledge layer disabled.\",\"latencyMs\":0}],\"summary\":{\"ok\":5,\"warning\":1,\"critical\":0,\"skipped\":5},\"generatedAt\":\"2026-10-31T20:10:39.102Z\"}"
+    },
+    "GET /api/health/world-model": {
+      "status": 503,
+      "contentType": "application/json",
+      "json": {
+        "status": "unavailable",
+        "mode": "off",
+        "reason": "World Model is not enabled",
+        "checks": {}
+      },
+      "text": "{\"status\":\"unavailable\",\"mode\":\"off\",\"reason\":\"World Model is not enabled\",\"checks\":{}}"
+    },
+    "GET /api/ops/instances": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "instances": {
+          "global": {
+            "connectionCount": 0,
+            "userCount": 0
+          },
+          "currentUser": {
+            "connectionCount": 0,
+            "connections": []
+          },
+          "generatedAt": "2026-10-31T20:10:35.496Z"
+        }
+      },
+      "text": "{\"ok\":true,\"instances\":{\"global\":{\"connectionCount\":0,\"userCount\":0},\"currentUser\":{\"connectionCount\":0,\"connections\":[]},\"generatedAt\":\"2026-10-31T20:10:35.496Z\"}}"
+    },
+    "GET /api/ops/nodes": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "nodes": {
+          "health": {
+            "status": "degraded",
+            "summary": {
+              "ok": 5,
+              "warning": 1,
+              "critical": 0,
+              "skipped": 5
+            },
+            "generatedAt": "2026-10-31T20:10:38.714Z"
+          },
+          "doctor": {
+            "status": "degraded",
+            "findings": 1,
+            "recommendations": 1,
+            "generatedAt": "2026-10-31T20:10:38.715Z"
+          },
+          "channels": [
+            {
+              "channel": "webchat",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": false,
+              "supportsPairing": false,
+              "supportsStreaming": true
+            },
+            {
+              "channel": "agent_room",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": false,
+              "supportsPairing": false,
+              "supportsStreaming": true
+            },
+            {
+              "channel": "telegram",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": true,
+              "supportsPairing": true,
+              "supportsStreaming": false
+            },
+            {
+              "channel": "whatsapp",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": true,
+              "supportsPairing": true,
+              "supportsStreaming": false,
+              "accounts": []
+            },
+            {
+              "channel": "discord",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": true,
+              "supportsPairing": true,
+              "supportsStreaming": false
+            },
+            {
+              "channel": "imessage",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": true,
+              "supportsPairing": true,
+              "supportsStreaming": false,
+              "accounts": []
+            },
+            {
+              "channel": "slack",
+              "status": "idle",
+              "externalPeerId": null,
+              "peerName": null,
+              "transport": null,
+              "personaId": null,
+              "lastSeenAt": null,
+              "supportsInbound": true,
+              "supportsOutbound": true,
+              "supportsPairing": true,
+              "supportsStreaming": false
+            }
+          ],
+          "automation": {
+            "activeRules": 0,
+            "queuedRuns": 0,
+            "runningRuns": 0,
+            "deadLetterRuns": 0,
+            "leaseAgeSeconds": null
+          },
+          "personas": [],
+          "execApprovals": {
+            "total": 0,
+            "items": []
+          },
+          "telegramPairing": {
+            "status": "idle",
+            "pendingChatId": null,
+            "pendingExpiresAt": null,
+            "hasPending": false
+          },
+          "generatedAt": "2026-10-31T20:10:39.050Z"
+        }
+      },
+      "text": "{\"ok\":true,\"nodes\":{\"health\":{\"status\":\"degraded\",\"summary\":{\"ok\":5,\"warning\":1,\"critical\":0,\"skipped\":5},\"generatedAt\":\"2026-10-31T20:10:38.714Z\"},\"doctor\":{\"status\":\"degraded\",\"findings\":1,\"recommendations\":1,\"generatedAt\":\"2026-10-31T20:10:38.715Z\"},\"channels\":[{\"channel\":\"webchat\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":false,\"supportsPairing\":false,\"supportsStreaming\":true},{\"channel\":\"agent_room\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":false,\"supportsPairing\":false,\"supportsStreaming\":true},{\"channel\":\"telegram\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":true,\"supportsPairing\":true,\"supportsStreaming\":false},{\"channel\":\"whatsapp\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":true,\"supportsPairing\":true,\"supportsStreaming\":false,\"accounts\":[]},{\"channel\":\"discord\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":true,\"supportsPairing\":true,\"supportsStreaming\":false},{\"channel\":\"imessage\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":true,\"supportsPairing\":true,\"supportsStreaming\":false,\"accounts\":[]},{\"channel\":\"slack\",\"status\":\"idle\",\"externalPeerId\":null,\"peerName\":null,\"transport\":null,\"personaId\":null,\"lastSeenAt\":null,\"supportsInbound\":true,\"supportsOutbound\":true,\"supportsPairing\":true,\"supportsStreaming\":false}],\"automation\":{\"activeRules\":0,\"queuedRuns\":0,\"runningRuns\":0,\"deadLetterRuns\":0,\"leaseAgeSeconds\":null},\"personas\":[],\"execApprovals\":{\"total\":0,\"items\":[]},\"telegramPairing\":{\"status\":\"idle\",\"pendingChatId\":null,\"pendingExpiresAt\":null,\"hasPending\":false},\"generatedAt\":\"2026-10-31T20:10:39.050Z\"}}"
+    },
+    "GET /api/ops/sessions": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "query": {
+          "q": "",
+          "limit": 50,
+          "activeMinutes": null,
+          "includeGlobalRequested": false,
+          "includeGlobalApplied": false,
+          "includeUnknown": true
+        },
+        "sessions": [],
+        "generatedAt": "2026-10-31T20:10:39.077Z"
+      },
+      "text": "{\"ok\":true,\"query\":{\"q\":\"\",\"limit\":50,\"activeMinutes\":null,\"includeGlobalRequested\":false,\"includeGlobalApplied\":false,\"includeUnknown\":true},\"sessions\":[],\"generatedAt\":\"2026-10-31T20:10:39.077Z\"}"
+    },
+    "PATCH /api/betaclaw/sessions/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Session not found"
+      },
+      "text": "{\"error\":\"Session not found\"}"
+    },
+    "POST /api/betaclaw/sessions ohne channel": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "channel is required"
+      },
+      "text": "{\"error\":\"channel is required\"}"
+    },
+    "POST /api/betaclaw/sessions/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Session not found"
+      },
+      "text": "{\"error\":\"Session not found\"}"
+    },
+    "POST /api/internal/model-hub/graphiti/v1/chat/completions ohne Token": {
+      "status": 503,
+      "contentType": "application/json",
+      "json": {
+        "error": {
+          "message": "Graphiti Model-Hub adapter token is not configured.",
+          "type": "model_hub_gateway_error"
+        }
+      },
+      "text": "{\"error\":{\"message\":\"Graphiti Model-Hub adapter token is not configured.\",\"type\":\"model_hub_gateway_error\"}}"
+    },
+    "POST /api/internal/stats/engineering/snapshots ohne Token": {
+      "status": 503,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Engineering ingest is disabled by feature flag."
+      },
+      "text": "{\"ok\":false,\"error\":\"Engineering ingest is disabled by feature flag.\"}"
+    },
+    "POST /api/ops/nodes ohne action": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "action must be a string."
+      },
+      "text": "{\"ok\":false,\"error\":\"action must be a string.\"}"
+    },
+    "auth lane: POST /api/internal/model-hub/graphiti/v1/chat/completions ohne Token": {
+      "status": 503,
+      "contentType": "application/json",
+      "json": {
+        "error": {
+          "message": "Graphiti Model-Hub adapter token is not configured.",
+          "type": "model_hub_gateway_error"
+        }
+      },
+      "text": "{\"error\":{\"message\":\"Graphiti Model-Hub adapter token is not configured.\",\"type\":\"model_hub_gateway_error\"}}"
+    },
+    "auth lane: POST /api/internal/stats/engineering/snapshots ohne Token": {
+      "status": 503,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Engineering ingest is disabled by feature flag."
+      },
+      "text": "{\"ok\":false,\"error\":\"Engineering ingest is disabled by feature flag.\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

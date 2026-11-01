@@ -2,27 +2,18 @@
  * `/api/personas` parity (S2): list, create, update, delete and the template
  * list.
  *
- * The TypeScript side drives the same `PersonaRepository` the routes delegate
- * to, in-process against a temporary database, and reproduces the response
- * mapping of `app/api/personas/route.ts` and `app/api/personas/[id]/route.ts`.
- * The Rust side goes over HTTP. Volatile fields (ids, timestamps) are
+ * The reference is `golden/personas.json`, recorded from the TypeScript routes before
+ * their removal. The Rust side goes over HTTP. Volatile fields (ids, timestamps) are
  * normalised; everything else must match.
  *
  * `preferredModelId` is not exercised here because it needs a populated
  * model-hub pipeline `p1` on both sides; that is the model-hub slice.
  */
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { check, rustRequest, bestEffortRemoveDir } from '../harness.mjs';
+import { check, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'personas';
 
 const FILE_NAMES = ['SOUL.md', 'IDENTITY.md', 'AGENTS.md', 'USER.md', 'TOOLS.md', 'HEARTBEAT.md'];
-const MEMORY_TYPES = ['general', 'roleplay', 'builder', 'assistant'];
-const MODEL_HUB_PROFILE_ERROR =
-  'modelHubProfileId must be a non-empty string (letters, numbers, ".", "_" or "-").';
-const MEMORY_TYPE_ERROR = `Invalid memoryPersonaType. Allowed: ${MEMORY_TYPES.join(', ')}`;
 
 function normSummary(persona) {
   return {
@@ -62,79 +53,7 @@ function normFiles(files) {
   return out;
 }
 
-/** The response mapping of the TypeScript routes around a successful call. */
-async function typescriptSide() {
-  const dir = mkdtempSync(join(tmpdir(), 'betaclaw-parity-personas-'));
-  process.env.PERSONAS_DB_PATH = join(dir, 'personas.db');
-  process.env.PERSONAS_ROOT_PATH = join(dir, 'personas');
-  const { PersonaRepository } =
-    await import('../../../../src/server/personas/personaRepository.ts');
-  const { getPrincipalUserId } = await import('../../../../src/server/auth/principal.ts');
-
-  const userId = getPrincipalUserId();
-  const repo = new PersonaRepository(process.env.PERSONAS_DB_PATH);
-
-  const created = repo.createPersona({
-    userId,
-    name: 'Parity Persona',
-    emoji: '🐙',
-    vibe: 'curious',
-    files: { 'SOUL.md': 'hello' },
-  });
-  const createdFull = repo.getPersonaWithFiles(created.id);
-  const listed = repo.listPersonas(userId).find((persona) => persona.name === 'Parity Persona');
-
-  repo.updatePersona(created.id, {
-    name: 'Parity Renamed',
-    maxToolCalls: 42,
-    isAutonomous: true,
-  });
-  const updated = true;
-  const afterUpdate = repo.getPersonaWithFiles(created.id);
-
-  let duplicateNameStatus = null;
-  let duplicateNameError = null;
-  try {
-    repo.createPersona({ userId, name: 'Parity Renamed', emoji: '🤖', vibe: '' });
-  } catch (error) {
-    duplicateNameStatus = /slug already exists/i.test(String(error?.message)) ? 409 : 500;
-    duplicateNameError = error instanceof Error ? error.message : String(error);
-  }
-
-  const deleted = repo.deletePersona(created.id);
-  const afterDelete = repo.getPersonaWithFiles(created.id);
-
-  const { PERSONA_TEMPLATES } = await import('../../../../src/lib/persona-templates.ts');
-  const templates = PERSONA_TEMPLATES.map((template) => ({
-    id: template.id,
-    name: template.name,
-    emoji: template.emoji,
-    vibe: template.vibe,
-  }));
-
-  const result = {
-    createdStatus: 201,
-    created: normProfile(createdFull),
-    createdFiles: normFiles(createdFull.files),
-    listed: listed ? normSummary(listed) : null,
-    updated: updated === true,
-    afterUpdate: normProfile(afterUpdate),
-    duplicateNameStatus,
-    duplicateNameError,
-    deleted,
-    afterDelete: afterDelete === null ? 404 : normProfile(afterDelete),
-    templates,
-    // Validation replies of the route handlers; the bodies are literals in
-    // `app/api/personas/route.ts:57-102`.
-    missingName: { status: 400, error: 'name is required' },
-    badProfile: { status: 400, error: MODEL_HUB_PROFILE_ERROR },
-    badMemoryType: { status: 400, error: MEMORY_TYPE_ERROR },
-  };
-  repo.close();
-  bestEffortRemoveDir(dir);
-  return result;
-}
-
+/** The response shape of the route. */
 /** Reads the same observations from the running Rust gateway. */
 async function rustCollect() {
   const created = await rustRequest('POST', '/api/personas', {
@@ -193,7 +112,7 @@ async function rustCollect() {
 }
 
 export async function run() {
-  const ts = await typescriptSide();
+  const ts = await goldenReference(name, 'typescript');
   const rust = await rustCollect();
 
   console.log('--- Templates ---');

@@ -194,6 +194,8 @@ mod tests {
     use super::super::types::test_support::TempDir;
     use super::*;
     use serde_json::json;
+    // Only the `cfg(unix)` timeout test uses it.
+    #[cfg(unix)]
     use std::time::Duration;
 
     fn args(command: &str) -> Map<String, Value> {
@@ -229,6 +231,21 @@ mod tests {
             .expect_err("needs approval");
         assert!(err.0.contains("Fingerprint: "));
         assert!(err.0.contains("npm run cli -- node approve"));
+    }
+
+    #[tokio::test]
+    async fn bypass_approval_skips_the_gate_for_a_granted_interactive_call() {
+        // Port of "accepts bypassApproval for already granted interactive approvals"
+        // in tests/unit/skills/shell-execute-security.test.ts. Only the gate is checked
+        // here: the command itself may or may not succeed on the host.
+        let dir = TempDir::new();
+        let env = dir.env(true);
+        let ctx = SkillDispatchContext {
+            bypass_approval: true,
+            ..SkillDispatchContext::default()
+        };
+        let result = shell_execute(&args("echo bypass-marker"), &ctx, &env).await;
+        assert!(!matches!(&result, Err(error) if error.0.contains("requires approval")));
     }
 
     #[tokio::test]

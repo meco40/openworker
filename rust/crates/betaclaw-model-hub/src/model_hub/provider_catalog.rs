@@ -411,4 +411,31 @@ mod tests {
         assert_eq!(value["defaultModels"][0], "openai/gpt-4.1-mini");
         assert!(value.get("oauthConfigured").is_none());
     }
+
+    /// OAuth is offered only where the source lists it (`contract/model-hub/provider-catalog.test.ts:31-47`).
+    #[test]
+    fn oauth_is_offered_only_where_supported() {
+        let offers_oauth = |id: &str| {
+            find_provider(id)
+                .unwrap_or_else(|| panic!("{id} is in the catalog"))
+                .auth_methods
+                .contains(&ProviderAuthMethod::Oauth)
+        };
+        assert!(!offers_oauth("openai"));
+        assert!(offers_oauth("openai-codex"));
+        assert!(offers_oauth("openrouter"));
+        assert!(offers_oauth("github-copilot"));
+        assert!(!offers_oauth("anthropic"));
+
+        let opencode = find_provider("opencode").expect("opencode");
+        assert_eq!(opencode.auth_methods, vec![ProviderAuthMethod::ApiKey]);
+        assert_eq!(
+            opencode.endpoint_type,
+            ProviderEndpointType::OpenAiCompatible
+        );
+        assert_eq!(
+            opencode.api_base_url.as_deref(),
+            Some("https://opencode.ai/zen/v1")
+        );
+    }
 }

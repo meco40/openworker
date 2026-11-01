@@ -403,4 +403,21 @@ mod tests {
         assert_eq!(metadata.task_id, "7");
         assert_eq!(metadata.kind, "general");
     }
+
+    #[test]
+    fn an_invalid_created_at_is_replaced_by_the_current_time() {
+        let metadata =
+            normalize(&serde_json::json!({"taskId": "task-1", "createdAt": "not-a-date"}))
+                .expect("valid metadata");
+        assert_ne!(metadata.created_at, "not-a-date");
+        assert!(parse_iso_ms(&metadata.created_at).is_some());
+    }
+
+    #[test]
+    fn every_reserved_character_becomes_an_underscore() {
+        assert_eq!(
+            sanitize_dir_name("a<b>c:d\"e/f\\g|h?i*j"),
+            "a_b_c_d_e_f_g_h_i_j"
+        );
+    }
 }

@@ -150,7 +150,7 @@ impl DelegationDispatcherPort for DelegationDispatcher<'_> {
     fn dispatch(
         &self,
         input: &DelegationDispatchInput<'_>,
-        task: Box<dyn FnOnce() -> DelegationTaskResult + '_>,
+        task: Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + '_>,
     ) -> DelegationDispatchOutcome {
         let timeout_ms = DEFAULT_DELEGATION_TIMEOUT_MS;
         let cooldown_ms = delegation_cooldown_ms(self.env);
@@ -305,10 +305,12 @@ mod tests {
         .id
     }
 
-    fn task() -> Box<dyn FnOnce() -> DelegationTaskResult + 'static> {
-        Box::new(|| DelegationTaskResult {
-            output: "result".to_string(),
-            confidence: Some(0.9),
+    fn task() -> Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + 'static> {
+        Box::new(|| {
+            Ok(DelegationTaskResult {
+                output: "result".to_string(),
+                confidence: Some(0.9),
+            })
         })
     }
 
@@ -382,6 +384,82 @@ mod tests {
         );
         assert!(!second.accepted);
         assert_eq!(second.reason.as_deref(), Some("cooldown_active"));
+    }
+
+    /// `dispatcher.ts` with a rejecting task: the job and the session end `failed`
+    /// and the dispatch is not accepted. The source rethrows the error; the port
+    /// reports its message as the reason (OP-S9-11).
+    #[test]
+    fn a_failing_task_fails_the_job_and_rejects_the_dispatch() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let run_id = run(&repo);
+        let env = MasterEnv::new();
+        let dispatcher = DelegationDispatcher::new(
+            &repo,
+            &env,
+            &NoopMasterEventPublisher,
+            &NoopSubagentHeartbeatScheduler,
+            DelegationDispatcherOptions::default(),
+        )
+        .with_now(|| 2_000_000);
+
+        let outcome = dispatcher.dispatch(
+            &DelegationDispatchInput {
+                scope: &scope,
+                run_id: &run_id,
+                capability: "web_search",
+                payload: "{}",
+            },
+            Box::new(|| Err("task exploded".to_string())),
+        );
+
+        assert!(!outcome.accepted);
+        assert_eq!(outcome.reason.as_deref(), Some("task exploded"));
+        let jobs = repo.list_delegation_jobs(&scope, &run_id).unwrap();
+        assert_eq!(jobs[0].status, "failed");
+        assert_eq!(jobs[0].last_error.as_deref(), Some("task exploded"));
+        let sessions = repo
+            .list_subagent_sessions(&scope, Some(&run_id), 100)
+            .unwrap();
+        assert_eq!(sessions[0].status, "failed");
+    }
+
+    /// `master-subagent-session-service.test.ts`, "creates the durable session
+    /// before the job": the session row is never newer than the job it runs.
+    #[test]
+    fn the_session_is_created_before_its_job() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let run_id = run(&repo);
+        let env = MasterEnv::new();
+        let dispatcher = DelegationDispatcher::new(
+            &repo,
+            &env,
+            &NoopMasterEventPublisher,
+            &NoopSubagentHeartbeatScheduler,
+            DelegationDispatcherOptions::default(),
+        )
+        .with_now(|| 3_000_000);
+
+        let outcome = dispatcher.dispatch(
+            &DelegationDispatchInput {
+                scope: &scope,
+                run_id: &run_id,
+                capability: "web_search",
+                payload: "{}",
+            },
+            task(),
+        );
+
+        assert!(outcome.accepted, "{:?}", outcome.reason);
+        let jobs = repo.list_delegation_jobs(&scope, &run_id).unwrap();
+        let sessions = repo
+            .list_subagent_sessions(&scope, Some(&run_id), 100)
+            .unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert!(sessions[0].created_at <= jobs[0].created_at);
+        assert_eq!(sessions[0].result_summary.as_deref(), Some("result"));
     }
 
     #[test]

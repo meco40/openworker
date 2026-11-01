@@ -1,26 +1,56 @@
 /**
  * Shared machinery for cross-implementation parity checks.
  *
- * A parity family compares one migrated route family between the Rust gateway
- * and the TypeScript reference. The Rust side is reached over HTTP — either
- * through the documented local container flow (`GATEWAY_CONTAINER`, addressed
- * with `docker exec curl`) or directly against a started gateway binary
- * (`GATEWAY_BASE_URL`, how CI runs it). The TypeScript side runs in-process
- * against the same repository code the route delegates to.
+ * A parity family compares one migrated route family with the reference values
+ * recorded from the TypeScript backend before its removal. The Rust side is reached
+ * over HTTP, either through the documented local container flow (`GATEWAY_CONTAINER`,
+ * addressed with `docker exec curl`) or directly against a started gateway binary
+ * (`GATEWAY_BASE_URL`, how CI runs it).
+ *
+ * The expected values are the fixed references in `golden/<family>.json`. They are
+ * reviewed data: changing one is an ordinary edit that shows up in the diff. Nothing
+ * here runs TypeScript or writes the golden files.
  *
  * Families live in `families/` and export `{ name, run }`. `run.mjs` executes
  * them and exits non-zero on any mismatch.
  */
 import { execFileSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const CONTAINER = process.env.GATEWAY_CONTAINER || 'betaclaw-gateway-ws';
 const RUST_ORIGIN = process.env.GATEWAY_BASE_URL || 'http://127.0.0.1:3000';
+const GOLDEN_DIR = fileURLToPath(new URL('./golden/', import.meta.url));
 
 let failures = 0;
+const goldenStores = new Map();
 
 export function failureCount() {
   return failures;
+}
+
+/** Returns the reference value stored under `key` for `family` in `golden/<family>.json`. */
+export async function goldenReference(family, key) {
+  const store = goldenStore(family);
+  if (!Object.hasOwn(store.values, key)) {
+    throw new Error(
+      `${family}: keine Referenz '${key}' in golden/${family}.json. Die Datei ist eine geprüfte Vorgabe; Änderungen als reviewte Änderung einchecken.`,
+    );
+  }
+  return structuredClone(store.values[key]);
+}
+
+function goldenStore(family) {
+  if (!goldenStores.has(family)) {
+    const file = join(GOLDEN_DIR, `${family}.json`);
+    if (!existsSync(file)) {
+      throw new Error(`Referenzdaten fehlen: ${file}.`);
+    }
+    const { values } = JSON.parse(readFileSync(file, 'utf8'));
+    goldenStores.set(family, { file, values });
+  }
+  return goldenStores.get(family);
 }
 
 export function check(label, actual, expected) {
@@ -29,7 +59,7 @@ export function check(label, actual, expected) {
     failures += 1;
     console.log(`FAIL ${label}`);
     console.log(`     Rust: ${JSON.stringify(actual)}`);
-    console.log(`     TS  : ${JSON.stringify(expected)}`);
+    console.log(`     Golden: ${JSON.stringify(expected)}`);
   } else {
     console.log(`OK   ${label}`);
   }

@@ -123,6 +123,22 @@ mod tests {
     }
 
     #[test]
+    fn blocks_the_shell_security_cases_from_typescript() {
+        // Port of "blocks encoded powershell payloads", "blocks registry delete
+        // commands" and "blocks service stop commands" in
+        // tests/unit/skills/shell-execute-security.test.ts.
+        for command in [
+            "powershell -enc SQBFAFgA",
+            "reg delete HKCU\\Software\\Test /f",
+            "sc stop WinDefend",
+        ] {
+            let result = evaluate_node_command_policy(command);
+            assert!(!result.allowed, "{command} must be blocked");
+            assert_eq!(result.reason, Some(REASON_BLOCKED));
+        }
+    }
+
+    #[test]
     fn blocks_the_word_patterns_and_respects_ascii_boundaries() {
         assert!(!evaluate_node_command_policy("del /F /S /Q C:\\x").allowed);
         assert!(!evaluate_node_command_policy("format C:").allowed);

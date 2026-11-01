@@ -1,0 +1,415 @@
+{
+  "values": {
+    "DELETE /api/agents/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "DELETE /api/agents/[id]/betaclaw (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "DELETE /api/automations/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Rule not found"
+      },
+      "text": "{\"ok\":false,\"error\":\"Rule not found\"}"
+    },
+    "DELETE /api/tasks/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "DELETE /api/tasks/[id]/planning (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "DELETE /api/workspaces/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Workspace not found"
+      },
+      "text": "{\"error\":\"Workspace not found\"}"
+    },
+    "DELETE /api/workspaces/default": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Cannot delete the default workspace"
+      },
+      "text": "{\"error\":\"Cannot delete the default workspace\"}"
+    },
+    "GET /api/agents": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": [],
+      "text": "[]"
+    },
+    "GET /api/agents/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "GET /api/agents/[id]/betaclaw (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "GET /api/agents/discover (unbekannter Workspace)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Workspace not found"
+      },
+      "text": "{\"error\":\"Workspace not found\"}"
+    },
+    "GET /api/automations": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "rules": []
+      },
+      "text": "{\"ok\":true,\"rules\":[]}"
+    },
+    "GET /api/automations/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Rule not found"
+      },
+      "text": "{\"ok\":false,\"error\":\"Rule not found\"}"
+    },
+    "GET /api/automations/[id]/flow (fehlend)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "flowGraph": null
+      },
+      "text": "{\"ok\":true,\"flowGraph\":null}"
+    },
+    "GET /api/automations/[id]/runs (fehlend)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "runs": []
+      },
+      "text": "{\"ok\":true,\"runs\":[]}"
+    },
+    "GET /api/automations/metrics": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "metrics": {
+          "activeRules": 0,
+          "queuedRuns": 0,
+          "runningRuns": 0,
+          "deadLetterRuns": 0,
+          "leaseAgeSeconds": null
+        },
+        "leaseState": null
+      },
+      "text": "{\"ok\":true,\"metrics\":{\"activeRules\":0,\"queuedRuns\":0,\"runningRuns\":0,\"deadLetterRuns\":0,\"leaseAgeSeconds\":null},\"leaseState\":null}"
+    },
+    "GET /api/tasks": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": [],
+      "text": "[]"
+    },
+    "GET /api/tasks/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/activities (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/deliverables (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/planning (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/planning/poll (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/subagent (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/tasks/[id]/test (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "GET /api/workspaces": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": [
+        {
+          "id": "default",
+          "name": "Default Workspace",
+          "slug": "default",
+          "description": "Default workspace",
+          "icon": "🏠",
+          "created_at": "2026-10-31 20:11:19",
+          "updated_at": "2026-10-31 20:11:19"
+        }
+      ],
+      "text": "[{\"id\":\"default\",\"name\":\"Default Workspace\",\"slug\":\"default\",\"description\":\"Default workspace\",\"icon\":\"🏠\",\"created_at\":\"2026-10-31 20:11:19\",\"updated_at\":\"2026-10-31 20:11:19\"}]"
+    },
+    "GET /api/workspaces/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Workspace not found"
+      },
+      "text": "{\"error\":\"Workspace not found\"}"
+    },
+    "PATCH /api/agents/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "PATCH /api/automations/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Rule not found"
+      },
+      "text": "{\"ok\":false,\"error\":\"Rule not found\"}"
+    },
+    "PATCH /api/tasks/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "PATCH /api/workspaces/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Workspace not found"
+      },
+      "text": "{\"error\":\"Workspace not found\"}"
+    },
+    "POST /api/agents ohne name/role": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Validation failed",
+        "details": [
+          {
+            "expected": "string",
+            "code": "invalid_type",
+            "path": ["name"],
+            "message": "Invalid input: expected string, received undefined"
+          },
+          {
+            "expected": "string",
+            "code": "invalid_type",
+            "path": ["role"],
+            "message": "Invalid input: expected string, received undefined"
+          }
+        ]
+      },
+      "text": "{\"error\":\"Validation failed\",\"details\":[{\"expected\":\"string\",\"code\":\"invalid_type\",\"path\":[\"name\"],\"message\":\"Invalid input: expected string, received undefined\"},{\"expected\":\"string\",\"code\":\"invalid_type\",\"path\":[\"role\"],\"message\":\"Invalid input: expected string, received undefined\"}]}"
+    },
+    "POST /api/agents/[id]/betaclaw (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Agent not found"
+      },
+      "text": "{\"error\":\"Agent not found\"}"
+    },
+    "POST /api/agents/import ohne agents": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "At least one agent is required in the agents array"
+      },
+      "text": "{\"error\":\"At least one agent is required in the agents array\"}"
+    },
+    "POST /api/automations ohne Pflichtfelder": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "name, cronExpression and prompt are required"
+      },
+      "text": "{\"ok\":false,\"error\":\"name, cronExpression and prompt are required\"}"
+    },
+    "POST /api/tasks ohne title": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Validation failed",
+        "details": [
+          {
+            "expected": "string",
+            "code": "invalid_type",
+            "path": ["title"],
+            "message": "Invalid input: expected string, received undefined"
+          }
+        ]
+      },
+      "text": "{\"error\":\"Validation failed\",\"details\":[{\"expected\":\"string\",\"code\":\"invalid_type\",\"path\":[\"title\"],\"message\":\"Invalid input: expected string, received undefined\"}]}"
+    },
+    "POST /api/tasks/[id]/activities (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/deliverables (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/dispatch (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/planning (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/planning/answer (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/planning/retry-dispatch (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/subagent (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/tasks/[id]/test (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "error": "Task not found"
+      },
+      "text": "{\"error\":\"Task not found\"}"
+    },
+    "POST /api/workspaces ohne name": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Validation failed",
+        "details": [
+          {
+            "expected": "string",
+            "code": "invalid_type",
+            "path": ["name"],
+            "message": "Invalid input: expected string, received undefined"
+          }
+        ]
+      },
+      "text": "{\"error\":\"Validation failed\",\"details\":[{\"expected\":\"string\",\"code\":\"invalid_type\",\"path\":[\"name\"],\"message\":\"Invalid input: expected string, received undefined\"}]}"
+    },
+    "PUT /api/automations/[id]/flow ohne flowGraph": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "flowGraph is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"flowGraph is required\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

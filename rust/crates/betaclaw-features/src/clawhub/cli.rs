@@ -388,6 +388,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_missing_binary_and_npx_fall_back_to_npm_exec() {
+        let runner = ScriptedRunner::new(vec![Err(missing()), Err(missing()), ok("")]);
+        let cli = ClawHubCli::new(runner, options(false));
+        let result = cli.run("search", &args()).await.expect("runs");
+        assert_eq!(result.command, "npm");
+        assert_eq!(
+            result.argv[..3],
+            [
+                "exec".to_string(),
+                "--yes".to_string(),
+                "clawhub".to_string()
+            ]
+        );
+        assert_eq!(cli.runner.calls().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn the_launchers_next_to_the_executable_are_the_last_resort() {
+        let mut script: Vec<Result<ExecOutput, ExecError>> =
+            (0..4).map(|_| Err(missing())).collect();
+        script.push(ok("from node dir"));
+        let runner = ScriptedRunner::new(script);
+        let cli = ClawHubCli::new(runner, options(false));
+        let result = cli.run("search", &args()).await.expect("runs");
+        assert_eq!(result.stdout, "from node dir");
+        assert!(result.command.ends_with("npx"));
+        assert!(cli.runner.calls()[4].0.ends_with("npx"));
+    }
+
+    #[tokio::test]
     async fn a_non_zero_exit_stops_the_search_at_once() {
         let runner = ScriptedRunner::new(vec![Err(ExecError::Exit { code: Some(2) })]);
         let cli = ClawHubCli::new(runner, options(false));

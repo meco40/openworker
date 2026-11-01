@@ -1,19 +1,15 @@
 /**
  * `/api/channels/conversations` parity (S3): list, create, patch and delete.
  *
- * The TypeScript side drives the same `MessageService` the route delegates to,
- * in-process against a temporary database, and reproduces the response mapping
- * of `app/api/channels/conversations/route.ts`. The Rust side goes over HTTP.
+ * The reference is `golden/conversations.json`, recorded from the TypeScript route
+ * handler before its removal. The Rust side goes over HTTP.
  * Volatile fields (ids, timestamps, the manual external id) are normalised.
  *
  * The OP-1 remainder of `DELETE` (abort the in-flight generation, clear the
  * summary/recall state) lives in the Node process and has no Rust counterpart,
  * so it is not observable here.
  */
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { check, rustRequest, bestEffortRemoveDir } from '../harness.mjs';
+import { check, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'conversations';
 
@@ -32,63 +28,7 @@ function normConversation(conversation) {
   };
 }
 
-function normalizePersonaId(value) {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-/** The response mapping of `app/api/channels/conversations/route.ts`. */
-async function typescriptSide() {
-  const dir = mkdtempSync(join(tmpdir(), 'betaclaw-parity-conversations-'));
-  process.env.MESSAGES_DB_PATH = join(dir, 'messages.db');
-  const { SqliteMessageRepository } =
-    await import('../../../../src/server/channels/messages/sqliteMessageRepository.ts');
-  const { MessageService } = await import('../../../../src/server/channels/messages/service.ts');
-  const { getPrincipalUserId } = await import('../../../../src/server/auth/principal.ts');
-
-  const userId = getPrincipalUserId();
-  const repo = new SqliteMessageRepository(process.env.MESSAGES_DB_PATH);
-  const service = new MessageService(repo);
-
-  // GET creates the default WebChat conversation as a side effect.
-  const defaultConversation = service.getDefaultWebChatConversation(userId);
-  const initialList = service.listConversations(userId);
-
-  const created = service.getOrCreateConversation(
-    'WebChat',
-    `manual-${userId}-parity`,
-    'Notes',
-    userId,
-  );
-
-  // PATCH binds a persona, then rejects a different one with 409.
-  service.setModelOverride(created.id, 'parity-model', userId);
-  service.setPersonaId(created.id, 'persona-parity-a', userId);
-  const bound = service.getConversation(created.id, userId);
-  const currentPersonaId = normalizePersonaId(bound?.personaId);
-  const requestedPersonaId = normalizePersonaId('persona-parity-b');
-  const mismatchStatus = currentPersonaId && currentPersonaId !== requestedPersonaId ? 409 : 200;
-
-  const deleted = service.deleteConversation(created.id, userId);
-  const missingIdStatus = 400;
-
-  const result = {
-    initialHasDefault: Boolean(defaultConversation?.id),
-    initialOk: Array.isArray(initialList) && initialList.length >= 1,
-    createdStatus: 200,
-    created: normConversation(created),
-    patchStatus: 200,
-    mismatchStatus,
-    deleted,
-    missingIdStatus,
-    missingIdError: 'id query param is required',
-  };
-  repo.close();
-  bestEffortRemoveDir(dir);
-  return result;
-}
-
+/** The response shape of the route. */
 async function rustCollect() {
   const createResponse = await rustRequest('POST', '/api/channels/conversations', {
     body: { channelType: 'WebChat', title: 'Notes' },
@@ -121,7 +61,7 @@ async function rustCollect() {
 }
 
 export async function run() {
-  const ts = await typescriptSide();
+  const ts = await goldenReference(name, 'typescript');
   const rust = await rustCollect();
 
   console.log('--- POST ---');

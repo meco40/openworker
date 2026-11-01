@@ -139,7 +139,7 @@ Fuer manuelles/one-off Cleanup stehen folgende Skripte zur Verfuegung:
 | `npm run workspaces:cleanup`      | Entfernt verwaiste Task-Workspaces und gibt menschenlesbares Ergebnis aus |
 | `npm run workspaces:cleanup:json` | Gleiches Cleanup, aber als JSON-Report (geeignet fuer CI/Automationen)    |
 
-Implementierung: `scripts/cleanup-task-workspaces.ts`
+Implementierung: `betaclaw-scheduler workspaces-cleanup` (`rust/crates/betaclaw-gateway/src/world_model_ops/workspaces.rs`, Aufruf über `scripts/rust-scheduler-ops.mjs`)
 
 ---
 

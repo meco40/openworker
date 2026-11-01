@@ -130,9 +130,8 @@ fn node_hex_decode(input: &str) -> Vec<u8> {
         };
         nibbles.push(value as u8);
     }
-    nibbles
-        .chunks_exact(2)
-        .map(|pair| (pair[0] << 4) | pair[1])
+    (0..nibbles.len() / 2)
+        .map(|index| (nibbles[2 * index] << 4) | nibbles[2 * index + 1])
         .collect()
 }
 
@@ -274,7 +273,6 @@ pub fn store_connector_secret(
 
 #[cfg(test)]
 mod tests {
-    use base64::Engine as _;
     use sha2::{Digest, Sha256};
 
     use super::*;

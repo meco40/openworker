@@ -699,4 +699,308 @@ mod tests {
         assert_eq!(backoff_ms(&[0], 1), FALLBACK_BACKOFF_MS);
         assert_eq!(backoff_ms(&[], 1), FALLBACK_BACKOFF_MS);
     }
+
+    fn rule_input(enabled: bool, next_run_at: Option<Option<String>>) -> CreateAutomationRuleInput {
+        CreateAutomationRuleInput {
+            user_id: "u1".to_string(),
+            name: "Rule".to_string(),
+            cron_expression: "*/5 * * * *".to_string(),
+            timezone: "UTC".to_string(),
+            prompt: "Check".to_string(),
+            enabled,
+            next_run_at,
+        }
+    }
+
+    fn options(now: &str, max_attempts: i64, pause_threshold: i64) -> ProcessTickOptions {
+        ProcessTickOptions {
+            now_iso: Some(now.to_string()),
+            max_attempts,
+            retry_backoff_ms: vec![30_000],
+            auto_pause_failure_threshold: pause_threshold,
+        }
+    }
+
+    #[test]
+    fn create_rule_rejects_an_unknown_timezone_and_a_bad_cron_expression() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let mut input = rule_input(true, None);
+        input.timezone = "Invalid/Timezone".to_string();
+        assert!(matches!(
+            service.create_rule(&input),
+            Err(AutomationError::InvalidTimezone(zone)) if zone == "Invalid/Timezone"
+        ));
+        input.timezone = "UTC".to_string();
+        input.cron_expression = "not-a-cron".to_string();
+        assert!(matches!(
+            service.create_rule(&input),
+            Err(AutomationError::InvalidCronExpression)
+        ));
+    }
+
+    #[test]
+    fn an_explicit_next_run_is_kept_and_a_disabled_rule_has_none() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let explicit = service
+            .create_rule(&rule_input(
+                true,
+                Some(Some("2026-10-11T08:00:00.000Z".to_string())),
+            ))
+            .expect("valid rule");
+        assert_eq!(
+            explicit.next_run_at.as_deref(),
+            Some("2026-10-11T08:00:00.000Z")
+        );
+        let disabled = service
+            .create_rule(&rule_input(false, None))
+            .expect("valid rule");
+        assert_eq!(disabled.next_run_at, None);
+    }
+
+    #[test]
+    fn updating_an_unknown_rule_returns_none() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let patch = UpdateAutomationRuleInput {
+            enabled: Some(true),
+            ..Default::default()
+        };
+        assert!(service
+            .update_rule("missing", "u1", &patch)
+            .expect("update")
+            .is_none());
+    }
+
+    #[test]
+    fn enabling_a_rule_clears_its_last_error_and_schedules_it() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let rule = service
+            .create_rule(&rule_input(false, None))
+            .expect("valid rule");
+        service
+            .repo
+            .update_rule(
+                &rule.id,
+                "u1",
+                &UpdateAutomationRuleInput {
+                    last_error: Some(Some("previous failure".to_string())),
+                    ..Default::default()
+                },
+            )
+            .expect("seed error");
+
+        let updated = service
+            .update_rule(
+                &rule.id,
+                "u1",
+                &UpdateAutomationRuleInput {
+                    enabled: Some(true),
+                    ..Default::default()
+                },
+            )
+            .expect("update")
+            .expect("rule exists");
+        assert!(updated.enabled);
+        assert_eq!(updated.last_error, None);
+        assert!(updated.next_run_at.is_some());
+    }
+
+    #[test]
+    fn manual_runs_need_a_known_rule_and_are_marked_manual() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let rule = due_rule(&service);
+        assert!(matches!(
+            service.create_manual_run("missing", "u1"),
+            Err(AutomationError::RuleNotFound)
+        ));
+        let run = service
+            .create_manual_run(&rule.id, "u1")
+            .expect("manual run");
+        assert!(matches!(
+            run.trigger_source,
+            AutomationTriggerSource::Manual
+        ));
+        assert!(run.run_key.ends_with(":manual"));
+    }
+
+    #[test]
+    fn metrics_count_rules_and_runs_and_report_the_lease_age() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let rule = due_rule(&service);
+        service
+            .create_manual_run(&rule.id, "u1")
+            .expect("manual run");
+        assert!(service
+            .acquire_lease("scheduler-1", 30_000, &now_iso())
+            .expect("lease"));
+
+        let metrics = service.get_metrics().expect("metrics");
+        assert_eq!(
+            (
+                metrics.active_rules,
+                metrics.queued_runs,
+                metrics.running_runs,
+                metrics.dead_letter_runs
+            ),
+            (1, 1, 0, 0)
+        );
+        let age = metrics.lease_age_seconds.expect("lease age");
+        assert!((0..=5).contains(&age));
+    }
+
+    #[test]
+    fn a_rule_without_a_flow_graph_has_none_and_an_unknown_rule_has_none() {
+        let service = service(Ok(PromptRunOutput::default()));
+        let rule = due_rule(&service);
+        assert!(service
+            .get_flow_graph(&rule.id, "u1")
+            .expect("read")
+            .is_none());
+        assert!(service
+            .get_flow_graph("missing", "u1")
+            .expect("read")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn a_queued_run_whose_rule_is_gone_is_dead_lettered() {
+        let dir = std::env::temp_dir().join(format!(
+            "automation-service-{}",
+            crate::stats::util::short_uuid()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("automation.db");
+        let service = AutomationService::new(
+            SqliteAutomationRepository::open(path.to_str().expect("utf-8 path"))
+                .expect("repository"),
+            FakeRunner {
+                outcome: Ok(PromptRunOutput::default()),
+            },
+        );
+        let rule = due_rule(&service);
+        let run = service
+            .create_manual_run(&rule.id, "u1")
+            .expect("manual run");
+        // Deletes the rule row alone, so the queued run is left without its rule. The
+        // service's own delete cascades to the runs, which would hide this path.
+        let raw = rusqlite::Connection::open(&path).expect("raw connection");
+        raw.execute("PRAGMA foreign_keys = OFF", [])
+            .expect("pragma");
+        raw.execute("DELETE FROM automation_rules WHERE id = ?1", [&rule.id])
+            .expect("delete rule row");
+
+        service
+            .process_tick(&tick("2099-01-01T00:00:00.000Z"))
+            .await
+            .expect("tick");
+        let dead = service
+            .repo
+            .get_run(&run.id)
+            .expect("read")
+            .expect("run is kept");
+        assert_eq!(dead.status, AutomationRunStatus::DeadLetter);
+        assert_eq!(
+            dead.error_message.as_deref(),
+            Some("Rule no longer exists.")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn a_dead_letter_below_the_pause_threshold_keeps_the_rule_enabled() {
+        let service = service(Err("provider down".to_string()));
+        let rule = due_rule(&service);
+        service
+            .process_tick(&options("2026-10-11T10:00:05.000Z", 2, 3))
+            .await
+            .expect("first tick");
+        service
+            .process_tick(&options("2099-01-01T00:00:00.000Z", 2, 3))
+            .await
+            .expect("second tick");
+
+        let rule = service
+            .get_rule(&rule.id, "u1")
+            .expect("read")
+            .expect("rule");
+        assert!(rule.enabled);
+        assert_eq!(rule.consecutive_failures, 1);
+    }
+
+    /// Fails while `fail` is set, succeeds otherwise.
+    struct SwitchRunner {
+        fail: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    }
+
+    impl PromptRunner for SwitchRunner {
+        async fn run_prompt(&self, _input: PromptRunInput) -> Result<PromptRunOutput, String> {
+            if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+                Err("provider down".to_string())
+            } else {
+                Ok(PromptRunOutput::default())
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_success_after_a_dead_letter_resets_the_failure_counter() {
+        let fail = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let service = AutomationService::new(
+            SqliteAutomationRepository::in_memory().expect("repository"),
+            SwitchRunner {
+                fail: std::sync::Arc::clone(&fail),
+            },
+        );
+        let rule = service
+            .create_rule(&rule_input(
+                true,
+                Some(Some("2026-10-11T10:00:00.000Z".to_string())),
+            ))
+            .expect("rule");
+
+        service
+            .process_tick(&options("2026-10-11T10:00:05.000Z", 1, 10))
+            .await
+            .expect("failing tick");
+        let failed = service
+            .get_rule(&rule.id, "u1")
+            .expect("read")
+            .expect("rule");
+        assert_eq!(failed.consecutive_failures, 1);
+
+        fail.store(false, std::sync::atomic::Ordering::SeqCst);
+        service
+            .process_tick(&options("2026-10-11T10:05:05.000Z", 1, 10))
+            .await
+            .expect("recovering tick");
+        let recovered = service
+            .get_rule(&rule.id, "u1")
+            .expect("read")
+            .expect("rule");
+        assert_eq!(recovered.consecutive_failures, 0);
+        assert_eq!(recovered.last_error, None);
+    }
+
+    #[tokio::test]
+    async fn a_retry_is_due_after_its_configured_backoff() {
+        let service = service(Err("provider down".to_string()));
+        let rule = due_rule(&service);
+        service
+            .process_tick(&options("2026-10-11T10:00:05.000Z", 3, 10))
+            .await
+            .expect("tick");
+
+        let first = service
+            .list_runs(&rule.id, "u1", 10)
+            .expect("runs")
+            .remove(0);
+        assert_eq!(first.attempt, 1);
+        let due = first
+            .next_attempt_at
+            .as_deref()
+            .and_then(|at| DateTime::parse_from_rfc3339(at).ok())
+            .expect("next attempt time")
+            .timestamp_millis();
+        let wait = due - Utc::now().timestamp_millis();
+        assert!((25_000..=31_000).contains(&wait), "wait was {wait} ms");
+    }
 }

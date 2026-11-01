@@ -64,9 +64,6 @@ const nextConfig: NextConfig = {
       'dist/**',
       'tests/**',
       'docs/**',
-      'src/server/skills/handlers/**',
-      // Keep compatibility exclude for historic dotted trace paths.
-      'src/server/skills/handlers./**',
     ],
   },
 };

@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 const SCENARIO_MATRIX_PATH = 'docs/contracts/DOMAIN_SCENARIO_MATRIX.json';
 const DEFAULT_SCENARIOS = ['chat-stream', 'persona-switch', 'master-run-feedback'];
@@ -97,23 +97,6 @@ function gitValue(workDir, command) {
   });
   if (typeof child.status !== 'number' || child.status !== 0) return '';
   return String(child.stdout || '').trim();
-}
-
-function startScheduler(cwd, env, logFile) {
-  const child = spawn('node', ['--import', 'tsx', 'scheduler.ts'], {
-    cwd,
-    env,
-    stdio: 'pipe',
-    shell: process.platform === 'win32',
-  });
-  child.stdout.on('data', (chunk) => appendFileSync(logFile, String(chunk)));
-  child.stderr.on('data', (chunk) => appendFileSync(logFile, String(chunk)));
-  return child;
-}
-
-function stopChild(child) {
-  if (!child || child.killed) return;
-  child.kill('SIGTERM');
 }
 
 function createWorktree(rootDir, suffix) {
@@ -210,7 +193,6 @@ async function main() {
 
   let workDir = rootDir;
   let worktreePath = null;
-  let scheduler = null;
 
   const runSummary = {
     startedAt: new Date().toISOString(),
@@ -258,9 +240,6 @@ async function main() {
       appendFileSync(logFile, '[harness] reusing existing .next build\n');
     }
 
-    runSummary.bootOrder.push('node --import tsx scheduler.ts');
-    scheduler = startScheduler(workDir, env, logFile);
-
     runSummary.bootOrder.push('pnpm run test:e2e:smoke');
     runCommandString('pnpm run test:e2e:smoke', { cwd: workDir, env }, logFile);
 
@@ -299,7 +278,6 @@ async function main() {
     appendFileSync(logFile, '[harness] verify completed successfully\n');
     console.log(`[harness] success - artifacts: ${artifactDir}`);
   } finally {
-    stopChild(scheduler);
     if (worktreePath) {
       removeWorktree(rootDir, worktreePath);
     }

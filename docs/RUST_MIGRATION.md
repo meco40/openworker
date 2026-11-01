@@ -1,11 +1,11 @@
 # Backend-Migration nach Rust
 
-Status: Rust-Backend mit lokalen Abnahmen; externe Produktionsfreigabe nicht belegt · Worktree `E:\web\clawtest-rust` (Branch `rust`)
-Letzte Aktualisierung: 2026-10-31
+Status: Migration abgeschlossen, das TypeScript-Backend ist entfernt (letzter Stand mit TS: Tag `legacy-ts-backend`, `273c7879`); externe Produktionsfreigabe nicht belegt
+Letzte Aktualisierung: 2026-11-01
 
 Ziel: Das produktive Backend gehört Rust. HTTP, WebSocket, Auth, Geschäftslogik,
 Datenzugriff, Integrationen sowie Scheduler und Hintergrundjobs. Next.js/React/TypeScript
-bleiben Benutzeroberfläche (statischer Export im Gateway). Im Standard-Stack laufen Rust-Gateway und Rust-Scheduler. Node bleibt für aufgerufene Playwright-Werkzeuge im Image enthalten; ein Node-Anwendungsserver startet nur im optionalen Legacy-Profil.
+bleiben Benutzeroberfläche (statischer Export im Gateway). Es laufen nur Rust-Gateway und Rust-Scheduler. Node bleibt für aufgerufene Playwright-Werkzeuge im Image enthalten; einen Node-Anwendungsserver gibt es nicht mehr.
 
 ## 1. Bestandsaufnahme
 
@@ -68,8 +68,9 @@ Next.js zieht auf Port 3001 um und wird Compose-Service `web-ui`.
 | Toolchain         | `rust-toolchain.toml` auf 1.94, Image `rust:1.94-bookworm`, Runtime `debian:bookworm-slim` | Identische Basis wie `node:22-bookworm-slim`, damit `app-data`- und `workspaces`-Volumes und Pfade alignen. python3 und Chromium werden erst mit Slice S11 ergänzt                    |
 
 Keine Schema- oder Datenänderung. SQLite-Migrationen werden 1:1 nach Rust portiert (gleiche
-Statements, gleiche `_migrations`-Buchführung). Die 19 World-Model-`.sql`-Dateien bleiben an
-ihrem Ort und werden von Rust mit demselben Advisory-Lock-Verfahren angewendet.
+Statements, gleiche `_migrations`-Buchführung). Die 19 World-Model-`.sql`-Dateien liegen seit Phase 1 des TS-Abbaus in
+`rust/crates/betaclaw-world-model/migrations` (Dateinamen unverändert) und werden von Rust mit
+demselben Advisory-Lock-Verfahren angewendet.
 
 ## 4. Migrationsreihenfolge
 
@@ -227,6 +228,227 @@ fassen Memory, Knowledge und Stats an und gehören in S5 bis S7.
    erzeugten Statements.
 
 ## 7. Fortschrittsnotizen
+
+### 2026-11-01 — TS-Backend entfernt: Abschluss Phase 2, 5 und 6
+
+Abschluss von `docs/TS_BACKEND_REMOVAL_PLAN.md`. Die Einträge darunter beschreiben die
+Phasen 1, 3, 4 und den ersten Teil von Phase 5 im Einzelnen.
+
+- **Phase 2:** E2E-Lanes starten das Rust-Gateway (`tests/e2e/_shared/rustGateway.ts`).
+  Dabei behoben: Test-Modus des Model Hub im Chat-Adapter, `chat.abort` wartete auf einen
+  laufenden `chat.stream` derselben Verbindung, `requestCount`/`seq` waren `null`. Die
+  Paritäts-Suite vergleicht gegen 186 Referenzwerte in `scripts/verify/parity/golden/`.
+  Der Abgleich der TS-Tests mit Rust (`docs/TS_TEST_COVERAGE_AUDIT.md`, Abschnitt 10, und
+  `docs/ts-test-audit/*.md`) brachte rund 360 neue Rust-Tests und vier Rust-Fixes
+  (Login-IP-Limit bei langem `X-Forwarded-For`, Config-Verlust beim Ersetzen unter
+  Windows, fehlgeschlagene Subagent-Aufgaben galten als `completed`,
+  `ServiceError::Aborted` für Provider-Abbrüche). Offene Fälle sind Backlog, kein
+  Löschhindernis (Begründung dort).
+- **Phase 5:** gelöscht sind zusätzlich `src/server` (727 Dateien) und das tote
+  `src/lib/db`. Insgesamt sind 1397 Dateien mit rund 181.000 Zeilen entfernt. Pakete
+  entfernt: `cron-parser`, `css-tree`, `nodemailer`, `pg`, `yaml`, `@types/pg`,
+  `@types/css-tree`. `better-sqlite3` bleibt für `scripts/dev-host-data.mjs` und
+  `scripts/dev-import-legacy.mjs`. Der CI-Job `test-unit` hat keinen PostgreSQL-Dienst
+  mehr; die World-Model-Tests laufen in Rust.
+- **Phase 6:** `AGENTS.md` legt Verhalten über Rust-Tests, Referenzdaten, E2E und
+  Production-Smoke fest statt über eine TS-Quelle. `.github/copilot-instructions.md`
+  und die systemd-Units in `docs/DEPLOYMENT_OPERATIONS.md` beschreiben die Rust-Binaries.
+- **Weitere Fixes:**
+  - `verify-rls` erwartete, dass die Worker-Rolle `world_model_observations` nicht lesen
+    darf. Migration 019 gewährt das bewusst; Embedding-Worker und Projection-Retry
+    brauchen es. Der Check prüft jetzt das Leserecht, die Grants bleiben.
+  - Provider-Abbruch im Chat ergibt `Generation aborted.`
+    (`families/chat_runtime/model.rs`).
+  - `serde_json` mit `float_roundtrip`: gespeicherte Embeddings kommen bitgenau zurück.
+  - Host-`cargo` vom Repo-Root mit `--manifest-path` nutzte die Host-Toolchain statt
+    1.94 und baute `rust/target` mit einem anderen Compiler. `rust:check`,
+    `scripts/rust-scheduler-ops.mjs` und `scripts/e2e/prepare-rust-gateway.mjs`
+    bauen jetzt in `rust/`.
+  - Zwei flakige Tests: `embeddings::provider` prüfte die globale In-Flight-Tabelle
+    statt des eigenen Schlüssels; `privileged_route_tests` hing ohne Loopback-Peer und
+    -Host von der Umgebung ab und öffnete die echte Model-Hub-DB.
+- **Paritäts-Befund:** Die zuvor roten Fälle `stats/prompt-logs`,
+  `automations/metrics` und `stats/engineering` kamen von echten Daten unter `.local/`
+  im Arbeitsverzeichnis des lokal gestarteten Gateways. Mit frischem Arbeitsverzeichnis
+  wie in CI: 505 OK, 30 übersprungen, 0 Fehler.
+
+Gates: Rust fmt, clippy (`--all-targets --features test-support -D warnings`) und
+`cargo test --locked --features test-support` im Container `rust:1.94-bookworm` grün,
+3891 Tests bestanden, 0 fehlgeschlagen. typecheck, lint, format:check, Vitest 796/796,
+Coverage 91,5 % Zeilen (Schwelle 70 %), build, build:export, Architektur-Guards 3/3,
+Route-Coverage 190/190, Route-Parität 505 OK, Smoke 9/9, Browser-E2E 69/69, Production-Smoke grün (frische Volumes, Rust-`migrate` mit Rollen). Für den Image-Build schließt `.dockerignore` jetzt `scripts/e2e/start-e2e-server.ts` aus, das aus `tests/` importiert.
+
+### 2026-11-01 — Phase 5 Entfernung TS-Backend: Löschen, Tests, Konfiguration
+
+Ziel: Phase 5 aus `docs/TS_BACKEND_REMOVAL_PLAN.md`. Gelöscht sind das TS-Backend in `app/api`, `server.ts`, `scheduler.ts`, `proxy.ts`, `src/auth.ts`, `src/commands` und `src/logging`. `src/server` bleibt bis zur Löschung durch den Koordinator, weil die Portierung der letzten Ops-Skripte noch TS-Originale daraus ausführt. Stand des Ausgangs: Tag `legacy-ts-backend` (`273c7879`).
+
+- **Gelöscht:** `app/api/**` (116 Dateien, 113 Routen), `server.ts`, `scheduler.ts`, `proxy.ts`, `src/auth.ts`, `src/commands/**` (8 Dateien), `src/logging/**` (3), dazu `src/lib/betaclaw/client.ts` und `src/lib/planning-utils.ts` (nur von `app/api` und dem TS-Backend genutzt). Außerdem `scripts/fixtures/record-gemini-traffic.mjs` (Recorder; die Fixture `rust/crates/betaclaw-gateway/tests/fixtures/gemini/exchanges.json` bleibt), `scripts/verify/parity/families/_skills.mjs` (nicht erreichbar), `scripts/e2e/live-preflight.ts`, `vitest.e2e.live.config.ts`.
+- **UI-Code:** Kein Modul unter `app/`, `src/modules`, `src/components` oder `src/skills` importierte die gelöschten Pfade. `app/page.tsx` nutzt `resolveDefaultViewFromConfig` aus `src/shared/config/uiRuntimeConfig.ts`; die CLI spricht über `src/shared/gateway/`. `betaclaw gateway run` startet jetzt `betaclaw-gateway`.
+- **Tests:** 502 getrackte Testdateien gelöscht (Vitest-Dateien, die `@/server`, `src/server`, `app/api`, `src/logging`, `src/commands`, `src/auth` oder die gelöschten Module importieren, plus ihre Hilfsdateien: `entity-graph`, `retrieval-service`, `mem0-client`, `master-repository`, `memory-route`, `ops-routes`). Eine nicht getrackte Datei (`tests/integration/chat/webui-nexus-chat-stream-tools.test.ts`) liegt außerhalb des Repos im Scratchpad. Umgehängt auf `src/shared`: `tests/unit/agent-room/completion-text.test.ts`, `frontend-utils.test.ts`, `tests/unit/modules/agent-room/use-agent-room-runtime-replay.test.ts` (Typ `AgentV2EventEnvelope` aus `@/shared/agentV2Types`) und `tests/unit/app-shell/default-view-config.test.ts` (`@/shared/config/uiRuntimeConfig`). Angepasst: Architektur-Guards (Test der `app/api`-Routen entfernt, Import-Richtung bleibt), `gateway-contract`, `url-parse-deprecation-guard`, `next-config-tracing`, CI-Registry-Tests (Rust-Pfade), `harness-engineering-contract`, `vitest-main-config-contract`, `e2e-config-contract`.
+- **Mem0-Live-Test:** `tests/e2e/memory/mem0.live.e2e.test.ts` gelöscht, nicht neu geschrieben. Er spricht die TS-Mem0-Clients direkt an; eine Fassung gegen die Rust-HTTP-API braucht einen externen Mem0-Dienst und war nicht Teil dieses Schritts. Entfallen deshalb: Lane `test:e2e:live`, Job `live-e2e` in `async-quality.yml`.
+- **Paritäts-Suite:** Record-Zweige entfernt (`harness.mjs`, `run.mjs`, alle Familien). `goldenReference(family, key)` liest nur noch `golden/<familie>.json`; 186 Referenzwerte in 17 Dateien sind unverändert. `swarm.mjs` vergleicht die Trace-Fixture `swarm-parity.json` mit `golden/swarm.json`; `tests/integration/agent-room-rust-parity.test.ts` (lief den TS-Orchestrator) entfällt. `auth.mjs` prüft gegen die NextAuth-Referenz ohne TS-Laufzeit. Gelöscht: `verify:route-parity:record`, `verify:logs-parity:record`.
+- **Route-Coverage:** `scripts/verify/route-coverage.mjs` vergleicht nicht mehr mit `app/api`, sondern die Rust-Routentabelle mit der geprüften Datei `scripts/verify/route-table.json` (190 Paare, `--print-table` zum bewussten Aktualisieren). Der CI-Schritt bleibt.
+- **Skripte und CI:** `fixtures:gemini-traffic` und sein CI-Schritt „Check committed fixtures are current“-Zeile entfernt; die Fixture bleibt. `test:e2e:live` entfernt. `scripts/harness/agent-verify.mjs` startet keinen TS-Scheduler mehr; die Smoke-Lane startet den Rust-Stack selbst. Die Ops-Skripte `memory:*`, `knowledge:ingest`, `world-model:graphiti-evaluate`, `world-model:drill` sind unverändert (Portierung läuft).
+- **Konfiguration:** `next.config.ts` ohne Output-Tracing von `src/server/skills/handlers`. `vitest.config.ts`: Coverage-Scope jetzt `src/shared`, `src/lib`, `src/services` (vorher alles, also auch `src/server`); `src/lib/db` ist ausgenommen, weil es nur das TS-Backend nutzt; die Schwelle bleibt bei 70 %; Projektlisten ohne Verweise auf gelöschte Tests. `tsconfig.json` und `.oxlintrc.json` schließen `src/server/**` und acht Ops-Skripte aus, die noch `src/server` importieren (`memory-*`, `trigger-knowledge-ingestion`, `world-model-failure-drill`, `world-model-graphiti-evaluate`, `world-model-scheduler-restart-child`). `scripts/ci/cleanup-low-risk.mjs`: Einträge `src/server/` und `app/api/` entfernt. `docs/contracts/DOMAIN_REGISTRY.json` und `DOMAIN_SCENARIO_MATRIX.json`: keine gelöschten Pfade mehr; Test- und Szenario-Verweise zeigen auf erhaltene Dateien, backend-only Szenarien laufen über `pnpm run rust:test -- <Filter>`. `isHighRiskPath` nennt Rust-Pfade (`rust/crates/betaclaw-base/src/auth/**`, `betaclaw-gateway/src/routes/*`, `betaclaw-memory/**`, `betaclaw-model-hub/**`) statt `app/api` und `src/server`.
+- **Abhängigkeiten: keine entfernt.** Grund: `src/server` und die stehen gebliebenen Ops-Skripte importieren `cron-parser`, `css-tree`, `nodemailer`, `pg`, `yaml`, `better-sqlite3` (dazu `scripts/dev-host-data.mjs`, `scripts/dev-import-legacy.mjs`) und `@google/genai` (dazu `src/core/memory/gemini.ts`, von der UI über `src/core/memory/index.ts` importiert). Ein Entfernen jetzt würde die laufende Ops-Portierung brechen. Kandidaten für die Löschung zusammen mit `src/server`: `cron-parser`, `css-tree`, `nodemailer`, `pg`, `yaml`, `@types/pg`, `@types/css-tree`, `@types/better-sqlite3`. Das Lockfile ist unverändert, `pnpm install` war nicht nötig.
+- **Gates:** Stand dieses Schritts (lokal, Windows-Host, Release-Binaries nach `cargo build --release --locked`):
+  - `typecheck`: grün.
+  - `lint` (oxlint): grün, keine Meldungen.
+  - `test`: 179 Dateien, 796 Tests grün.
+  - `test:coverage`: grün. 91,36 % Zeilen, 94,92 % Statements, 81,57 % Funktionen, Schwelle 70 % unverändert.
+  - `test:architecture:guards`: 3 Tests grün.
+  - `build` und `build:export`: grün.
+  - `test:e2e:smoke` (Rust-Gateway, Static-Export): 9 Tests in 6 Dateien grün.
+  - `verify:route-coverage`: 190 von 190 Paaren stimmen mit der Referenz überein.
+  - `verify:route-parity` gegen das Release-Gateway auf zufälligem Port über 40000: 502 OK, 3 FAIL. `stats` (`GET /api/stats/prompt-logs` und `(preset, limit)`: `diagnostics.lastInsertAt` ist ein String, die Referenz hat `null`) und `automations` (`GET /api/automations/metrics`: `leaseAgeSeconds` und `leaseState` sind gesetzt, die Referenz hat `null`). Die Abweichungen zeigen sich auch bei einem frischen Gateway mit nur `stats` (Zähler `attemptsSinceBoot`/`writesSinceBoot` sind prozessweite Werte der Rust-Modellaufrufe; Lease kommt aus dem Automations-Laufzeitstand). Die Golden-Dateien sind nicht geändert. Ob die Referenz oder das Verhalten nachzuziehen ist, ist offen.
+  - `check`: siehe Abschnitt „Offen“.
+- **Offen:**
+  1. CI-Job `world-model` (`.github/workflows/ci.yml`, Schritt „Prepare World Model PostgreSQL schema“) ruft noch `src/server/world-model/db` auf. Vor dem Löschen von `src/server` auf den Rust-Befehl `betaclaw-scheduler migrate` umstellen.
+  2. Die drei Paritäts-Abweichungen oben.
+  3. Abhängigkeiten (Liste oben) mit `src/server` entfernen und `pnpm install` ausführen.
+  4. `.github/copilot-instructions.md` beschreibt noch das TS-Backend; in `.github/CODEOWNERS` stehen `src/server/**`-Zeilen bis zur Löschung.
+  5. Registry-Pfade `src/server/**` (Domänenzuordnung und High-Risk-Liste) nach dem Löschen auf Rust-Pfade umstellen.
+  6. Die 8 Ops-Skripte aus `tsconfig.json` und `.oxlintrc.json` ausschließen; mit der Löschung von `src/server` entfernen.
+
+### 2026-11-01 — Phase 3 Abschluss: die sieben letzten Ops-Skripte als Rust-Subcommands
+
+Ziel: Die verbleibenden TypeScript-Ops-Skripte aus Phase 3 (`docs/TS_BACKEND_REMOVAL_PLAN.md`) laufen als Unterbefehle von `betaclaw-scheduler`. Die TS-Dateien sind gelöscht. Die `pnpm run`-Namen und Flags bleiben gleich; sie rufen jetzt `scripts/rust-scheduler-ops.mjs` auf, das `.env.local` lädt und den Binary aus `rust/` baut.
+
+| Befehl                          | Unterbefehl                     | Rust-Datei (`betaclaw-gateway/src/world_model_ops/`)                            |
+| ------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
+| `knowledge:ingest`              | `knowledge-ingest`              | `knowledge_ingest.rs`; Ingestion-Pass `IngestionPass` in `knowledge_runtime.rs` |
+| `memory:reset`                  | `memory-reset`                  | `memory_reset.rs`                                                               |
+| `memory:cleanup-noise`          | `memory-cleanup-noise`          | `memory_cleanup_noise.rs`                                                       |
+| `memory:backfill-channel-scope` | `memory-backfill-channel-scope` | `memory_backfill_channel_scope.rs`                                              |
+| `memory:migrate-to-postgres`    | `memory-migrate-to-postgres`    | `memory_migrate_to_postgres.rs`                                                 |
+| `world-model:graphiti-evaluate` | `graphiti-evaluate`             | `graphiti_evaluate.rs`                                                          |
+| `world-model:drill`             | `drill` (+ `drill-lease-child`) | `drill.rs`; der Kindprozess ist der Scheduler-Binary selbst                     |
+
+- **Gelöscht:** `scripts/memory-reset.ts`, `memory-cleanup-noise.ts`, `memory-backfill-channel-scope.ts`, `memory-migrate-to-postgres.ts`, `trigger-knowledge-ingestion.ts`, `world-model-graphiti-evaluate.ts`, `world-model-failure-drill.ts`, `world-model-scheduler-restart-child.ts`.
+- **Wiederverwendet:** `betaclaw-memory` (Mem0-HTTP-Client, Postgres-Memory-Client), `betaclaw-knowledge` (Cursor, Service, `is_noise_memory_fact`), `betaclaw-world-model` (Observationen, Retrieval, Graphiti-Evaluator, Scope-Discovery, Lifecycle, Lease über `betaclaw-features`).
+- **Vergleich mit dem TS-Original** (Treiber außerhalb des Repos; gleiche Fixtures für beide Seiten): SQLite-Dateien in einem Temp-Verzeichnis, Mem0 als Fake-HTTP-Server mit zurückgesetztem Stand, Postgres `pgvector/pgvector:pg17` im Container. Verglichen wurden Exit-Code, stdout, stderr (ohne Cargo-Zeilen), Berichtsdateien und der Zustand von SQLite, Mem0 und Postgres. Ergebnis: 16 von 19 Läufen identisch. Die drei Abweichungen stehen unten.
+- **Nicht verglichen:** `knowledge-ingest` ohne `--dry-run` mit tatsächlicher Verarbeitung (braucht Model Hub und Extraktionsmodell) sowie der `--persona`-Pfad; Graphiti nur als nicht erreichbarer Dienst; Mem0-Fehler mitten im Lauf (verglichen wurde nur „nicht konfiguriert“).
+
+**Abweichungen (bewusst oder beobachtet):**
+
+1. `graphiti-evaluate`, Feld `error`: Der Text des HTTP-Clients unterscheidet sich (Node „fetch failed“, Rust „error sending request“). Die Einstufung (nicht erreichbar, Fallback) ist gleich.
+2. `drill`, Szenario `embedder-outage`: Das Ergebnis ist gleich (`source=none`, bestanden). Die Warnung zeigt bei Rust einen Timeout, bei Node `ECONNREFUSED` für `127.0.0.1:9999`. Der Pfad über `ConfiguredQueryEmbedder` (`model_hub_embedding.rs`) ist bestehender Gateway-Code und ist nicht untersucht.
+3. Logs: Die einmaligen Befehle `knowledge-ingest` und `drill` schreiben Diagnosen auf stderr (Format `tracing`), der Bericht bleibt auf stdout. Der Dauerbetrieb des Schedulers ist unverändert.
+4. `knowledge-ingest`: Fehler einzelner Fenster ohne Stack-Zeilen. Mit `--persona` werden Fenster je Stapel verarbeitet, die Zeilen erscheinen in Abschlussreihenfolge des Stapels.
+5. `memory-backfill-channel-scope`: Quelle und Ziel der Mem0-Listen werden nacheinander geladen (das TS-Original parallel). Nicht-numerische `source_seq_*`-Werte werden zu 0 statt zu einem Fehler.
+6. `graphiti-evaluate`: `GRAPHITI_SEARCH_RESULTS` mit Nachkommastellen wird auf eine ganze Zahl gekürzt, weil `retrieval_k` als `i64` geführt wird.
+7. `LEGACY_LOCAL_USER_ID`: Die Ops-Skripte verwenden den TS-Wert `legacy-local-user` (`src/server/auth/constants.ts`). Der Rust-Fallback für den Principal (`betaclaw-base`) nutzt `local-user`. Das ist ein vorhandener Unterschied. Er wurde nicht angefasst.
+8. `memory-cleanup-noise --help` nennt den Aufruf `pnpm run memory:cleanup-noise -- …` statt des tsx-Aufrufs. Flags, Standard (Dry-Run) und Exit-Codes sind gleich.
+
+**Sicherheitsverhalten:** Keine Bestätigungsflags, weil das TS-Original keine hatte. `memory-reset` löscht weiterhin sofort (lokale `memory_nodes` und alle Mem0-Scopes). `memory-cleanup-noise` ist Dry-Run ohne `--apply`. Die Einmal-Migrationen `memory:migrate-to-postgres` und `memory:backfill-channel-scope` sind wie beauftragt portiert. Die offene Frage 3 in `TS_BACKEND_REMOVAL_PLAN.md` (ob sie auf allen Installationen gelaufen sind) bleibt beim Team.
+
+- **Tests:** `cargo test -p betaclaw-gateway world_model_ops` (Host): 59 bestanden, 0 fehlgeschlagen (vorher 31). Neu: Scope- und Flag-Parser, Rauschregeln, Dedupe-Reihenfolge, Transaktion beim Kopieren, Clamp von `retrieval_k`, Zahlenformat.
+- **Gates:** `pnpm run rust:fmt:check` grün (Container `rust:1.94-bookworm`). `pnpm run rust:check` grün. `cargo clippy -p betaclaw-gateway --all-targets -- -D warnings` (Host, Rust 1.99) grün. `pnpm run rust:clippy` (Container, Workspace) bricht im Testziel von `betaclaw-skills` ab (`skills/shell_execute.rs:310`, `Duration` nicht importiert). Das ist fremder Code und nicht Teil dieses Schritts. `pnpm run typecheck` und `pnpm run lint` grün.
+- **Dokumentation:** `scripts/rust-scheduler-ops.mjs` (Hilfetext), `package.json` (sieben Zeilen), `docs/contracts/DOMAIN_REGISTRY.json` (Pfad des Drill-Skripts entfernt; `world_model_ops/**` deckt es ab), `docs/runbooks/WORLD_MODEL_INCIDENTS.md` (Link), `docs/MEMORY_SYSTEM.md` (Abschnitt 6). Die übrigen Runbooks nennen nur die unveränderten `pnpm run`-Befehle.
+- **Offen:** Keines der sieben Skripte. Der Vergleich mit einem echten Graphiti-Server, der LLM-Lauf von `knowledge-ingest` und die Mem0-Fehlerpfade mitten im Lauf sind nicht geprüft.
+
+### 2026-11-01 — Phase 3 Nachtrag: OP-18, Ledger-Grant, Worker-Lesezugriffe, zwei Ops-Skripte
+
+Ziel: Nachtrag zu Phase 3 aus `docs/TS_BACKEND_REMOVAL_PLAN.md`. Die Entscheidung des Users zu OP-18 ist umgesetzt. Die Untersuchung des Worker-Befunds ist abgeschlossen. Zwei weitere Ops-Skripte sind portiert.
+
+- **OP-18 (Ledger-Grant):** `world_model_app` bekommt `SELECT` auf `_world_model_migrations`. Die TS-Verzweigung in `provisionRole` lief nie, weil die Existenzprüfung die Ledger-Tabelle nicht enthielt. Die Rust-Provisionierung prüft das Ledger jetzt eigens (`ledger_exists`, `role_provisioning.rs`) und gewährt nur der App-Rolle. Die Gateway-Gesundheitsprüfung (`families/ops_wire/world_model_port.rs`, `SQL_MIGRATIONS`) läuft über den App-Pool und liest die Tabelle damit ohne `permission denied`.
+  - **Bewusste Abweichung von TS, genau dieser eine Grant:** Die TS-Verzweigung hätte beiden Rollen den Grant gegeben. Die Rust-Port vergibt ihn nur an `world_model_app`. Sonst bleiben die Grants identisch.
+  - Tests: zwei neue Provisionierungstests (Grant nur bei vorhandenem Ledger; zweimal provisionieren ergibt dieselben GRANTs). Die Verify-Prüfung `app role reads _world_model_migrations (health check, OP-18)` ist jetzt eine positive Lesprüfung.
+  - Live auf einer frischen `pgvector:pg17`-Datenbank: `provision-roles --apply` zweimal mit Status 0. `has_table_privilege` liefert für die App-Rolle `t`, für die Worker-Rolle `f`. `SET ROLE world_model_app` plus die Gesundheitsabfrage liefert `019_worker_runtime_grants`.
+- **Worker-Befund (nur Untersuchung, keine Änderung an Grants oder Check):** Ja, Worker-Code liest `world_model_observations`:
+  - `betaclaw-world-model/src/world_model/embeddings/embedding_worker.rs:287` (`collect_embedding_targets`, `SELECT … FROM world_model_observations`), gestartet vom Scheduler mit dem Worker-Pool (`betaclaw-gateway/src/scheduler_runtime.rs`).
+  - `betaclaw-world-model/src/world_model/repositories/observation_repository.rs` (`SQL_EXISTING_OBSERVATION`, Konfliktlesezugriff nach `INSERT … ON CONFLICT`), erreicht über `services/projection_retry_worker.rs:462` → `project_window`.
+  - Migration `019_worker_runtime_grants.sql` gewährt dem Worker `SELECT, INSERT, UPDATE, DELETE` auf die Domänentabellen, Observationen eingeschlossen.
+  - `runtime/scope_discovery.rs` führt den Observationen-Scan (`SCOPE_SCAN_SQL`) für Worker absichtlich nicht aus (`!runtime_role.is_worker()`). Die Graphiti-Rebuild-Abfrage (`graphiti/projector.rs:841`) läuft nur im CLI-Pfad.
+  - Folgerung: Der Verify-Check „worker cannot read world_model_observations“ passt nicht zum Entwurf. Entschieden am 2026-11-01: Der Check ist veraltet (älter als Migration 019) und prüft jetzt positiv, dass der Worker Observationen lesen kann; die Grants bleiben.
+- **Portiert (mit Vergleich gegen TS auf einem frischen Stand):**
+  - `workspaces-cleanup [--json]` (vorher `workspaces:cleanup`, `workspaces:cleanup:json`). Reuse von `betaclaw_features::tasks::workspace::cleanup_orphan_task_workspaces`. Vergleich: Ausgabe (Text und JSON) und entfernte Ordner gleich.
+  - `attachments-consistency [--repair] [--repair-prune-missing] [--repair-normalize-buckets] [--json]` (vorher `attachments:consistency`). Der TS-Teil `attachmentConsistency.ts` ist in `world_model_ops/attachments.rs` portiert, mit den vorhandenen Rust-Helfern. Vergleich: Berichte, Metadaten-JSON und verschobene Dateien gleich.
+  - Beide Skripte sind gelöscht. Die `package.json`-Einträge zeigen auf `scripts/rust-scheduler-ops.mjs`. Die Doku `docs/TASKS_SYSTEM.md` verweist jetzt auf den Rust-Pfad.
+  - Sicherheitsfix dabei: Storage-Pfade mit `..` wurden nicht aufgelöst, `std::path::absolute` tut das nicht, TS-`path.resolve` schon. Jetzt normalisiert `lexical_normalize` vor der Wurzel-Prüfung. Der Test `a_relative_path_must_stay_inside_the_root` deckt das ab.
+- **Nicht portiert (offen, unverändert gelassen):** `knowledge:ingest` (`scripts/trigger-knowledge-ingestion.ts`), `memory:reset`, `memory:cleanup-noise`, `memory:backfill-channel-scope`, `memory:migrate-to-postgres`, `world-model:graphiti-evaluate`, `world-model:drill` mit `scripts/world-model-scheduler-restart-child.ts`. Die TS-Dateien und ihre `package.json`-Einträge sind unverändert. `fixtures:gemini-traffic` ist nicht angefasst. Die Dateien `background.rs`, `persona_poller.rs`, `swarm_runtime.rs` und `workspace_cleanup.rs` sind nicht verändert.
+- **Tests:** `betaclaw-world-model` im Container: 369 bestanden, 0 fehlgeschlagen. `betaclaw-gateway` `world_model_ops`: 31 bestanden. Gesamter Gateway-Lib-Lauf im Container: 579 bestanden, 1 fehlgeschlagen (`routes::privileged_route_tests::legacy_local_context_keeps_the_pipeline_readable`, 401 statt 200). Die Datei `routes/mod.rs` ändert ein anderer Agent gerade; mein Changeset berührt sie nicht. Behoben am 2026-11-01: Der Test setzt jetzt Loopback-Peer und Loopback-Host wie ein echter lokaler Aufruf und prüft die Providers-Route (gleiche `ensure_auth`-Prüfung, ohne Model-Hub-DB); neuer Name `legacy_local_context_keeps_model_hub_routes_readable`.
+- **Gates:** `rust:fmt:check` für meine Dateien grün. Container-Clippy für `betaclaw-world-model` und `betaclaw-gateway` mit `-D warnings` grün. Voller `rust:clippy` und voller `rust:test` scheitern an `betaclaw-skills` (`shell_execute.rs`, Test-Modul, fremde Arbeit). `typecheck` und `lint` grün.
+- **Offen:** Worker-Befund (Entscheidung Check oder Grants). Die sieben noch nicht portierten Skripte oben. Der volle Rust-Lauf wartet auf den Abschluss der Arbeiten in `betaclaw-skills` und `routes`.
+
+### 2026-10-31 — Phase 4 Entfernung TS-Backend: Dev-Stack, Container-Lanes, Job-Schalter
+
+Ziel: Kein Node-Anwendungsserver mehr im Dev-Stack, in Compose und in den E2E-Lanes. Die Job-Schalter kennen nur noch `rust` und `off`. Grundlage: `docs/TS_BACKEND_REMOVAL_PLAN.md`, Phase 4. Das TS-Backend (`src/server`, `app/api`, `server.ts`, `scheduler.ts`) bleibt bis Phase 5 im Repo und wurde nicht verändert.
+
+- **Entfernt:** die Skripte `dev:node`, `dev:web`, `dev:web-ui`, `dev:scheduler`, `start:web`, `start:scheduler` und `start`; `scripts/dev-stack.mjs`; der Compose-Dienst `web-ui` mit Profil `legacy-node-ui`; das Root-`Dockerfile` (Node-Image des Next-Servers, nur noch vom Probe-Image gebraucht); `scripts/verify/node-elimination-benchmark.mjs` samt Option `--benchmark` der Produktions-Smoke (misst nur gegen den Node-Server). `dev:gateway` und `dev:stack` bleiben.
+- **Probe-Image:** `docker/Dockerfile.probe` (node:22-bookworm-slim, Prod-Abhängigkeiten, Chromium) für `scripts/e2e/production-smoke.mjs`. `docker-compose.release-smoke.yml` verliert den Override `web-ui`.
+- **Dev-Stack:** `pnpm run dev` startet Gateway, Rust-Scheduler und `next dev -p 3001` (`BETACLAW_UI_MODE=proxy`). Ohne Rust-Scheduler-Binary bricht der Stack vor dem Gateway ab, es gibt keinen Node-Fallback mehr. `pnpm run dev:static` startet das Gateway mit dem Export aus `out/` und den Rust-Scheduler.
+- **Container-E2E:** `docker-compose.e2e.yml` hat den Dienst `e2e-rust-build` (`rust:1.94-bookworm`, `cargo build --locked`, Volume `e2e_rust_target` auf `rust/target`, Registry-Volume wie bei den `rust:*`-Skripten). Smoke- und Browser-Lane warten darauf und mounten dasselbe Target-Volume. `scripts/e2e/prepare-rust-gateway.mjs` nutzt ohne `cargo` die vorhandenen Debug-Binaries. Die Lanes rufen unverändert `pnpm run test:e2e:smoke` und `pnpm run test:e2e:browser` auf.
+- **Job-Schalter:** `BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER`, `BETACLAW_WORKSPACE_CLEANUP` akzeptieren `rust` und `off` (`false` und `0` bleiben Aliasse von `off`). Unset oder leer bedeutet `rust`. `node` und unbekannte Werte brechen Gateway und Scheduler mit einer Meldung ab (`background::validate_job_switches`). Gateway prüft vor dem Bind, Scheduler vor dem Start der Jobs (nach dem Öffnen der Stores). Geprüft: `BETACLAW_WORKSPACE_CLEANUP=node` und `=bogus` beim Gateway, `BETACLAW_SWARM_RUNNER=node` beim Scheduler, jeweils Exit 1.
+- **Verhaltensänderung:** Unset ist jetzt `rust` (vorher in Rust effektiv aus). Das betrifft Telegram-Poller (ohne aktive Bots wirkungslos), Swarm-Runtime und Workspace-Aufräumen. Das Aufräumen läuft beim Start und danach alle 30 Minuten. Es entfernt nur Verzeichnisse mit `.workspace.json` von Tasks, die nicht mehr aktiv sind, höchstens 200 pro Lauf. Mit `BETACLAW_WORKSPACE_CLEANUP=off` bleibt es aus.
+- **Dokumentation:** README, AGENTS.md, `.env.local.example`, `docker-compose.yml`, `docs/DEPLOYMENT_OPERATIONS.md` (Docker-Abschnitt; Systemd-Abschnitt mit Hinweis), `docs/CORE_HANDBOOK.md`, `docs/AUTOMATION_SYSTEM.md`, `docs/runbooks/WORLD_MODEL_ROLLOUT.md`, `.github/copilot-instructions.md`.
+- **Tests:** Host `cargo test -p betaclaw-gateway --lib` für `background::`, `persona_poller::`, `workspace_cleanup::tests` und `swarm_runtime::tests`: 12 bestanden, 0 rot. `tests/unit/gateway/gateway-contract.test.ts` (angepasst): 8 bestanden.
+- **Gates:** `typecheck` grün, `lint` grün, `docker compose config` für Haupt-, Release- und E2E-Datei gültig (Platzhalter-Secrets über die Umgebung). `pnpm run dev` und `pnpm run dev:static` starten, `/api/health` und die UI-Wurzel antworten mit 200. Container-Lanes: Smoke `docker compose -f docker-compose.e2e.yml run --rm e2e-smoke` (über `scripts/e2e/run-smoke-in-container.ps1`) 9 von 9 Tests grün, 6 Dateien. Browser (`run-browser-in-container.ps1`) 69 von 69 grün, Dauer 1,1 min nach dem Build. Der erste Browser-Lauf brach im Build-Dienst mit Exit 101 ab, weil der Quellstand eines parallelen Arbeitsstrangs in `world_model_ops` nicht kompilierte; der Wrapper meldete dabei trotzdem Exit 0. Behoben: beide `.ps1`-Wrapper geben `$LASTEXITCODE` weiter.
+- **Nicht grün, nicht in diesem Schritt:** `rust:fmt:check` schlägt in 19 Dateien außerhalb des Gateways fehl (`betaclaw-features`, `betaclaw-knowledge`, `betaclaw-master`, `betaclaw-model-hub`, `betaclaw-store`, `betaclaw-world-model`); die geänderten Gateway-Dateien sind formatiert. `rust:check` bricht im Testtarget von `betaclaw-store` ab (`stats/engineering_metrics_service.rs:699`, `Option<i64>` statt `Option<f64>`). `rust:clippy` (Workspace, `-D warnings`) bricht im Testtarget von `betaclaw-skills` ab (`skills/shell_execute.rs:310`, `Duration` nicht importiert); die Lints anderer Crates laufen dann nicht. `cargo clippy -p betaclaw-gateway --all-targets -- -D warnings` in der Rust-Container-Umgebung: Exit 0. Eine Prüfung mit allen Targets (`cargo check -p betaclaw-gateway --all-targets`) brach zuletzt in `betaclaw-gateway/src/world_model_ops` ab, einem parallelen, noch nicht fertigen Arbeitsstrang. Der Build der Binaries im Container (`cargo build --bin betaclaw-gateway --bin betaclaw-scheduler`, Exit 0) und der Dev-Stack-Build auf dem Host kompilieren beide Binaries mit diesen Änderungen.
+- **Offen:** `docs/DEPLOYMENT_OPERATIONS.md` beschreibt im Systemd-Abschnitt noch `server.ts` und `scheduler.ts` (Hinweis im Dokument). `docs/RUST_NODE_ELIMINATION_*` und `docs/archive/` bleiben als Historie. `dev:gateway` startet `betaclaw-gateway` über den PATH. Der Scheduler öffnet die Stores, bevor er die Schalter prüft, weil die Prüfung in `start_scheduler_runtime` liegt. Die Scheduler-Binary (`bin/betaclaw-scheduler.rs`) gehört einem anderen Arbeitsstrang. Der vollständige Produktions-Smoke (`test:e2e:production`, frische Volumes) ist nicht gelaufen; geprüft wurden das Probe-Image-Dockerfile und die Compose-Konfiguration.
+
+### 2026-10-31 — Phase 3 Entfernung TS-Backend: Ops-Skripte der World Model als Rust-Subcommands
+
+Ziel: Die Betriebsskripte `world-model:verify-rls`, `world-model:reconcile`, `world-model:rebuild-projections` und `world-model:backfill` laufen als Unterbefehle von `betaclaw-scheduler`. Die TS-Skripte dafür und die Phase-1-Skripte `world-model-migrate.ts` und `world-model-provision-roles.ts` sind gelöscht. Grundlage: `docs/TS_BACKEND_REMOVAL_PLAN.md`, Phase 3.
+
+- **Unterbefehle:** `provision-roles [--apply]` (ohne Migration, wie das Skript), `verify-rls`, `reconcile [--dry-run] [--scope] [--output]`, `rebuild-projections [--dry-run] [--type] [--scope] [--resume] [--batch-size] [--include-observations] [--output]`, `backfill [--dry-run] [--scope] [--batch-size] [--resume] [--output] [--from] [--to]`. Ein unbekannter Unterbefehl endet mit Status 2 und startet den Scheduler nicht mehr.
+- **Code:** `betaclaw-world-model/src/world_model/role_verification.rs` (Port von `world-model-verify-rls.ts`); `betaclaw-gateway/src/world_model_ops/` mit `mod.rs`, `verify_rls.rs`, `reconcile.rs`, `rebuild.rs`, `backfill.rs`; Einstieg `betaclaw-gateway/src/bin/betaclaw-scheduler.rs`. Die Module liegen im Gateway, weil `reconcile` und `backfill` die SQLite-Dateien der Node-Ära lesen und dafür die Knowledge-, Master- und Task-Stores brauchen, die von `betaclaw-world-model` abhängen. Vorhandene Rust-Logik wird wiederverwendet: Bridge, Projector, Task- und Action-Repositories, Graphiti-Client, Embedding-Worker und Knowledge-Repository.
+- **Aufruf:** Die `world-model:*`-Befehle in `package.json` starten `scripts/rust-scheduler-ops.mjs`. Das Skript lädt `.env.local` mit `@next/env` wie `scripts/dev-stack-rust.mjs` und führt `cargo run --locked --bin betaclaw-scheduler -- <Unterbefehl>` aus. Bereits gesetzte Umgebungsvariablen haben Vorrang.
+- **Vergleich mit TS:** Zwei frische `pgvector/pgvector:pg17`-Container, auf jedem `migrate`, `provision-roles --apply` und dieselbe Befehlsfolge (Verifikation, Reconcile vor und nach dem Backfill, Rebuild, Backfill als Dry-Run, mit Scope, für alle Mandanten und mit `--resume`). Eingabe waren identische SQLite-Fixtures (zwei Mandanten, Konversationen, Nachrichten, Missionsaufgaben, Ledger-Zeilen, eine Wissens-Episode und ein Meeting-Ledger). Die TS-Seite lief aus `git archive HEAD`, weil die Migrationen seit Phase 1 nicht mehr unter `src/server` liegen. Verglichen wurden Ausgabe (Zeile für Zeile, ohne Zeitstempel und Pfade), JSON-Berichte, Exit-Codes und der Datenbankzustand der Tabellen `world_model_*`. Ergebnis: Exit-Codes, Ausgaben und Datenbankzustand gleich. Dazu Fehlerpfade (Scope ungültig, fehlende URL, Rebuild ohne Scope, kein Embedding-Provider, World Model deaktiviert): gleicher Exit-Code und gleiche Ausgabe bis auf die unten genannten Abweichungen.
+- **Bewusste Abweichungen:** `migrate` druckt die Migrationsliste ohne das Node-Format `util.inspect` (Phase-1-Ausgabe). Node druckt bei Fehlern den Stack, Rust nur die Meldung. Eine Batch-Größe unter 1 wird auf 1 angehoben; das Skript liefe bei negativen Werten endlos. Der `options`-Block des Backfill-Berichts hat eine feste Schlüsselreihenfolge. Verbindungsfehler kommen aus sqlx statt aus `pg`. Der Embedding-Provider folgt dem Rust-Laufzeitpfad (`.local/model-hub.db` relativ zum Arbeitsverzeichnis); der Vergleich setzt `MODEL_HUB_DB_PATH` auf eine leere Datei.
+- **Befund, unverändert übernommen:** `verify-rls` meldet auf einer frisch provisionierten Datenbank `FAIL worker role cannot read world_model_observations (no grant)`, weil `WORKER_TABLES` die Observationen enthält. Das TS-Skript zeigt bei HEAD dasselbe. Offen: Check oder Grants anpassen. Die Entscheidung liegt nicht in diesem Schritt.
+- **Tests:** Neu: 7 Tests in `role_verification`, 25 in `world_model_ops` (verify-rls 2, reconcile 5, rebuild-projections 6, backfill 9, Helfer 3). Der Vergleich mit TS lief zusätzlich als Befehlsfolge (siehe oben).
+- **Gates:** `rust:check`, `rust:fmt:check` und `rust:clippy` grün; `rust:test`: 3612 bestanden, 0 fehlgeschlagen; `typecheck` und `lint` grün.
+- **Offen:** Der Verify-Befund oben. `world-model:graphiti-evaluate` und `world-model:drill` bleiben TS (nicht im Auftrag). `scripts/trigger-knowledge-ingestion.ts`, `cleanup-task-workspaces.ts` und `attachments-consistency.ts` sind unverändert. `docs/runbooks/GRAPHITI_BACKEND.md` nennt weiter dieselben Befehle; sie gelten unverändert.
+
+### 2026-10-31 — Phase 1 Entfernung TS-Backend: Laufzeit-Abhängigkeiten gelöst
+
+Ziel: Der Standard-Stack (Compose) hängt nicht mehr am Node-Image. Grundlage ist
+`docs/TS_BACKEND_REMOVAL_PLAN.md`, Phase 1. Das TS-Backend bleibt bis Phase 5 im Repo.
+
+- **SQL-Migrationen:** Die 19 Dateien liegen per `git mv` unverändert in
+  `rust/crates/betaclaw-world-model/migrations`. Der Default-Pfad steht in
+  `world_model/migrations.rs` und `scheduler_runtime.rs`. `src/server/world-model/db.ts`
+  (TS-Übergang bis Phase 5) liest denselben Ordner. Das Gateway-Image kopiert ihn an
+  denselben relativen Pfad (`docker/Dockerfile.gateway`).
+- **Rollen-Provisioning:** `scripts/world-model-provision-roles.ts` ist nach
+  `world_model/role_provisioning.rs` portiert. Gleiche Rollen, gleiche Passwort-Variablen,
+  gleiche Grants und Rollen-Settings, gleicher Dry-run und `--apply`. Passwörter werden nie
+  ausgegeben. Der Zweig `GRANT SELECT ON _world_model_migrations` des TS-Skripts läuft nie
+  (die Tabelle fehlt in der Existenzabfrage). Die Portierung übernimmt diesen Zustand, damit
+  die Grants identisch bleiben (siehe OP-18).
+- **Subcommand:** `betaclaw-scheduler migrate [--provision-roles] [--apply]` wendet die
+  Migrationen mit dem Advisory-Lock an und provisioniert optional die Rollen. `--apply` gibt es
+  nur zusammen mit `--provision-roles`. Ohne Subcommand startet der Scheduler wie bisher.
+- **Compose:** Der Dienst `migrate` nutzt `docker/Dockerfile.gateway` (Image
+  `betaclaw-gateway-local`) und ruft `betaclaw-scheduler migrate --provision-roles --apply`
+  auf. Das Overlay `docker-compose.release-smoke.yml` setzt dafür den Gateway-Kandidaten.
+- **CLI-Typen:** `protocol`, `events`, `method-scopes`, `exec-approval-manager` und
+  `node-command-policy` liegen unter `src/shared/gateway/`. `personas/personaTypes` liegt unter
+  `src/shared/personas/` und ist nur ein Re-Export von `src/shared/personaTypes.ts`. Alle
+  Importe in `src`, `app` und `tests` wurden umgestellt. `exec-approval-manager` hält keinen
+  Server-Zustand, nur die Datei `.local/exec-approvals.json`, die Server und CLI gemeinsam nutzen.
+- **Befund beim Test gegen eine leere DB:** `apply_migrations` schlug in Rust fehl
+  (`cannot insert multiple commands into a prepared statement`), weil Migrationsdateien über das
+  Prepared-Protokoll liefen. `pg` sendet Abfragen ohne Werte mit dem Simple-Protokoll. Behoben
+  mit `PgSession::execute_script` (`raw_sql` in `driver.rs`). Bis hierher hatte nur das TS-Migrate
+  frische Datenbanken eingerichtet.
+- **Passwort-Redaktion:** Die Meldung „nicht erreichbar“ zeigt die Admin-URL ohne Passwort
+  (`redact_database_url`). Das TS-Original gibt die URL unverändert aus.
+- **Abgleich der Grants:** TS-Migrate und TS-Provisioning gegen Datenbank A, Rust
+  `migrate --provision-roles --apply` gegen Datenbank B (zwei frische `pgvector/pgvector:pg17`).
+  Verglichen wurden `information_schema.role_table_grants` (188 Zeilen), `pg_roles` mit
+  `rolconfig`, Datenbank- und Schema-Rechte, Spaltenrechte und das Ledger (19 Einträge). Ergebnis:
+  identisch. Ein zweiter Lauf mit `--apply` ist ohne Änderung.
+- **Gates:** `rust:fmt:check`, `rust:clippy` (`-D warnings`) und `rust:test` (3556 Tests, 0 rot)
+  grün. `typecheck`, `lint` und `vitest` grün (3547 bestanden, 52 übersprungen; nach dem
+  Registry-Nachtrag `tests/unit/ci` und `tests/unit/architecture`, 47 bestanden).
+  `docker compose config` mit Platzhalter-Secrets über Umgebungsvariablen gültig.
+  `test:e2e:production` grün: frische Volumes, der Dienst `migrate` wendet die 19 Migrationen an
+  und provisioniert die Rollen, danach Login, Chat, Scheduler, Restore-Prüfung und Browser.
+- **Offen:** Die TS-Skripte `world-model:migrate` und `world-model:provision-roles` bleiben als
+  Werkzeug bis zur Entscheidung in Phase 3. Ebenso `scripts/world-model-verify-rls.ts`, das die
+  Rollen voraussetzt. Die App-Rolle liest `_world_model_migrations` seit dem Nachtrag 2026-11-01 (OP-18).
 
 ### 2026-10-31 — Workspace aufgeteilt, rust-lld, `rust:check`
 
@@ -1624,25 +1846,25 @@ slice-übergreifend nachverfolgbar bleiben.
 `lane/s9` diese IDs im Code zitiert. Die Kurzfassung stammt jeweils aus dem
 zitierenden Modulkopf; die Belegstelle steht in der Spalte Herkunft.
 
-| ID       | Punkt (Kurzfassung aus dem Code)                                                                                                                                    | Herkunft (= Belegstelle)                                                                         | Status                |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------- |
-| OP-S9-2  | Sandbox-Ausführungspfad gehört zu S11; P5 öffnet nur die Naht, der Body wird nicht portiert                                                                         | `master/toolforge.rs:9`, `toolforge/sandbox_runner.rs:3,30`                                      | offen bis S11         |
-| OP-S9-3  | `master/cronBridge.ts` liest `automation/runtime` (S10) und bleibt bis S10 in TypeScript                                                                            | `master/mod.rs:97`                                                                               | offen bis S10         |
-| OP-S9-4  | `masterActionBridge` (S6) wird von `connectors/gmail/actions.ts`, `execution/runtime/toolRunner.ts` und `app/api/master/gmail` konsumiert; alle drei zurückgehalten | `master/connectors.rs:10`, `execution.rs:12`, `connectors/gmail.rs:9`, `execution/runtime.rs:20` | offen bis S6/S10      |
-| OP-S9-5  | Erledigt: Clippy 1.94 verwarf das manuelle `impl Default` für `ProspectiveRuntimeDeps` (`derivable_impls`); Fix als `#[derive(Default)]`                            | `866ad265` (`lane/s7`), `c9e48438` (`lane/s9`)                                                   | erledigt              |
-| OP-S9-6  | `CapabilityUnderstandingCycle`-Naht statt direkter Verdrahtung des Lernzyklus                                                                                       | `master/capabilities.rs:12`, `learning.rs:20`, `mod.rs:69`                                       | bewusst, Naht         |
-| OP-S9-7  | `DelegationDispatcherPort` und `ActionLedgerPort` sind Nähte; das Gateway komponiert sie, `getMasterExecutionRuntime` ist zurückgestellt                            | `master/mod.rs:45`, `orchestrator.rs:12`, `runtime.rs:18,206`                                    | bewusst, Naht         |
-| OP-S9-8  | Model-Dispatch des Understanding-Loops läuft über den `MasterModelDispatch`-Einstieg                                                                                | `master/understanding_loop.rs:16`, `mod.rs:54`                                                   | bewusst, Naht         |
-| OP-S9-11 | Prozessweite Timer des Subagent-Pools: nur wiederkehrende Ticks werden delegiert; Fehlerpfad liefert `{ accepted: false, reason }` statt Unwind                     | `master/delegation/dispatcher.rs:34`, `subagent_pool.rs:15,24`, `mod.rs:61`                      | bewusst, dokumentiert |
-| OP-S9-12 | `action_ledger`: TS unterscheidet Ablehnung und Fehler; Rust hält die Semantik über einen anderen Rückgabepfad                                                      | `master/execution/action_ledger.rs:15`                                                           | bewusst, dokumentiert |
-| OP-S9-13 | `resolveToolPolicy`-Naht wird von `ToolPolicyServiceResolver` geschlossen; `approval_policy` nutzt einen treuen Default                                             | `master/tool_policy.rs:7`, `tool_policy/service.rs:8,333`, `execution/approval_policy.rs:15`     | geschlossen in P5     |
-| OP-S9-14 | Folgewirkung des ausgeschlossenen `toolRunner.ts`                                                                                                                   | `master/mod.rs:56`                                                                               | offen bis S8/S11      |
-| OP-S9-15 | Prozessweite Timer (zweite Stelle), siehe OP-S9-11                                                                                                                  | `master/mod.rs:61`                                                                               | bewusst, dokumentiert |
-| OP-S9-16 | `CapabilityRuntimePersona`-Naht für die Runtime-Persona-Auflösung                                                                                                   | `master/understanding_loop.rs:19,44,321`, `mod.rs:71`                                            | bewusst, Naht         |
-| OP-S9-17 | Von P5 geöffnete Sandbox-Naht, Body bleibt S11 (siehe OP-S9-2)                                                                                                      | `master/toolforge/sandbox_runner.rs:12`                                                          | offen bis S11         |
-| OP-S9-18 | Schlüsselauflösung in `secret_store` nutzt die S4-Crypto-Grundelemente                                                                                              | `master/connectors/secret_store.rs:7`                                                            | bewusst, Grenze       |
-| OP-S9-19 | Fail-closed-Gate-Adapter                                                                                                                                            | `master/mod.rs:79`                                                                               | bewusst, Grenze       |
-| OP-S9-20 | Repository-Fehler, die in TypeScript geworfen hätten, laufen über den fail-closed-Gate-Adapter                                                                      | `master/mod.rs:79`, `tool_policy/service.rs:15,333`                                              | bewusst, Grenze       |
+| ID       | Punkt (Kurzfassung aus dem Code)                                                                                                                                                                                                                       | Herkunft (= Belegstelle)                                                                         | Status                |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------- |
+| OP-S9-2  | Sandbox-Ausführungspfad gehört zu S11; P5 öffnet nur die Naht, der Body wird nicht portiert                                                                                                                                                            | `master/toolforge.rs:9`, `toolforge/sandbox_runner.rs:3,30`                                      | offen bis S11         |
+| OP-S9-3  | `master/cronBridge.ts` liest `automation/runtime` (S10) und bleibt bis S10 in TypeScript                                                                                                                                                               | `master/mod.rs:97`                                                                               | offen bis S10         |
+| OP-S9-4  | `masterActionBridge` (S6) wird von `connectors/gmail/actions.ts`, `execution/runtime/toolRunner.ts` und `app/api/master/gmail` konsumiert; alle drei zurückgehalten                                                                                    | `master/connectors.rs:10`, `execution.rs:12`, `connectors/gmail.rs:9`, `execution/runtime.rs:20` | offen bis S6/S10      |
+| OP-S9-5  | Erledigt: Clippy 1.94 verwarf das manuelle `impl Default` für `ProspectiveRuntimeDeps` (`derivable_impls`); Fix als `#[derive(Default)]`                                                                                                               | `866ad265` (`lane/s7`), `c9e48438` (`lane/s9`)                                                   | erledigt              |
+| OP-S9-6  | `CapabilityUnderstandingCycle`-Naht statt direkter Verdrahtung des Lernzyklus                                                                                                                                                                          | `master/capabilities.rs:12`, `learning.rs:20`, `mod.rs:69`                                       | bewusst, Naht         |
+| OP-S9-7  | `DelegationDispatcherPort` und `ActionLedgerPort` sind Nähte; das Gateway komponiert sie, `getMasterExecutionRuntime` ist zurückgestellt                                                                                                               | `master/mod.rs:45`, `orchestrator.rs:12`, `runtime.rs:18,206`                                    | bewusst, Naht         |
+| OP-S9-8  | Model-Dispatch des Understanding-Loops läuft über den `MasterModelDispatch`-Einstieg                                                                                                                                                                   | `master/understanding_loop.rs:16`, `mod.rs:54`                                                   | bewusst, Naht         |
+| OP-S9-11 | Prozessweite Timer des Subagent-Pools: nur wiederkehrende Ticks werden delegiert; Fehlerpfad liefert `{ accepted: false, reason }` statt Unwind. Seit 2026-11-01 werden Job und Session dabei `failed` mit `lastError` (vorher fälschlich `completed`) | `master/delegation/dispatcher.rs:34`, `subagent_pool.rs:15,24`, `mod.rs:61`                      | bewusst, dokumentiert |
+| OP-S9-12 | `action_ledger`: TS unterscheidet Ablehnung und Fehler; Rust hält die Semantik über einen anderen Rückgabepfad                                                                                                                                         | `master/execution/action_ledger.rs:15`                                                           | bewusst, dokumentiert |
+| OP-S9-13 | `resolveToolPolicy`-Naht wird von `ToolPolicyServiceResolver` geschlossen; `approval_policy` nutzt einen treuen Default                                                                                                                                | `master/tool_policy.rs:7`, `tool_policy/service.rs:8,333`, `execution/approval_policy.rs:15`     | geschlossen in P5     |
+| OP-S9-14 | Folgewirkung des ausgeschlossenen `toolRunner.ts`                                                                                                                                                                                                      | `master/mod.rs:56`                                                                               | offen bis S8/S11      |
+| OP-S9-15 | Prozessweite Timer (zweite Stelle), siehe OP-S9-11                                                                                                                                                                                                     | `master/mod.rs:61`                                                                               | bewusst, dokumentiert |
+| OP-S9-16 | `CapabilityRuntimePersona`-Naht für die Runtime-Persona-Auflösung                                                                                                                                                                                      | `master/understanding_loop.rs:19,44,321`, `mod.rs:71`                                            | bewusst, Naht         |
+| OP-S9-17 | Von P5 geöffnete Sandbox-Naht, Body bleibt S11 (siehe OP-S9-2)                                                                                                                                                                                         | `master/toolforge/sandbox_runner.rs:12`                                                          | offen bis S11         |
+| OP-S9-18 | Schlüsselauflösung in `secret_store` nutzt die S4-Crypto-Grundelemente                                                                                                                                                                                 | `master/connectors/secret_store.rs:7`                                                            | bewusst, Grenze       |
+| OP-S9-19 | Fail-closed-Gate-Adapter                                                                                                                                                                                                                               | `master/mod.rs:79`                                                                               | bewusst, Grenze       |
+| OP-S9-20 | Repository-Fehler, die in TypeScript geworfen hätten, laufen über den fail-closed-Gate-Adapter                                                                                                                                                         | `master/mod.rs:79`, `tool_policy/service.rs:15,333`                                              | bewusst, Grenze       |
 
 Nicht beobachtet und daher hier nicht geführt: OP-S9-1, OP-S9-9, OP-S9-10. Die IDs
 1–20 sind nicht lückenlos vergeben; das ist kein Fehler, sondern nur ein Hinweis,
@@ -1661,15 +1883,14 @@ Klein, nicht blockierend, bewusst nicht mehr in dieser Runde gefixt:
 
 ```powershell
 pnpm dev                    # Rust-Gateway (3000) + web-ui (3001) + Scheduler
-pnpm dev:node               # alter Node-Stack, nur zur Fehlersuche
 pnpm rust:test              # cargo test im Container
 pnpm rust:clippy            # clippy mit -D warnings
 pnpm rust:fmt:check         # cargo fmt --check
 pnpm fixtures:security-rules    # SECURITY_RULES nach Rust exportieren
 pnpm fixtures:nextauth-token    # Session-Token-Fixture aus dem echten next-auth
-pnpm fixtures:gemini-traffic    # Gemini-HTTP-Traffic als Rust-Fixture aufzeichnen
-pnpm verify:logs-parity     # Rust gegen TypeScript auf /api/logs
-pnpm verify:route-parity    # alle registrierten Paritätsfamilien gegen den Gateway
+pnpm verify:logs-parity     # Rust gegen die Referenzdaten (golden/) auf /api/logs
+pnpm verify:route-parity    # alle Paritätsfamilien gegen die Referenzdaten (golden/)
+pnpm verify:route-coverage   # Rust-Routentabelle gegen scripts/verify/route-table.json
 ```
 
 Der Container-Smoke für die HTTP- und WS-Verträge:

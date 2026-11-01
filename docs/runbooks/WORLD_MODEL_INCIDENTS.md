@@ -4,7 +4,9 @@ _Ziel:_ Operative Anleitung für den Umgang mit World-Model-Ausfällen, Degradat
 
 ## Überblick
 
-Dieses Runbook ergänzt das [World-Model-Rollout-Runbook](./WORLD_MODEL_ROLLOUT.md) um dokumentierte Incident-Antworten. Failed Drills sind im [Failure-Drill-Skript](../../scripts/world-model-failure-drill.ts) automatisiert.
+Die Befehle `pnpm run world-model:*` (Migration, Rollen, RLS-Prüfung, Reconcile, Rebuild, Backfill) laufen als Unterbefehle des Rust-Schedulers `betaclaw-scheduler` über `scripts/rust-scheduler-ops.mjs`. Dieses Skript lädt `.env.local`. Flags, Umgebungsvariablen und Ausgaben sind unverändert. Die TypeScript-Skripte gibt es nicht mehr.
+
+Dieses Runbook ergänzt das [World-Model-Rollout-Runbook](./WORLD_MODEL_ROLLOUT.md) um dokumentierte Incident-Antworten. Failed Drills sind im [Failure-Drill-Skript](../../rust/crates/betaclaw-gateway/src/world_model_ops/drill.rs) automatisiert.
 
 ## Incident-Klassifikation
 

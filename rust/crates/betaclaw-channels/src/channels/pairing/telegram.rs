@@ -248,4 +248,18 @@ mod tests {
         );
         pairing.stop_telegram_polling();
     }
+
+    #[tokio::test]
+    async fn pairing_syncs_the_native_command_menu() {
+        let transport = ScriptedTransport::new();
+        me_ok(&transport);
+        transport.then("deleteWebhook", json_response(200, json!({"ok": true})));
+        let pairing = pairing_with(&transport);
+
+        pairing.pair_telegram("9:token").await.expect("paired");
+
+        assert_eq!(transport.calls("deleteMyCommands").len(), 1);
+        assert_eq!(transport.calls("setMyCommands").len(), 1);
+        pairing.stop_telegram_polling();
+    }
 }

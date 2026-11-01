@@ -9,25 +9,23 @@ import path from 'node:path';
  */
 
 describe('Gateway API contract', () => {
-  it('documents ws auth behavior in custom server contract', () => {
-    const serverPath = path.join(process.cwd(), 'server.ts');
-    const source = fs.readFileSync(serverPath, 'utf8');
-
-    expect(source).toContain('REQUIRE_AUTH');
-    expect(source).toContain('HTTP/1.1 401 Unauthorized');
-    expect(source).toContain('NEXT_DEV_BUNDLER');
-    expect(source).toContain('webpack: true');
-  });
-
-  it('starts the custom Next server in an explicit development environment', () => {
+  it('does not start a Node application server from package.json', () => {
     const packagePath = path.join(process.cwd(), 'package.json');
     const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8')) as {
       scripts?: Record<string, string>;
     };
 
-    expect(packageJson.scripts?.['dev:web']).toBe(
-      'cross-env NODE_ENV=development tsx watch server.ts',
-    );
+    for (const name of [
+      'dev:node',
+      'dev:web',
+      'dev:web-ui',
+      'dev:scheduler',
+      'start:web',
+      'start:scheduler',
+      'start',
+    ]) {
+      expect(packageJson.scripts?.[name]).toBeUndefined();
+    }
   });
 
   describe('Chat request body', () => {

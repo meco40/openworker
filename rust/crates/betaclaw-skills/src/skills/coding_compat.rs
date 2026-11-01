@@ -750,4 +750,46 @@ mod tests {
             other => panic!("unexpected hunk {other:?}"),
         }
     }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn read_write_and_edit_refuse_paths_that_follow_an_external_symlink() {
+        // Port of "rejects read, write, edit and patch paths that follow an external
+        // symlink" in tests/unit/skills/demo-coding-compat-handlers.test.ts. The patch
+        // tool resolves its paths through the same `resolve_workspace_path`.
+        let sb = sandbox();
+        let outside = sb._dir.0.join("outside");
+        fs::create_dir_all(&outside).expect("outside");
+        fs::write(outside.join("secret.txt"), "secret").expect("secret");
+        std::os::unix::fs::symlink(&outside, sb.root.join("link")).expect("link");
+
+        let read = read_compat(
+            &args(json!({"path": "link/secret.txt"})),
+            &sb.ctx,
+            &sb.personas,
+        )
+        .await;
+        assert!(read.is_err(), "read must not follow the link");
+
+        let write = write_compat(
+            &args(json!({"path": "link/new.txt", "content": "x"})),
+            &sb.ctx,
+            &sb.personas,
+        )
+        .await;
+        assert!(write.is_err(), "write must not follow the link");
+        assert!(!outside.join("new.txt").exists());
+
+        let edit = edit_compat(
+            &args(json!({"path": "link/secret.txt", "oldText": "secret", "newText": "x"})),
+            &sb.ctx,
+            &sb.personas,
+        )
+        .await;
+        assert!(edit.is_err(), "edit must not follow the link");
+        assert_eq!(
+            fs::read_to_string(outside.join("secret.txt")).expect("read"),
+            "secret"
+        );
+    }
 }

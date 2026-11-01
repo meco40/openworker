@@ -1,8 +1,6 @@
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
-const worldModelCoverageDatabaseUrl = process.env.WORLD_MODEL_COVERAGE_TEST_DATABASE_URL?.trim();
-
 export default defineConfig({
   test: {
     environment: 'node',
@@ -12,13 +10,6 @@ export default defineConfig({
     testTimeout: 20_000,
     hookTimeout: 20_000,
     maxWorkers: 4,
-    server: {
-      deps: {
-        // @google/genai 2 lists its `browser` export condition before `node`. Externalized,
-        // the mock id and the id Node loads differ, and vi.mock('@google/genai') misses.
-        inline: ['@google/genai'],
-      },
-    },
     projects: [
       {
         extends: true,
@@ -36,33 +27,7 @@ export default defineConfig({
           isolate: false,
           include: ['tests/unit/**/*.test.ts'],
           exclude: [
-            'tests/unit/channels/message-service-*.test.ts',
-            'tests/unit/channels/telegram-*.test.ts',
-            'tests/unit/server/summaryService-perf.test.ts',
             'tests/unit/scripts/cleanup-test-artifacts.test.ts',
-            // The lifecycle test observes a process-global event bus. Keep it
-            // isolated so module mocks from the fast lane cannot replace the
-            // bus instance observed by the test subscriber.
-            'tests/unit/memory/lifecycle.test.ts',
-            'tests/unit/world-model/retrieval.test.ts',
-            'tests/unit/world-model/metrics-behavior.test.ts',
-            'tests/unit/world-model/graphiti-retrieval.test.ts',
-            'tests/unit/world-model/open-loop-service.test.ts',
-            'tests/unit/world-model/event-service.test.ts',
-            // This adapter spies on process-global fetch while other provider tests do the same.
-            'tests/unit/model-hub/opencode-adapter.test.ts',
-            // This test owns a persona repository and changes its process-global paths.
-            'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
-            'tests/unit/world-model/*worker.test.ts',
-            'tests/unit/knowledge/nata-scenario.test.ts',
-            'tests/unit/memory/postgres-memory-client.test.ts',
-            'tests/unit/world-model/project-window.test.ts',
-            'tests/unit/world-model/outbox-dispatcher.test.ts',
-            // These module mocks must not share the fast lane's module cache.
-            'tests/unit/channels/tool-manager-behavior.test.ts',
-            'tests/unit/world-model/mission-control-bridge.test.ts',
-            'tests/unit/agent-v2/extensions-host.test.ts',
-            'tests/unit/agent-v2/session-manager-behavior.test.ts',
             'tests/unit/components/**/*.test.{ts,tsx}',
           ],
         },
@@ -72,29 +37,7 @@ export default defineConfig({
         test: {
           name: 'unit-isolated',
           isolate: true,
-          include: [
-            'tests/unit/channels/message-service-*.test.ts',
-            'tests/unit/channels/telegram-*.test.ts',
-            'tests/unit/server/summaryService-perf.test.ts',
-            'tests/unit/scripts/cleanup-test-artifacts.test.ts',
-            'tests/unit/memory/lifecycle.test.ts',
-            'tests/unit/world-model/retrieval.test.ts',
-            'tests/unit/world-model/metrics-behavior.test.ts',
-            'tests/unit/world-model/graphiti-retrieval.test.ts',
-            'tests/unit/world-model/open-loop-service.test.ts',
-            'tests/unit/world-model/event-service.test.ts',
-            'tests/unit/model-hub/opencode-adapter.test.ts',
-            'tests/unit/master/execution-runtime/master-runtime-persona-config.test.ts',
-            'tests/unit/world-model/*worker.test.ts',
-            'tests/unit/knowledge/nata-scenario.test.ts',
-            'tests/unit/memory/postgres-memory-client.test.ts',
-            'tests/unit/world-model/project-window.test.ts',
-            'tests/unit/world-model/outbox-dispatcher.test.ts',
-            'tests/unit/channels/tool-manager-behavior.test.ts',
-            'tests/unit/world-model/mission-control-bridge.test.ts',
-            'tests/unit/agent-v2/extensions-host.test.ts',
-            'tests/unit/agent-v2/session-manager-behavior.test.ts',
-          ],
+          include: ['tests/unit/scripts/cleanup-test-artifacts.test.ts'],
         },
       },
       {
@@ -110,28 +53,14 @@ export default defineConfig({
           ],
         },
       },
-      ...(worldModelCoverageDatabaseUrl
-        ? [
-            {
-              extends: true as const,
-              test: {
-                name: 'world-model-postgres',
-                include: ['tests/integration/world-model/**/*.test.ts'],
-                env: {
-                  WORLD_MODEL_E2E: 'true',
-                  GRAPHITI_SHADOW_E2E: 'true',
-                  WORLD_MODEL_APP_DATABASE_URL: worldModelCoverageDatabaseUrl,
-                  CANONICAL_DATABASE_URL: worldModelCoverageDatabaseUrl,
-                },
-              },
-            },
-          ]
-        : []),
     ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       reportsDirectory: './coverage',
+      // The gate covers the code that remains after the TypeScript backend was removed
+      // (Rust serves the API). src/server is not in scope; its coverage left with it.
+      include: ['src/shared/**', 'src/lib/**', 'src/services/**'],
       exclude: [
         '.next/**',
         'coverage/**',
@@ -155,81 +84,11 @@ export default defineConfig({
         // matches 'components/**' only at the project root.
         '**/components/**',
         'src/modules/**',
-        'app/api/model-hub/**',
-        'src/server/model-hub/**',
-        'src/server/skills/**',
-        'app/api/skills/**',
-        'src/server/personas/**',
-        'src/server/channels/messages/service.ts',
-        'src/server/channels/outbound/router.ts',
-        'src/server/channels/pairing/telegramPolling.ts',
         'src/skills/hooks/**',
-        // Agent-v2 method registration is covered by direct behavior tests.
-        'src/server/agent-room/services/turnDispatch.service.ts',
-        'src/server/agent-room/services/swarmResolution.service.ts',
-        'src/server/agent-room/services/turnCompletion.service.ts',
-        'src/server/agent-room/services/llmFriction.service.ts',
-        'src/server/channels/messages/commands/**',
-        'src/server/master/execution/**',
-        'src/server/channels/telegram/voice.ts',
-        'src/server/proactive/sqliteProactiveRepository.ts',
-        'src/server/channels/messages/service/transcriptRepair.ts',
-        'src/server/channels/messages/service/subagent/**',
-        'src/server/master/systemOps.ts',
-        'src/server/master/metrics.ts',
-        'src/server/channels/pairing/unpair.ts',
-        'src/lib/planning-utils.ts',
-        'src/server/channels/messages/service/commands/**',
-        'src/server/channels/outbound/slack.ts',
-        'src/server/channels/messages/service/recall/evidence/format.ts',
-        'src/server/gateway/methods/agent-v2/registerSessionMethods.ts',
-        'app/api/clawhub/search/route.ts',
-        'app/api/agents/**',
-        'app/api/workspaces/**',
-        'app/api/master/notes/route.ts',
-        'app/api/master/reminders/route.ts',
-        'app/api/master/runs/**',
-        'app/api/automations/**',
-        'app/api/tasks/**',
+        'src/lib/db/**',
         'src/lib/debug.ts',
-        'src/lib/betaclaw/client.ts',
-        'app/api/webhooks/agent-completion/route.ts',
-        'app/api/channels/whatsapp/accounts/route.ts',
         'src/shared/normalizeArgs.ts',
-        'src/server/agent-room/prompt/turnPrompt.builder.ts',
-        'src/server/tasks/testing/**',
         'src/shared/domain/swarmPhases.ts',
-        'src/server/master/cronBridge.ts',
-        'src/server/channels/messages/service/recall/search/strict.ts',
-        'src/server/telegram/personaTelegramPoller.ts',
-        'src/auth.ts',
-        'src/server/memory/operations/**',
-        'src/server/master/capabilities/understandingLoop.ts',
-        'src/server/tasks/dispatch/prepareDispatch.ts',
-        'src/server/tasks/taskHydration.ts',
-        'app/api/channels/conversations/route.ts',
-        'app/api/channels/messages/route.ts',
-        'app/api/clawhub/**',
-        'src/commands/health/checks/coreChecks.ts',
-        'src/server/memory/utils/scoring.ts',
-        'src/server/channels/outbound/discord.ts',
-        'app/api/betaclaw/models/route.ts',
-        'src/server/channels/telegram/nativeCommands.ts',
-        'src/server/channels/messages/service/toolLoopDetector.ts',
-        'src/server/gateway/methods/chat.ts',
-        'src/server/automation/flowCompiler.ts',
-        'src/server/channels/pairing/slack.ts',
-        'app/api/channels/telegram/webhook/route.ts',
-        'src/server/channels/webhookAuth.ts',
-        'app/api/personas/**',
-        'src/server/channels/messages/service/projectGuard.ts',
-        'src/server/channels/telegram/media.ts',
-        'src/server/channels/telegram/modelSelection.ts',
-        'src/server/clawhub/clawhubPromptBuilder.ts',
-        'src/server/telegram/personaTelegramPairing.ts',
-        'app/api/channels/whatsapp/webhook/route.ts',
-        'src/server/tasks/dispatch/failure.ts',
-        'src/server/auth/userStore.ts',
       ],
       thresholds: {
         lines: 70,

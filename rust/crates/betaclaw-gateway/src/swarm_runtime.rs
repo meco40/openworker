@@ -36,13 +36,15 @@ impl Default for SwarmRuntime {
     }
 }
 impl SwarmRuntime {
-    pub fn should_run_for_role(role: &str) -> bool {
-        Self::parse_should_run(
+    pub fn should_run_for_role(role: &str) -> Result<bool, String> {
+        let owner = crate::background::job_owner("BETACLAW_SWARM_RUNNER")?;
+        Ok(Self::parse_should_run(
             std::env::var("SWARM_RUNNER").ok().as_deref(),
-            std::env::var("BETACLAW_SWARM_RUNNER").ok().as_deref(),
+            Some(owner),
             role,
-        )
+        ))
     }
+    /// `owner` is the resolved switch (`rust` or `off`), see `background::parse_job_owner`.
     pub fn parse_should_run(runner: Option<&str>, owner: Option<&str>, role: &str) -> bool {
         owner.is_some_and(|v| v.trim().eq_ignore_ascii_case("rust"))
             && if runner
@@ -414,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_swarm_role_selection() {
-        // Default (None) is inactive for Rust because default is node ownership
+        // The caller resolves an unset switch to `rust`; without an owner nothing runs.
         assert!(!SwarmRuntime::parse_should_run(None, None, "server"));
         assert!(!SwarmRuntime::parse_should_run(None, None, "scheduler"));
         assert!(!SwarmRuntime::parse_should_run(

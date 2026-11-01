@@ -11,7 +11,7 @@ import {
   parseCommitTrailers,
   pathMatchesPattern,
   readContractLastReviewed,
-} from '@/server/ci/harnessDomainRegistry';
+} from '@/shared/ci/harnessDomainRegistry';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -197,7 +197,7 @@ describe('harnessDomainRegistry branches', () => {
     expect(pathMatchesPattern('app/api/security/status/route.ts', 'app/api/security/**')).toBe(
       true,
     );
-    expect(isHighRiskPath('src/server/security/headers.ts')).toBe(true);
+    expect(isHighRiskPath('rust/crates/betaclaw-gateway/src/routes/security.rs')).toBe(true);
     expect(isHighRiskPath('src/server/tasks/dispatch.ts')).toBe(false);
   });
 
@@ -299,20 +299,20 @@ describe('harnessDomainRegistry branches', () => {
   it('recognizes each high-risk path family and normalizes Windows separators', () => {
     for (const filePath of [
       'auth.ts',
-      'app/api/auth/session/route.ts',
-      'app/api/security/csp/route.ts',
-      'app/api/model-hub/pipeline/route.ts',
-      'src/server/auth/userContext.ts',
-      'src/server/security/headers.ts',
+      'rust/crates/betaclaw-gateway/src/routes/auth.rs',
+      'rust/crates/betaclaw-gateway/src/routes/security.rs',
+      'rust/crates/betaclaw-gateway/src/routes/model_hub.rs',
+      'rust/crates/betaclaw-base/src/auth/user_store.rs',
+      'rust/crates/betaclaw-gateway/src/routes/security.rs',
       'src/lib/db/migrations.ts',
-      'src/server/gateway/methods/chat.ts',
-      'src/server/protocol/openai.ts',
-      'src/server/memory/service.ts',
+      'rust/crates/betaclaw-base/src/gateway/client.rs',
+      'rust/crates/betaclaw-base/src/gateway/registry.rs',
+      'rust/crates/betaclaw-memory/src/lib.rs',
       'src/core/memory/cache.ts',
-      'src/server/model-hub/service/dispatch/runner.ts',
+      'rust/crates/betaclaw-model-hub/src/lib.rs',
     ]) {
       expect(isHighRiskPath(filePath)).toBe(true);
     }
-    expect(isHighRiskPath('src\\server\\auth\\userContext.ts')).toBe(true);
+    expect(isHighRiskPath('rust\\crates\\betaclaw-base\\src\\auth\\user_store.rs')).toBe(true);
   });
 });

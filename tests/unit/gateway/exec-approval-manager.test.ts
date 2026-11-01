@@ -8,7 +8,7 @@ import {
   isCommandApproved,
   listApprovedCommands,
   revokeCommand,
-} from '@/server/gateway/exec-approval-manager';
+} from '@/shared/gateway/exec-approval-manager';
 
 function makeStorePath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-approvals-'));

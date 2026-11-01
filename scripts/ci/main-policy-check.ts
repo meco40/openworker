@@ -8,7 +8,7 @@ import {
   loadScenarioMatrix,
   parseCommitTrailers,
   readContractLastReviewed,
-} from '@/server/ci/harnessDomainRegistry';
+} from '@/shared/ci/harnessDomainRegistry';
 
 interface PolicyResult {
   ok: boolean;

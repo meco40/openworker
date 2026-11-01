@@ -31,6 +31,8 @@ pub struct ClientHandle {
     sender: mpsc::Sender<Outbound>,
     buffered_bytes: Arc<AtomicUsize>,
     alive: Arc<AtomicBool>,
+    /// Requests in the current one-minute window, written by the connection reader.
+    request_count: Arc<AtomicUsize>,
 }
 
 impl ClientHandle {
@@ -50,6 +52,7 @@ impl ClientHandle {
             sender,
             buffered_bytes: Arc::new(AtomicUsize::new(0)),
             alive: Arc::new(AtomicBool::new(true)),
+            request_count: Arc::new(AtomicUsize::new(0)),
             connected_at: Arc::new(AtomicU64::new(connected_at_ms)),
         }
     }
@@ -62,6 +65,20 @@ impl ClientHandle {
     /// Next value of this connection's contiguous event sequence.
     pub fn next_sequence(&self) -> u64 {
         self.sequence.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    /// Last event sequence sent on this connection (`client.seq` in `broadcast.ts`).
+    pub fn sequence(&self) -> u64 {
+        self.sequence.load(Ordering::SeqCst)
+    }
+
+    /// Requests counted in the current window (`client.requestCount` in `connection-handler.ts`).
+    pub fn request_count(&self) -> usize {
+        self.request_count.load(Ordering::SeqCst)
+    }
+
+    pub fn set_request_count(&self, count: usize) {
+        self.request_count.store(count, Ordering::SeqCst);
     }
 
     pub fn is_alive(&self) -> bool {
@@ -167,6 +184,11 @@ impl RequestWindow {
             count: 0,
             window_start_ms: now_ms,
         }
+    }
+
+    /// Requests counted in the current window, including the rejected ones.
+    pub fn count(&self) -> usize {
+        self.count
     }
 
     /// Records a request. Returns `false` when the budget for this window is

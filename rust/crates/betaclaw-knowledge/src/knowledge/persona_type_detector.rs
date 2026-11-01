@@ -153,7 +153,7 @@ where
         ),
     ];
     // Stable descending sort: a tie keeps the declaration order above.
-    scores.sort_by(|left, right| right.1.cmp(&left.1));
+    scores.sort_by_key(|entry| std::cmp::Reverse(entry.1));
 
     let (best_type, best_score) = scores[0];
     if best_score < MIN_SCORE_THRESHOLD {

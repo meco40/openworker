@@ -408,6 +408,45 @@ mod tests {
         assert!(normalize_capabilities(Some(&serde_json::json!("x"))).is_empty());
     }
 
+    /// Records every planner dispatch and always fails, so the rule plan answers.
+    #[derive(Default)]
+    struct RecordingModel {
+        seen: std::cell::RefCell<Vec<(String, String)>>,
+    }
+
+    impl MasterModelDispatch for RecordingModel {
+        fn dispatch_with_fallback(
+            &self,
+            profile_id: &str,
+            request: &MasterModelRequest,
+        ) -> Result<MasterModelResponse, String> {
+            self.seen
+                .borrow_mut()
+                .push((profile_id.to_string(), request.messages[0].content.clone()));
+            Err("no model in this test".to_string())
+        }
+    }
+
+    /// `master-runtime-persona-config.test.ts`: the planner dispatches on the Master
+    /// persona's model profile and puts the persona's system instruction first.
+    #[test]
+    fn the_planner_uses_the_persona_profile_and_system_instruction() {
+        let dir = TempDir::new();
+        let repo = dir.repo();
+        let env = MasterEnv::new();
+        let persona = get_master_runtime_persona_config(&scope(), &repo, &env).expect("persona");
+        let model = RecordingModel::default();
+
+        build_execution_plan_with_model("contract", &scope(), &repo, &env, &model);
+
+        let seen = model.seen.borrow();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].0, persona.model_hub_profile_id);
+        if let Some(instruction) = &persona.system_instruction {
+            assert!(seen[0].1.starts_with(instruction.as_str()), "{}", seen[0].1);
+        }
+    }
+
     #[test]
     fn the_model_plan_is_used_when_the_model_answers() {
         let dir = TempDir::new();

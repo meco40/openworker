@@ -1567,6 +1567,39 @@ mod tests {
     }
 
     #[test]
+    fn legacy_content_fills_an_existing_empty_file() {
+        let dir = TempDir::new();
+        let persona_id = {
+            let repo = open_repo(&dir);
+            repo.create_persona(&input("Legacy Empty"))
+                .expect("create")
+                .id
+        };
+        {
+            // The files already exist, empty, as created above.
+            let connection = open(OpenOptions::new(dir.db_path())).expect("open");
+            connection
+                .execute_batch(
+                    "CREATE TABLE persona_files (persona_id TEXT, filename TEXT, content TEXT);",
+                )
+                .expect("legacy table");
+            connection
+                .execute(
+                    "INSERT INTO persona_files VALUES (?, 'SOUL.md', 'Legacy SOUL from DB')",
+                    [&persona_id],
+                )
+                .expect("legacy row");
+        }
+        let repo = open_repo(&dir);
+        assert_eq!(
+            repo.get_file(&persona_id, PersonaFileName::Soul)
+                .expect("read")
+                .as_deref(),
+            Some("Legacy SOUL from DB")
+        );
+    }
+
+    #[test]
     fn pragmas_come_from_the_shared_opener() {
         let dir = TempDir::new();
         let repo = open_repo(&dir);

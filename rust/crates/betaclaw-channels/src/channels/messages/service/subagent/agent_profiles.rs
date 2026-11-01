@@ -117,4 +117,28 @@ mod tests {
         assert!(resolve_subagent_agent_profile("  ").is_none());
         assert!(resolve_subagent_agent_profile("unknown").is_none());
     }
+
+    #[test]
+    fn qa_profile_carries_the_playwright_cli_tool_and_skill() {
+        let profile = resolve_subagent_agent_profile("qa").expect("qa profile");
+        assert_eq!(profile.id, "qa");
+        assert!(profile
+            .tool_function_names
+            .contains(&"playwright_cli".to_string()));
+        assert!(profile.skill_ids.contains(&"playwright-cli".to_string()));
+        assert_eq!(
+            resolve_subagent_agent_profile("playwright").map(|p| p.id),
+            Some("qa".to_string())
+        );
+    }
+
+    #[test]
+    fn the_catalog_keeps_the_worker_and_qa_profiles() {
+        let ids: Vec<String> = list_subagent_agent_profiles()
+            .into_iter()
+            .map(|profile| profile.id)
+            .collect();
+        assert!(ids.contains(&"worker".to_string()));
+        assert!(ids.contains(&"qa".to_string()));
+    }
 }

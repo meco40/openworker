@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AgentV2EventEnvelope, AgentV2EventType } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope, AgentV2EventType } from '@/shared/agentV2Types';
 import {
   clampArtifactForPersistence,
   consumeReplayForCommand,

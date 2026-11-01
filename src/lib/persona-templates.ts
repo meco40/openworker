@@ -1,4 +1,4 @@
-import type { PersonaFileName } from '@/server/personas/personaTypes';
+import type { PersonaFileName } from '@/shared/personas/personaTypes';
 
 export interface PersonaTemplate {
   id: string;

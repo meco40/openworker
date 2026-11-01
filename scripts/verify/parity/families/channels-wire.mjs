@@ -5,9 +5,8 @@
  * (11 route files). `channels/state`, `conversations`, `inbox` and the `GET` of
  * `channels/messages` are covered by their own families.
  *
- * The TypeScript reference is the route handler itself. Each route module is
- * imported in-process and called with a `NextRequest`, so status and body come
- * from the real code and are not transcribed. The Rust side goes over HTTP.
+ * The reference is `golden/channels-wire.json`, recorded from the TypeScript route handlers
+ * before their removal. The Rust side goes over HTTP.
  *
  * Probe kinds:
  *   - read / guard: run in the default lane only (see below),
@@ -25,45 +24,14 @@
  * Lanes: by default (`REQUIRE_AUTH` unset on the gateway and in this process)
  * the main probes run and the anonymous auth probes are reported as SKIP. With
  * `REQUIRE_AUTH=true` on both sides the auth probes and the secret probes run.
- *
- * Module-level singletons of earlier families can keep stale store paths; run
- * this family alone with `--family=channels-wire` if a TS-side error names a path.
  */
-import { mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { NextRequest } from 'next/server';
-import { check, checkTrue, rustRequest } from '../harness.mjs';
+import { check, checkTrue, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'channels-wire';
 
-const APP_API = '../../../../app/api/';
 const AUTH_LANE = process.env.REQUIRE_AUTH === 'true';
-
-const STORE_ROOT = join(tmpdir(), `betaclaw-parity-routes-${process.pid}`);
-const STORE_FILES = {
-  DATABASE_PATH: 'mission-control.db',
-  GATEWAY_CONFIG_DB_PATH: 'gateway-config.db',
-  MESSAGES_DB_PATH: 'messages.db',
-  MASTER_DB_PATH: 'master.db',
-  AUTOMATION_DB_PATH: 'automation.db',
-  SKILLS_DB_PATH: 'skills.db',
-  STATS_DB_PATH: 'stats.db',
-  PERSONAS_DB_PATH: 'personas.db',
-  KNOWLEDGE_DB_PATH: 'knowledge.db',
-  MEMORY_DB_PATH: 'memory.db',
-  CLAWHUB_DB_PATH: 'clawhub.db',
-  PROACTIVE_DB_PATH: 'proactive.db',
-  MODEL_HUB_DB_PATH: 'model-hub.db',
-  AUTH_DB_PATH: 'auth.db',
-  SUBAGENT_RUNS_STORE_PATH: 'subagent-runs.json',
-  PROJECTS_PATH: 'projects',
-  WORKSPACE_BASE_PATH: 'workspaces',
-  PERSONAS_ROOT_PATH: 'personas',
-  CHAT_ATTACHMENTS_DIR: 'attachments',
-  BETACLAW_SKILLS_DIR: 'skills',
-  CLAWHUB_WORKDIR: 'clawhub',
-};
+// Auth-lane reference values differ from the default lane (e.g. REQUIRE_AUTH gates first), so they get their own keys.
+const caseKey = (label) => (AUTH_LANE ? `auth lane: ${label}` : label);
 
 const MISSING = 'parity-missing';
 
@@ -73,7 +41,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/channels/messages ohne Inhalt',
-    route: 'channels/messages/route.ts',
     method: 'POST',
     path: '/api/channels/messages',
     body: {},
@@ -81,14 +48,12 @@ const CASES = [
   {
     kind: 'guard',
     label: 'DELETE /api/channels/messages ohne messageId',
-    route: 'channels/messages/route.ts',
     method: 'DELETE',
     path: '/api/channels/messages',
   },
   {
     kind: 'read',
     label: 'GET /api/channels/messages/attachments ohne messageId',
-    route: 'channels/messages/attachments/route.ts',
     method: 'GET',
     path: '/api/channels/messages/attachments',
   },
@@ -97,7 +62,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/channels/pair ohne channel',
-    route: 'channels/pair/route.ts',
     method: 'POST',
     path: '/api/channels/pair',
     body: {},
@@ -105,7 +69,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'DELETE /api/channels/pair ohne channel',
-    route: 'channels/pair/route.ts',
     method: 'DELETE',
     path: '/api/channels/pair',
     body: {},
@@ -115,7 +78,6 @@ const CASES = [
   {
     kind: 'secret',
     label: 'POST /api/channels/telegram/webhook ohne Secret',
-    route: 'channels/telegram/webhook/route.ts',
     method: 'POST',
     path: '/api/channels/telegram/webhook',
     body: {},
@@ -123,7 +85,6 @@ const CASES = [
   {
     kind: 'secret',
     label: 'POST /api/channels/telegram/bots/[botId]/webhook (unbekannter Bot)',
-    route: 'channels/telegram/bots/[botId]/webhook/route.ts',
     method: 'POST',
     path: `/api/channels/telegram/bots/${MISSING}/webhook`,
     params: { botId: MISSING },
@@ -132,7 +93,6 @@ const CASES = [
   {
     kind: 'guard',
     label: 'POST /api/channels/telegram/pairing/confirm ohne code',
-    route: 'channels/telegram/pairing/confirm/route.ts',
     method: 'POST',
     path: '/api/channels/telegram/pairing/confirm',
     body: {},
@@ -147,7 +107,6 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/channels/whatsapp/accounts',
-    route: 'channels/whatsapp/accounts/route.ts',
     method: 'GET',
     path: '/api/channels/whatsapp/accounts',
   },
@@ -159,7 +118,6 @@ const CASES = [
   {
     kind: 'secret',
     label: 'POST /api/channels/whatsapp/webhook ohne Secret',
-    route: 'channels/whatsapp/webhook/route.ts',
     method: 'POST',
     path: '/api/channels/whatsapp/webhook',
     body: {},
@@ -169,7 +127,6 @@ const CASES = [
   {
     kind: 'secret',
     label: 'POST /api/channels/slack/webhook ohne Secret',
-    route: 'channels/slack/webhook/route.ts',
     method: 'POST',
     path: '/api/channels/slack/webhook',
     body: {},
@@ -177,7 +134,6 @@ const CASES = [
   {
     kind: 'secret',
     label: 'POST /api/webhooks/agent-completion ohne Signatur',
-    route: 'webhooks/agent-completion/route.ts',
     method: 'POST',
     path: '/api/webhooks/agent-completion',
     body: {},
@@ -185,7 +141,6 @@ const CASES = [
   {
     kind: 'read',
     label: 'GET /api/webhooks/agent-completion',
-    route: 'webhooks/agent-completion/route.ts',
     method: 'GET',
     path: '/api/webhooks/agent-completion',
   },
@@ -245,63 +200,6 @@ const AUTH_CASES = [
   },
 ];
 
-function isolateStores() {
-  mkdirSync(STORE_ROOT, { recursive: true });
-  for (const [key, file] of Object.entries(STORE_FILES)) {
-    process.env[key] = join(STORE_ROOT, file);
-  }
-}
-
-const routeModules = new Map();
-function loadRoute(route) {
-  if (!routeModules.has(route)) {
-    routeModules.set(route, import(`${APP_API}${route}`));
-  }
-  return routeModules.get(route);
-}
-
-/** Reads a TS response. SSE bodies are never drained: headers are kept, the stream is cancelled. */
-async function readTsResponse(response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('text/event-stream')) {
-    await response.body?.cancel();
-    return { status: response.status, contentType, json: null, text: '' };
-  }
-  const text = await response.text();
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    // non-JSON body stays raw; the comparison then sees null on both sides
-  }
-  return { status: response.status, contentType, json, text };
-}
-
-/** Calls the real route handler in-process. */
-async function tsCall(route, method, path, { params, body } = {}) {
-  const mod = await loadRoute(route);
-  const handler = mod[method];
-  if (typeof handler !== 'function') {
-    throw new Error(`${route} exportiert kein ${method}`);
-  }
-  const headers = {};
-  let payload;
-  if (body !== undefined) {
-    headers['content-type'] = 'application/json';
-    payload = JSON.stringify(body);
-  }
-  const request = new NextRequest(`http://localhost:3000${path}`, {
-    method,
-    headers,
-    body: payload,
-  });
-  const response =
-    params === undefined
-      ? await handler(request)
-      : await handler(request, { params: Promise.resolve(params) });
-  return readTsResponse(response);
-}
-
 /** Returns the paths where the two JSON values differ in keys or value types. */
 function shapeMismatches(rust, ts, path = '$') {
   const rustKind = kindOf(rust);
@@ -347,7 +245,7 @@ function compareJson(label, rust, ts) {
 
 async function runJsonCase(c) {
   const rust = await rustRequest(c.method, c.path, { body: c.body });
-  const ts = await tsCall(c.route, c.method, c.path, { params: c.params, body: c.body });
+  const ts = await goldenReference(name, caseKey(c.label));
   compareJson(c.label, rust, ts);
 }
 
@@ -374,17 +272,12 @@ async function runAuthCase(c) {
 }
 
 export async function run() {
-  isolateStores();
-
   if (AUTH_LANE) {
     console.log('--- Auth-Lauf (REQUIRE_AUTH=true) ---');
     // Without a session, resolveUserIdFromSession answers null; withUserContext and the
     // manual checks turn that into 401 `{ ok: false, error: 'Unauthorized' }`.
-    const { resolveUserIdFromSession } = await import('../../../../src/server/auth/userContext.ts');
-    checkTrue(
-      'TS-Referenz: ohne Session liefert die Auth-Auflösung null',
-      resolveUserIdFromSession(null, true) === null,
-    );
+    const authNull = await goldenReference(name, 'resolveUserIdFromSession(null, true)');
+    checkTrue('TS-Referenz: ohne Session liefert die Auth-Auflösung null', authNull === null);
     for (const c of AUTH_CASES) {
       if (c.gate) {
         console.log(`SKIP ${c.label} (anonym) — ${c.note}`);

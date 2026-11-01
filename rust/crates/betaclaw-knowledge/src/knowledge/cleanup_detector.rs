@@ -204,4 +204,20 @@ mod tests {
         assert!(detect_low_relevance("high level overview of the project"));
         assert!(!detect_low_relevance("ich mag dich"));
     }
+
+    #[test]
+    fn next_week_and_in_days_are_stale_relative_times_too() {
+        let now = 1_800_000_000_000_i64;
+        let old = iso(now - STALE_THRESHOLD_MS - 3_600_000);
+        assert!(detect_stale_relative_time(
+            "das Treffen ist naechste Woche",
+            &old,
+            now
+        ));
+        assert!(detect_stale_relative_time(
+            "wir sehen uns in zwei Tagen",
+            &old,
+            now
+        ));
+    }
 }

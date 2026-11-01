@@ -32,6 +32,8 @@ docs/*
 docs/contracts/*
 !docs/contracts/DOMAIN_REGISTRY.json
 tests
+# Imports the E2E launcher from tests/; the UI build type-checks every tsconfig file.
+scripts/e2e/start-e2e-server.ts
 vitest.config.ts
 eslint.config.js
 .vscode

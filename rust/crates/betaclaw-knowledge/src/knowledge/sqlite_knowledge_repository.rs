@@ -664,4 +664,56 @@ mod tests {
             .expect("read")
             .is_some());
     }
+    /// A dry run reports what a prune would delete and leaves the rows; the
+    /// second call with `dry_run` off deletes them.
+    #[test]
+    fn prune_dry_run_reports_and_the_delete_mode_removes() {
+        use crate::knowledge::repository::{
+            KnowledgeRepository, ListKnowledgeFilter, PruneKnowledgeBeforeInput,
+            UpsertKnowledgeEpisodeInput,
+        };
+        let repo = SqliteKnowledgeRepository::open(":memory:").expect("open");
+        repo.upsert_episode(&UpsertKnowledgeEpisodeInput {
+            user_id: "u-1".into(),
+            persona_id: "p-1".into(),
+            conversation_id: "c-1".into(),
+            topic_key: "topic".into(),
+            counterpart: None,
+            teaser: "Teaser".into(),
+            episode: "Episode".into(),
+            facts: vec![],
+            source_seq_start: 1,
+            source_seq_end: 2,
+            source_refs: vec![],
+            memory_ids: vec![],
+            event_at: None,
+        })
+        .expect("episode");
+        let scope = || ListKnowledgeFilter {
+            user_id: "u-1".into(),
+            persona_id: "p-1".into(),
+            ..Default::default()
+        };
+        let prune = |dry_run: bool| PruneKnowledgeBeforeInput {
+            user_id: "u-1".into(),
+            persona_id: "p-1".into(),
+            before_iso: "2999-01-01T00:00:00.000Z".into(),
+            dry_run: Some(dry_run),
+        };
+
+        let preview = repo.prune_knowledge_before(&prune(true)).expect("dry run");
+        assert_eq!(preview.episodes, 1);
+        assert_eq!(
+            KnowledgeRepository::list_episodes(&repo, &scope())
+                .expect("list")
+                .len(),
+            1
+        );
+
+        let deleted = repo.prune_knowledge_before(&prune(false)).expect("delete");
+        assert_eq!(deleted.episodes, 1);
+        assert!(KnowledgeRepository::list_episodes(&repo, &scope())
+            .expect("list")
+            .is_empty());
+    }
 }

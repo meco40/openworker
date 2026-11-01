@@ -790,4 +790,37 @@ mod tests {
             1
         );
     }
+
+    #[test]
+    fn malformed_rollout_payloads_read_as_none() {
+        let repository = repository();
+        {
+            let connection = repository.lock();
+            connection
+                .execute(
+                    "INSERT INTO engineering_rollout_baselines
+                     (id, window_start, window_end, payload_json, source, baseline_hash)
+                     VALUES ('baseline-invalid', '2026-04-01T00:00:00.000Z',
+                             '2026-04-21T23:59:59.000Z', '\"bad-payload\"', 'snapshot', 'hash-invalid')",
+                    [],
+                )
+                .expect("insert baseline");
+            connection
+                .execute(
+                    "INSERT INTO engineering_rollout_gate_runs
+                     (id, phase_id, status, payload_json, generated_at)
+                     VALUES ('gate-invalid', NULL, 'unknown', '\"bad-payload\"', '2026-04-22T10:31:00.000Z')",
+                    [],
+                )
+                .expect("insert gate run");
+        }
+        assert!(repository
+            .rollout_baseline_by_id("baseline-invalid")
+            .expect("read")
+            .is_none());
+        assert!(repository
+            .latest_rollout_gate_run()
+            .expect("read")
+            .is_none());
+    }
 }

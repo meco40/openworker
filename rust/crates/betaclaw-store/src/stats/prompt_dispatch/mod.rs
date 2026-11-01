@@ -486,4 +486,48 @@ mod tests {
             vec!["2026-05-22T00:00:00.000Z", "2026-05-21T00:00:00.000Z"]
         );
     }
+
+    #[test]
+    fn before_cursor_returns_only_strictly_older_rows() {
+        let repository = new_repository();
+        for created in ["2026-06-10T10:00:00.000Z", "2026-06-10T11:00:00.000Z"] {
+            let mut row = input("m", RiskLevel::Low, TokensSource::Exact);
+            row.created_at = Some(created.into());
+            repository.record_dispatch(row).expect("record");
+        }
+        let page = |before: &str| PromptDispatchFilter {
+            before: Some(before.into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            repository
+                .count_dispatches(&page("2026-06-10T10:00:00.000Z"))
+                .expect("count"),
+            0
+        );
+        assert_eq!(
+            repository
+                .count_dispatches(&page("2026-06-10T11:00:00.000Z"))
+                .expect("count"),
+            1
+        );
+    }
+
+    #[test]
+    fn provider_filter_selects_one_provider() {
+        let repository = new_repository();
+        repository
+            .record_dispatch(input("gpt-4.1", RiskLevel::Low, TokensSource::Exact))
+            .expect("record");
+        let mut other = input("gemini-2.5-pro", RiskLevel::Low, TokensSource::Exact);
+        other.provider_id = "gemini".into();
+        repository.record_dispatch(other).expect("record");
+        let openai = PromptDispatchFilter {
+            provider: Some("openai".into()),
+            ..Default::default()
+        };
+        let rows = repository.list_dispatches(&openai).expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].model_name, "gpt-4.1");
+    }
 }

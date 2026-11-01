@@ -49,10 +49,4 @@ describe('next config output tracing excludes', () => {
     expect(rootExcludes).toContain('tests/**');
     expect(rootExcludes).toContain('docs/**');
   });
-
-  it('keeps canonical handlers exclude', () => {
-    const rootExcludes = getRootTraceExcludes();
-
-    expect(rootExcludes).toContain('src/server/skills/handlers/**');
-  });
 });

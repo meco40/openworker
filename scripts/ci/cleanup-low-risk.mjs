@@ -3,12 +3,7 @@ import { spawnSync } from 'node:child_process';
 const MODE = process.argv[2] || 'analyze';
 const MAX_FILES = Number(process.env.CLEANUP_MAX_FILES || 25);
 const MAX_CHANGED_LINES = Number(process.env.CLEANUP_MAX_CHANGED_LINES || 300);
-const FORBIDDEN_PREFIXES = [
-  'app/api/',
-  'src/server/',
-  'src/lib/db/migrations.ts',
-  'docs/contracts/',
-];
+const FORBIDDEN_PREFIXES = ['src/lib/db/migrations.ts', 'docs/contracts/'];
 
 function exec(command, args) {
   const child = spawnSync(command, args, {

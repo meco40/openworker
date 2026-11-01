@@ -1,0 +1,113 @@
+{
+  "values": {
+    "typescript": {
+      "createdStatus": 201,
+      "created": {
+        "name": "Parity Persona",
+        "slug": "parity_persona",
+        "emoji": "🐙",
+        "vibe": "curious",
+        "systemPersonaKey": null,
+        "preferredModelId": null,
+        "modelHubProfileId": null,
+        "memoryPersonaType": "general",
+        "isAutonomous": false,
+        "maxToolCalls": 120,
+        "allowedToolFunctionNames": [],
+        "hasId": true,
+        "hasUpdatedAt": true,
+        "hasUserId": true,
+        "hasTimestampFields": true
+      },
+      "createdFiles": {
+        "SOUL.md": "hello",
+        "IDENTITY.md": "",
+        "AGENTS.md": "",
+        "USER.md": "",
+        "TOOLS.md": "",
+        "HEARTBEAT.md": ""
+      },
+      "listed": {
+        "name": "Parity Persona",
+        "slug": "parity_persona",
+        "emoji": "🐙",
+        "vibe": "curious",
+        "systemPersonaKey": null,
+        "preferredModelId": null,
+        "modelHubProfileId": null,
+        "memoryPersonaType": "general",
+        "isAutonomous": false,
+        "maxToolCalls": 120,
+        "allowedToolFunctionNames": [],
+        "hasId": true,
+        "hasUpdatedAt": true
+      },
+      "updated": true,
+      "afterUpdate": {
+        "name": "Parity Renamed",
+        "slug": "parity_renamed",
+        "emoji": "🐙",
+        "vibe": "curious",
+        "systemPersonaKey": null,
+        "preferredModelId": null,
+        "modelHubProfileId": null,
+        "memoryPersonaType": "general",
+        "isAutonomous": true,
+        "maxToolCalls": 42,
+        "allowedToolFunctionNames": [],
+        "hasId": true,
+        "hasUpdatedAt": true,
+        "hasUserId": true,
+        "hasTimestampFields": true
+      },
+      "duplicateNameStatus": 409,
+      "duplicateNameError": "Persona slug already exists: \"parity_renamed\".",
+      "deleted": true,
+      "afterDelete": 404,
+      "templates": [
+        {
+          "id": "nextjs-dev",
+          "name": "Next.js Dev",
+          "emoji": "👨‍💻",
+          "vibe": "Professionell, präzise, lösungsorientiert"
+        },
+        {
+          "id": "best-friend",
+          "name": "Best Friend",
+          "emoji": "🤗",
+          "vibe": "Warmherzig, locker, immer da"
+        },
+        {
+          "id": "translator",
+          "name": "Übersetzer",
+          "emoji": "🌍",
+          "vibe": "Neutral, kulturbewusst, sprachgewandt"
+        },
+        {
+          "id": "code-reviewer",
+          "name": "Code Reviewer",
+          "emoji": "🔍",
+          "vibe": "Kritisch, konstruktiv, sicherheitsbewusst"
+        },
+        {
+          "id": "creative",
+          "name": "Kreativ-Assistent",
+          "emoji": "🎨",
+          "vibe": "Inspirierend, assoziativ, experimentierfreudig"
+        }
+      ],
+      "missingName": {
+        "status": 400,
+        "error": "name is required"
+      },
+      "badProfile": {
+        "status": 400,
+        "error": "modelHubProfileId must be a non-empty string (letters, numbers, \".\", \"_\" or \"-\")."
+      },
+      "badMemoryType": {
+        "status": 400,
+        "error": "Invalid memoryPersonaType. Allowed: general, roleplay, builder, assistant"
+      }
+    }
+  }
+}

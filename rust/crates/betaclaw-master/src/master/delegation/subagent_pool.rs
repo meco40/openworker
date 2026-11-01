@@ -14,14 +14,15 @@
 //! timer. The one deterministic sync before the task and the `cancel` in the
 //! `finally` are executed here; only the repeated ticks are delegated (OP-S9-11).
 //!
-//! # The task closure is infallible here
+//! # A failing task
 //!
-//! `task: () => Promise<{ output, confidence? }>` can reject in TypeScript and
-//! the source then marks the job `failed` and re-throws
-//! (`subagentPool.ts:78-99`). The [`crate::master::orchestrator::DelegationDispatcherPort`]
-//! seam types the closure as `FnOnce() -> DelegationTaskResult`, so a Rust task
-//! cannot fail; the failure branch is kept at the job level only for repository
-//! errors, and the difference is recorded as OP-S9-11.
+//! `task: () => Promise<{ output, confidence? }>` can reject. The source then
+//! marks the job `failed` with `lastError`, publishes an `error` event, fails
+//! the session and re-throws (`subagentPool.ts:78-99`). The port returns the
+//! same failure as [`SubagentExecuteError::Task`]; the dispatcher turns it into
+//! a rejected outcome that carries the message. A session that was cancelled
+//! while the task ran stays `cancelled` and the job follows it, without an
+//! error (`subagentPool.ts:72-77`, `:83-87`).
 
 use serde_json::{json, Value};
 
@@ -36,8 +37,9 @@ use crate::master::types::WorkspaceScope;
 
 use super::inbox::DelegationInbox;
 use super::session_service::{
-    claim_subagent_session, complete_subagent_session, sync_subagent_session_heartbeat,
-    ClaimSubagentSessionRequest, SyncSubagentSessionHeartbeatInput,
+    claim_subagent_session, complete_subagent_session, fail_subagent_session,
+    sync_subagent_session_heartbeat, ClaimSubagentSessionRequest,
+    SyncSubagentSessionHeartbeatInput,
 };
 
 /// `30_000` — `subagentPool.ts:38`.
@@ -51,6 +53,31 @@ pub const DEFAULT_HEARTBEAT_INTERVAL_MS: u64 = 10_000;
 pub struct SubagentPoolOptions {
     pub heartbeat_interval_ms: Option<u64>,
     pub lease_ms: Option<i64>,
+}
+
+/// What [`SubagentPool::execute`] can return as an error.
+///
+/// `Task` is the rethrown task failure (`subagentPool.ts:94`). The job and the
+/// session are already marked `failed` when it is returned.
+#[derive(Debug)]
+pub enum SubagentExecuteError {
+    Storage(rusqlite::Error),
+    Task(String),
+}
+
+impl std::fmt::Display for SubagentExecuteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Storage(error) => write!(f, "{error}"),
+            Self::Task(message) => f.write_str(message),
+        }
+    }
+}
+
+impl From<rusqlite::Error> for SubagentExecuteError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Storage(error)
+    }
 }
 
 /// `setInterval(…, heartbeatIntervalMs)` / `clearInterval(handle)`.
@@ -160,8 +187,8 @@ impl<'a> SubagentPool<'a> {
         run_id: &str,
         job_id: &str,
         session_id: Option<&str>,
-        task: Box<dyn FnOnce() -> DelegationTaskResult + '_>,
-    ) -> rusqlite::Result<()> {
+        task: Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + '_>,
+    ) -> Result<(), SubagentExecuteError> {
         let lease_ms = self.options.lease_ms.unwrap_or(DEFAULT_POOL_LEASE_MS);
         let heartbeat_interval_ms = self
             .options
@@ -214,12 +241,14 @@ impl<'a> SubagentPool<'a> {
             scheduled = true;
         }
 
-        let result = task();
+        let outcome = task();
         let session = match session_id {
             Some(session_id) => self.repo.get_subagent_session(scope, session_id)?,
             None => None,
         };
-        if session.as_ref().map(|session| session.status.as_str()) == Some("cancelled") {
+        let cancelled =
+            session.as_ref().map(|session| session.status.as_str()) == Some("cancelled");
+        if cancelled {
             self.repo.update_delegation_job(
                 scope,
                 job_id,
@@ -234,6 +263,39 @@ impl<'a> SubagentPool<'a> {
             }
             return Ok(());
         }
+
+        let result = match outcome {
+            Ok(result) => result,
+            Err(message) => {
+                // `catch (error)` in `subagentPool.ts:78-99`.
+                self.repo.update_delegation_job(
+                    scope,
+                    job_id,
+                    &DelegationPatch {
+                        status: Some("failed".to_string()),
+                        last_error: Some(Some(message.clone())),
+                        ..DelegationPatch::default()
+                    },
+                )?;
+                self.publish_state(scope, run_id, session_id);
+                self.inbox
+                    .publish(scope, run_id, job_id, "error", &json!({ "error": message }))?;
+                if let Some(session_id) = session_id {
+                    fail_subagent_session(
+                        self.repo,
+                        scope,
+                        session_id,
+                        &message,
+                        None,
+                        self.publisher,
+                    )?;
+                }
+                if scheduled {
+                    self.heartbeat.cancel();
+                }
+                return Err(SubagentExecuteError::Task(message));
+            }
+        };
 
         self.repo.update_delegation_job(
             scope,
@@ -365,9 +427,11 @@ mod tests {
             &run_id,
             &job.id,
             Some(&session.id),
-            Box::new(|| DelegationTaskResult {
-                output: "result body".to_string(),
-                confidence: Some(0.8),
+            Box::new(|| {
+                Ok(DelegationTaskResult {
+                    output: "result body".to_string(),
+                    confidence: Some(0.8),
+                })
             }),
         )
         .unwrap();
@@ -400,5 +464,263 @@ mod tests {
             confidence: None,
         });
         assert_eq!(without, serde_json::json!({ "output": "x" }));
+    }
+
+    /// One run with one queued job and, when asked, one durable session.
+    fn queued_job(
+        repo: &SqliteMasterRepository,
+        scope: &WorkspaceScope,
+        with_session: bool,
+    ) -> (String, String, Option<String>) {
+        let run_id = repo
+            .create_run(&MasterRunCreateInput {
+                user_id: scope.user_id.clone(),
+                workspace_id: scope.workspace_id.clone(),
+                title: "Run".to_string(),
+                contract: "Contract".to_string(),
+            })
+            .unwrap()
+            .id;
+        let session_id = with_session.then(|| {
+            crate::master::delegation::session_service::create_subagent_session_for_dispatch(
+                repo,
+                scope,
+                &CreateSubagentSessionForDispatchInput {
+                    run_id: run_id.clone(),
+                    capability: "web_search".to_string(),
+                    payload: "Find docs".to_string(),
+                    assigned_tools: None,
+                },
+                &NoopMasterEventPublisher,
+            )
+            .unwrap()
+            .id
+        });
+        let job = repo
+            .create_delegation_job(
+                scope,
+                &MasterDelegationJobInput {
+                    run_id: run_id.clone(),
+                    capability: "web_search".to_string(),
+                    payload: "{}".to_string(),
+                    status: "queued".to_string(),
+                    priority: "medium".to_string(),
+                    max_attempts: 3,
+                    timeout_ms: 120_000,
+                },
+            )
+            .unwrap();
+        (run_id, job.id, session_id)
+    }
+
+    fn job_status(repo: &SqliteMasterRepository, scope: &WorkspaceScope, run_id: &str) -> String {
+        repo.list_delegation_jobs(scope, run_id).unwrap()[0]
+            .status
+            .clone()
+    }
+
+    fn session_status(
+        repo: &SqliteMasterRepository,
+        scope: &WorkspaceScope,
+        run_id: &str,
+    ) -> String {
+        repo.list_subagent_sessions(scope, Some(run_id), 100)
+            .unwrap()[0]
+            .status
+            .clone()
+    }
+
+    /// `cancel` of a session as the route does it, run from inside the task.
+    fn cancel_in_flight(repo: &SqliteMasterRepository, scope: &WorkspaceScope, session_id: &str) {
+        crate::master::delegation::session_service::cancel_subagent_session(
+            repo,
+            scope,
+            session_id,
+            None,
+            &NoopMasterEventPublisher,
+        )
+        .unwrap();
+    }
+
+    /// `subagentPool.ts` without a session: the job completes and nothing
+    /// touches a heartbeat (`subagent-pool-branches.test.ts`, "completes without a session").
+    #[test]
+    fn execute_completes_a_job_without_a_session() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let (run_id, job_id, _) = queued_job(&repo, &scope, false);
+        let heartbeat = RecordingHeartbeat::default();
+        let publisher = RecordingPublisher::default();
+        let inbox = DelegationInbox::new(&repo);
+        let pool = SubagentPool::new(
+            &repo,
+            &inbox,
+            &publisher,
+            &heartbeat,
+            SubagentPoolOptions::default(),
+        );
+
+        pool.execute(
+            &scope,
+            &run_id,
+            &job_id,
+            None,
+            Box::new(|| {
+                Ok(DelegationTaskResult {
+                    output: "no session output".to_string(),
+                    confidence: None,
+                })
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(job_status(&repo, &scope, &run_id), "completed");
+        assert_eq!(heartbeat.scheduled.load(Ordering::SeqCst), 0);
+    }
+
+    /// `subagentPool.ts:78-99`: a rejected task marks the job `failed` with
+    /// `lastError`, publishes `error`, fails the session and is rethrown.
+    #[test]
+    fn a_failing_task_fails_the_job_and_the_session() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let (run_id, job_id, session_id) = queued_job(&repo, &scope, true);
+        let heartbeat = RecordingHeartbeat::default();
+        let publisher = RecordingPublisher::default();
+        let inbox = DelegationInbox::new(&repo);
+        let pool = SubagentPool::new(
+            &repo,
+            &inbox,
+            &publisher,
+            &heartbeat,
+            SubagentPoolOptions::default(),
+        );
+
+        let error = pool
+            .execute(
+                &scope,
+                &run_id,
+                &job_id,
+                session_id.as_deref(),
+                Box::new(|| Err("task failed".to_string())),
+            )
+            .unwrap_err();
+
+        assert!(matches!(&error, SubagentExecuteError::Task(message) if message == "task failed"));
+        let jobs = repo.list_delegation_jobs(&scope, &run_id).unwrap();
+        assert_eq!(jobs[0].status, "failed");
+        assert_eq!(jobs[0].last_error.as_deref(), Some("task failed"));
+        assert_eq!(session_status(&repo, &scope, &run_id), "failed");
+        let events = repo.list_delegation_events(&scope, &run_id).unwrap();
+        assert!(events.iter().any(|event| event.event_type == "error"));
+        assert!(!events.iter().any(|event| event.event_type == "result"));
+        assert_eq!(heartbeat.scheduled.load(Ordering::SeqCst), 1);
+        assert_eq!(heartbeat.cancelled.load(Ordering::SeqCst), 1);
+    }
+
+    /// The same failure without a session: the job still fails and the error
+    /// comes back (`subagent-pool-branches.test.ts`, "fails without a session").
+    #[test]
+    fn a_failing_task_without_a_session_still_fails_the_job() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let (run_id, job_id, _) = queued_job(&repo, &scope, false);
+        let heartbeat = RecordingHeartbeat::default();
+        let publisher = RecordingPublisher::default();
+        let inbox = DelegationInbox::new(&repo);
+        let pool = SubagentPool::new(
+            &repo,
+            &inbox,
+            &publisher,
+            &heartbeat,
+            SubagentPoolOptions::default(),
+        );
+
+        let error = pool
+            .execute(
+                &scope,
+                &run_id,
+                &job_id,
+                None,
+                Box::new(|| Err("no session failure".to_string())),
+            )
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), "no session failure");
+        let jobs = repo.list_delegation_jobs(&scope, &run_id).unwrap();
+        assert_eq!(jobs[0].status, "failed");
+        assert_eq!(jobs[0].last_error.as_deref(), Some("no session failure"));
+        assert_eq!(heartbeat.cancelled.load(Ordering::SeqCst), 0);
+    }
+
+    /// "keeps a cancelled session cancelled when task succeeds". The cancel
+    /// arrives while the task runs, as it does in production.
+    #[test]
+    fn a_session_cancelled_during_the_task_stays_cancelled_on_success() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let (run_id, job_id, session_id) = queued_job(&repo, &scope, true);
+        let session_id = session_id.unwrap();
+        let publisher = RecordingPublisher::default();
+        let inbox = DelegationInbox::new(&repo);
+        let pool = SubagentPool::new(
+            &repo,
+            &inbox,
+            &publisher,
+            &NoopSubagentHeartbeatScheduler,
+            SubagentPoolOptions::default(),
+        );
+
+        pool.execute(
+            &scope,
+            &run_id,
+            &job_id,
+            Some(&session_id),
+            Box::new(|| {
+                cancel_in_flight(&repo, &scope, &session_id);
+                Ok(DelegationTaskResult {
+                    output: "late output".to_string(),
+                    confidence: Some(0.9),
+                })
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(job_status(&repo, &scope, &run_id), "cancelled");
+        assert_eq!(session_status(&repo, &scope, &run_id), "cancelled");
+    }
+
+    /// "keeps a cancelled session cancelled when task throws": the cancel wins
+    /// and no error comes back.
+    #[test]
+    fn a_session_cancelled_during_the_task_stays_cancelled_on_failure() {
+        let repo = SqliteMasterRepository::open(":memory:").unwrap();
+        let scope = scope();
+        let (run_id, job_id, session_id) = queued_job(&repo, &scope, true);
+        let session_id = session_id.unwrap();
+        let publisher = RecordingPublisher::default();
+        let inbox = DelegationInbox::new(&repo);
+        let pool = SubagentPool::new(
+            &repo,
+            &inbox,
+            &publisher,
+            &NoopSubagentHeartbeatScheduler,
+            SubagentPoolOptions::default(),
+        );
+
+        pool.execute(
+            &scope,
+            &run_id,
+            &job_id,
+            Some(&session_id),
+            Box::new(|| {
+                cancel_in_flight(&repo, &scope, &session_id);
+                Err("should not fail".to_string())
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(job_status(&repo, &scope, &run_id), "cancelled");
+        assert_eq!(session_status(&repo, &scope, &run_id), "cancelled");
     }
 }

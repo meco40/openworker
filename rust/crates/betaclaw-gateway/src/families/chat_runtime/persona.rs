@@ -244,4 +244,34 @@ mod tests {
             .expect("remove project workspace");
         assert!(!std::path::Path::new(&paths.absolute_path).exists());
     }
+
+    #[test]
+    fn separate_task_requests_get_distinct_folders() {
+        let scratch = Scratch::new();
+        let store = PersonaStore::open(&scratch.path("personas.db"), &scratch.dir("personas"))
+            .expect("open");
+        let first = store
+            .create_project_workspace("ada", "Baue Notes App", "Baue Notes App")
+            .expect("first");
+        let second = store
+            .create_project_workspace("ada", "Baue Notes App", "Baue Notes App")
+            .expect("second");
+        assert_ne!(first.absolute_path, second.absolute_path);
+    }
+
+    #[test]
+    fn removal_outside_the_projects_directory_is_refused() {
+        let scratch = Scratch::new();
+        let store = PersonaStore::open(&scratch.path("personas.db"), &scratch.dir("personas"))
+            .expect("open");
+        let outside = std::path::PathBuf::from(scratch.dir("personas"))
+            .join("ada")
+            .join("outside-workspace");
+        std::fs::create_dir_all(&outside).expect("create outside dir");
+        let outside_text = outside.to_string_lossy().into_owned();
+        assert!(store
+            .remove_project_workspace("ada", &outside_text)
+            .is_err());
+        assert!(outside.is_dir());
+    }
 }

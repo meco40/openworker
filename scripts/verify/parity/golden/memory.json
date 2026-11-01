@@ -1,0 +1,112 @@
+{
+  "values": {
+    "typescript": {
+      "store": {
+        "status": 200,
+        "node": {
+          "type": "fact",
+          "content": "Rust migration parity fact",
+          "importance": 3,
+          "version": 1,
+          "workspaceId": "parity-memory-workspace",
+          "hasId": true,
+          "hasTimestamp": true
+        }
+      },
+      "page": {
+        "status": 200,
+        "nodes": [
+          {
+            "type": "fact",
+            "content": "Rust migration parity fact",
+            "importance": 3,
+            "version": 1,
+            "workspaceId": "parity-memory-workspace",
+            "hasId": true,
+            "hasTimestamp": true
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "pageSize": 25,
+          "total": 1,
+          "totalPages": 1
+        }
+      },
+      "update": {
+        "status": 200,
+        "node": {
+          "type": "fact",
+          "content": "Updated Rust migration parity fact",
+          "importance": 4,
+          "version": 2,
+          "workspaceId": "parity-memory-workspace",
+          "hasId": true,
+          "hasTimestamp": true
+        }
+      },
+      "history": {
+        "status": 200,
+        "node": {
+          "type": "fact",
+          "content": "Updated Rust migration parity fact",
+          "importance": 4,
+          "version": 2,
+          "workspaceId": "parity-memory-workspace",
+          "hasId": true,
+          "hasTimestamp": true
+        },
+        "entries": [
+          {
+            "index": 0,
+            "action": "add",
+            "content": "Rust migration parity fact",
+            "type": "fact",
+            "importance": 3,
+            "version": 1
+          },
+          {
+            "index": 1,
+            "action": "update",
+            "content": "Updated Rust migration parity fact",
+            "type": "fact",
+            "importance": 4,
+            "version": 2
+          }
+        ]
+      },
+      "bulk": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "action": "update",
+          "affected": 2
+        }
+      },
+      "deleteOne": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "deleted": 1
+        }
+      },
+      "deleteAll": {
+        "status": 200,
+        "body": {
+          "ok": true,
+          "deleted": 1
+        }
+      },
+      "empty": {
+        "status": 200,
+        "nodes": [],
+        "pagination": {
+          "page": 1,
+          "pageSize": 25,
+          "total": 0,
+          "totalPages": 1
+        }
+      }
+    }
+  }
+}

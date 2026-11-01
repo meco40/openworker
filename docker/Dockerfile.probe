@@ -1,0 +1,19 @@
+# ─── BetaClaw Release Smoke Probe ─────────────────────────────
+# Runs scripts/e2e/production-smoke.mjs against the Rust gateway in
+# docker-compose.release-smoke.yml. Node is only the probe runtime here (HTTP, WebSocket
+# and Chromium through Playwright). It serves no application; the scripts directory is
+# mounted at run time.
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+ENV HUSKY=0
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm config set node-linker hoisted && \
+    pnpm install --frozen-lockfile --prod --ignore-scripts
+
+RUN node node_modules/playwright/cli.js install --with-deps chromium && \
+    rm -rf /var/lib/apt/lists/*
+
+CMD ["node", "scripts/e2e/production-smoke.mjs"]

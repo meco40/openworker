@@ -397,4 +397,32 @@ mod tests {
         assert!(!expired.has_pending);
         assert_eq!(expired.pending_chat_id, None);
     }
+
+    #[test]
+    fn a_missing_code_is_refused() {
+        let store = memory_store();
+        ensure_telegram_pairing_code(store.as_ref(), "111", t0()).unwrap();
+
+        assert_eq!(
+            confirm_telegram_pairing_code(store.as_ref(), "   ", t0())
+                .unwrap_err()
+                .0,
+            "Pairing code is required."
+        );
+    }
+
+    #[test]
+    fn migration_moves_a_pending_code_to_the_new_chat() {
+        let store = memory_store();
+        ensure_telegram_pairing_code(store.as_ref(), "-100", t0()).unwrap();
+
+        assert!(migrate_telegram_paired_chat_id(
+            store.as_ref(),
+            "-100",
+            "-200"
+        ));
+
+        let snapshot = telegram_pairing_snapshot(store.as_ref(), t0());
+        assert_eq!(snapshot.pending_chat_id.as_deref(), Some("-200"));
+    }
 }

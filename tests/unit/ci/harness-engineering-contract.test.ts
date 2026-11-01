@@ -16,10 +16,7 @@ describe('harness engineering governance contracts', () => {
     expect(asyncWorkflow).toContain('Async Quality Gates');
     expect(asyncWorkflow).toContain('pnpm run test:coverage');
     expect(asyncWorkflow).toContain('pnpm run test:e2e:browser:ci');
-    expect(asyncWorkflow).toContain('Live E2E (Async)');
     expect(asyncWorkflow).toContain('Async SLA Follow-up');
-    expect(asyncWorkflow).toContain('MEM0_BASE_URL');
-    expect(asyncWorkflow).toContain('MEM0_API_KEY');
   });
 
   it('keeps main guardian workflow for deterministic post-push safety', () => {

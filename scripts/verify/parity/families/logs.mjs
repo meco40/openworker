@@ -1,15 +1,12 @@
 /**
  * `/api/logs` parity: ingest, listing, sources, categories and clear.
  *
- * The TypeScript side drives the same LogRepository the route delegates to,
- * in-process against a temporary database. The Rust side goes over HTTP
- * against a running gateway. Volatile fields (ids, timestamps) are normalised
- * before comparison; everything else must match exactly.
+ * The reference is `golden/logs.json`, recorded once from the TypeScript
+ * LogRepository the route used to delegate to. The Rust side goes over HTTP against
+ * a running gateway. Volatile fields (ids, timestamps) are normalised before
+ * comparison; everything else must match exactly.
  */
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { check, rustRequest, bestEffortRemoveDir } from '../harness.mjs';
+import { check, goldenReference, rustRequest } from '../harness.mjs';
 
 export const name = 'logs';
 
@@ -25,35 +22,6 @@ function normaliseLog(entry) {
     hasTimestamp: typeof entry.timestamp === 'string' && !Number.isNaN(Date.parse(entry.timestamp)),
     createdAtMatchesTimestamp: entry.createdAt === entry.timestamp,
   };
-}
-
-async function typescriptLog(entries) {
-  const dir = mkdtempSync(join(tmpdir(), 'betaclaw-parity-'));
-  const dbPath = join(dir, 'logs.db');
-  process.env.LOGS_DB_PATH = dbPath;
-  const { LogRepository, getLogRepository } =
-    await import('../../../../src/logging/logRepository.ts');
-  const { logFromSystemEvent } = await import('../../../../src/logging/logService.ts');
-
-  const repo = new LogRepository(dbPath);
-  for (const { type, message } of entries) {
-    logFromSystemEvent(type, message);
-  }
-
-  const listed = repo.listLogs({ limit: 200 });
-  const total = repo.getLogCount({});
-  const sources = repo.getSources();
-  const categories = repo.getCategories();
-  const cleared = repo.clearLogs();
-  // Both this repository and the process-global one opened the file, so both
-  // connections have to be closed before Windows releases the file.
-  repo.close();
-  const singleton = getLogRepository();
-  if (singleton !== repo) singleton.close();
-
-  const result = { listed, total, sources, categories, cleared };
-  bestEffortRemoveDir(dir);
-  return result;
 }
 
 async function rustLog(entries) {
@@ -90,7 +58,7 @@ const ENTRIES = [
 ];
 
 export async function run() {
-  const ts = await typescriptLog(ENTRIES);
+  const ts = await goldenReference(name, 'typescript');
   const rust = await rustLog(ENTRIES);
 
   console.log('--- Anzahl ---');

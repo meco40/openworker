@@ -400,6 +400,8 @@ pub async fn start_scheduler_runtime(
     state: SharedState,
     env: HashMap<String, String>,
 ) -> Result<SchedulerRuntime, Box<dyn std::error::Error>> {
+    // Before any job starts: a removed `node` switch value stops the scheduler here.
+    crate::background::validate_job_switches()?;
     assert_scheduler_startup_guards(&env)?;
 
     let options = AutomationRuntimeOptions::from_env(&env);
@@ -443,7 +445,7 @@ pub async fn start_scheduler_runtime(
                         migrations_dir: env
                             .get("WORLD_MODEL_MIGRATIONS_DIR")
                             .cloned()
-                            .unwrap_or_else(|| "src/server/world-model/migrations".to_string()),
+                            .unwrap_or_else(MigrationSettings::default_migrations_dir),
                     };
                     if let Err(error) = Arc::clone(&dispatcher)
                         .start(&world_model_config, &ports, &migrations)
@@ -567,14 +569,14 @@ pub async fn start_scheduler_runtime(
         }
     }
 
-    let workspace_cleanup = crate::workspace_cleanup::WorkspaceCleanup::start(state.clone());
+    let workspace_cleanup = crate::workspace_cleanup::WorkspaceCleanup::start(state.clone())?;
     tracing::info!(
-        owner = crate::background::job_owner("BETACLAW_WORKSPACE_CLEANUP"),
+        owner = crate::background::job_owner("BETACLAW_WORKSPACE_CLEANUP")?,
         "[task-workspaces] status"
     );
-    let swarm_enabled = crate::swarm_runtime::SwarmRuntime::should_run_for_role("scheduler");
+    let swarm_enabled = crate::swarm_runtime::SwarmRuntime::should_run_for_role("scheduler")?;
     tracing::info!(
-        owner = crate::background::job_owner("BETACLAW_SWARM_RUNNER"),
+        owner = crate::background::job_owner("BETACLAW_SWARM_RUNNER")?,
         "[swarm-runtime] status"
     );
     let swarm_runtime = if swarm_enabled {

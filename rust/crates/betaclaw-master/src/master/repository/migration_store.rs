@@ -526,6 +526,117 @@ mod tests {
         assert_eq!(moved, "w2");
     }
 
+    fn scalar<T: rusqlite::types::FromSql>(connection: &Connection, sql: &str) -> T {
+        connection.query_row(sql, [], |row| row.get(0)).unwrap()
+    }
+
+    /// A scope migration into a non-empty target merges by recency: a colliding
+    /// approval rule, capability score or connector secret keeps the newer row, and
+    /// rows without a collision move (`migration-store-branches.test.ts`, "merges
+    /// approval rules, capability scores, and connector secrets").
+    #[test]
+    fn migrating_a_scope_merges_colliding_rows_by_recency() {
+        let connection = setup();
+        connection
+            .execute_batch(
+                "INSERT INTO master_approval_rules
+                   (id, user_id, workspace_id, action_type, fingerprint, decision, created_at, updated_at)
+                 VALUES ('rule-old', 'u1', 'w-from', 'gmail.send', 'fp', 'approve_always',
+                   '2026-04-20T00:00:00.000Z', '2026-04-22T10:00:00.000Z'),
+                   ('rule-target', 'u1', 'w-to', 'gmail.send', 'fp', 'ask',
+                   '2026-04-19T00:00:00.000Z', '2026-04-21T10:00:00.000Z');
+                 INSERT INTO master_capability_scores
+                   (id, user_id, workspace_id, capability, confidence, last_verified_at, benchmark_summary, updated_at)
+                 VALUES ('cap-old', 'u1', 'w-from', 'shell_execute', 0.9, '2026-04-22T08:00:00.000Z',
+                   'new summary', '2026-04-22T09:00:00.000Z'),
+                   ('cap-target', 'u1', 'w-to', 'shell_execute', 0.4, NULL,
+                   'old summary', '2026-04-21T09:00:00.000Z');
+                 INSERT INTO master_connector_secrets
+                   (id, user_id, workspace_id, provider, key_ref, encrypted_payload, issued_at, expires_at, revoked_at, created_at, updated_at)
+                 VALUES ('secret-old', 'u1', 'w-from', 'gmail', 'key-1', 'payload-new',
+                   '2026-04-20T00:00:00.000Z', NULL, NULL, '2026-04-20T00:00:00.000Z', '2026-04-22T10:00:00.000Z'),
+                   ('secret-target', 'u1', 'w-to', 'gmail', 'key-1', 'payload-old',
+                   '2026-04-19T00:00:00.000Z', NULL, '2026-04-20T00:00:00.000Z', '2026-04-19T00:00:00.000Z', '2026-04-21T10:00:00.000Z'),
+                   ('secret-move', 'u1', 'w-from', 'slack', 'key-2', 'payload-move',
+                   NULL, NULL, NULL, '2026-04-22T00:00:00.000Z', '2026-04-22T01:00:00.000Z');",
+            )
+            .unwrap();
+
+        migrate_workspace_scope(
+            &connection,
+            &ScopeMigrationInput {
+                user_id: "u1",
+                from_workspace_id: "w-from",
+                to_workspace_id: "w-to",
+            },
+        )
+        .unwrap();
+
+        let decision: String = scalar(
+            &connection,
+            "SELECT decision FROM master_approval_rules WHERE id = 'rule-target'",
+        );
+        assert_eq!(decision, "approve_always");
+        let old_rules: i64 = scalar(
+            &connection,
+            "SELECT COUNT(*) FROM master_approval_rules WHERE id = 'rule-old'",
+        );
+        assert_eq!(old_rules, 0);
+
+        let confidence: f64 = scalar(
+            &connection,
+            "SELECT confidence FROM master_capability_scores WHERE id = 'cap-target'",
+        );
+        let summary: String = scalar(
+            &connection,
+            "SELECT benchmark_summary FROM master_capability_scores WHERE id = 'cap-target'",
+        );
+        assert_eq!(confidence, 0.9);
+        assert_eq!(summary, "new summary");
+        let old_scores: i64 = scalar(
+            &connection,
+            "SELECT COUNT(*) FROM master_capability_scores WHERE id = 'cap-old'",
+        );
+        assert_eq!(old_scores, 0);
+
+        let payload: String = scalar(
+            &connection,
+            "SELECT encrypted_payload FROM master_connector_secrets WHERE id = 'secret-target'",
+        );
+        let revoked: Option<String> = scalar(
+            &connection,
+            "SELECT revoked_at FROM master_connector_secrets WHERE id = 'secret-target'",
+        );
+        assert_eq!(payload, "payload-new");
+        assert_eq!(revoked, None);
+        let moved: String = scalar(
+            &connection,
+            "SELECT workspace_id FROM master_connector_secrets WHERE id = 'secret-move'",
+        );
+        assert_eq!(moved, "w-to");
+    }
+
+    /// "ignores noop migrations": moving a scope onto itself changes nothing.
+    #[test]
+    fn a_scope_migration_onto_itself_is_a_noop() {
+        let connection = setup();
+        insert_run(&connection, "r1", "w1", "2026-01-01T00:00:00.000Z");
+        migrate_workspace_scope(
+            &connection,
+            &ScopeMigrationInput {
+                user_id: "u1",
+                from_workspace_id: "w1",
+                to_workspace_id: "w1",
+            },
+        )
+        .unwrap();
+        let workspace: String = scalar(
+            &connection,
+            "SELECT workspace_id FROM master_runs WHERE id = 'r1'",
+        );
+        assert_eq!(workspace, "w1");
+    }
+
     #[test]
     fn migrate_user_legacy_scopes_rewrites_the_persona_segment() {
         let connection = setup();

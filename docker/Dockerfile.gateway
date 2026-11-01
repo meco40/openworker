@@ -99,6 +99,9 @@ COPY --from=builder /workspace/rust/target/release/betaclaw-scheduler /usr/local
 COPY --from=ui-builder /app/out /app/out
 COPY config/harness-rollout-gates.json /app/config/harness-rollout-gates.json
 COPY docs/contracts/DOMAIN_REGISTRY.json /app/docs/contracts/DOMAIN_REGISTRY.json
+# World-Model SQL migrations. `betaclaw-scheduler migrate` and the scheduler read them
+# from the working directory (`/app`), at the same relative path as in the repository.
+COPY rust/crates/betaclaw-world-model/migrations /app/rust/crates/betaclaw-world-model/migrations
 
 # The log repository writes here; the UI process and the scheduler mount the same
 # volume, so the ownership must match the node image's uid 1001.

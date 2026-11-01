@@ -469,6 +469,7 @@ mod tests {
     use crate::messages_store::StoredMessage;
 
     use crate::knowledge::ingestion::test_support::{FakeMemory, FakeWorldModel};
+    use crate::knowledge::ingestion::types::ExistingFactNode;
 
     fn window(messages: Vec<StoredMessage>) -> IngestionWindow {
         IngestionWindow {
@@ -613,5 +614,256 @@ mod tests {
         assert_eq!(result.fail_count, 0);
         assert_eq!(result.pending_count, 0);
         assert_eq!(result.memory_ids.len(), 1);
+    }
+
+    fn three_facts() -> Vec<String> {
+        vec![
+            "Ich wohne in Berlin".to_string(),
+            "Ich arbeite bei Acme".to_string(),
+            "Ich habe einen Bruder namens Max".to_string(),
+        ]
+    }
+
+    /// Counts the calls that are in flight at the same time.
+    #[derive(Default)]
+    struct OverlapCheckingMemory {
+        in_flight: std::sync::atomic::AtomicUsize,
+        max_in_flight: std::sync::atomic::AtomicUsize,
+    }
+
+    impl MemoryFactService for OverlapCheckingMemory {
+        async fn store_fact(
+            &self,
+            _input: FactStoreInput,
+        ) -> Result<Option<String>, MemoryFactError> {
+            use std::sync::atomic::Ordering::SeqCst;
+            let now = self.in_flight.fetch_add(1, SeqCst) + 1;
+            self.max_in_flight.fetch_max(now, SeqCst);
+            tokio::task::yield_now().await;
+            self.in_flight.fetch_sub(1, SeqCst);
+            Ok(Some("mem".to_string()))
+        }
+
+        async fn list_fact_nodes(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+            _page_size: usize,
+        ) -> Result<Vec<ExistingFactNode>, MemoryFactError> {
+            Ok(Vec::new())
+        }
+
+        async fn update_memory_metadata(
+            &self,
+            _persona_id: &str,
+            _memory_id: &str,
+            _user_id: &str,
+            _metadata: serde_json::Map<String, Value>,
+        ) -> Result<(), MemoryFactError> {
+            Ok(())
+        }
+    }
+
+    /// Fails the first store call and succeeds afterwards.
+    #[derive(Default)]
+    struct FailFirstMemory {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl MemoryFactService for FailFirstMemory {
+        async fn store_fact(
+            &self,
+            _input: FactStoreInput,
+        ) -> Result<Option<String>, MemoryFactError> {
+            let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if call == 0 {
+                return Err(MemoryFactError("transient".to_string()));
+            }
+            Ok(Some(format!("mem-{call}")))
+        }
+
+        async fn list_fact_nodes(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+            _page_size: usize,
+        ) -> Result<Vec<ExistingFactNode>, MemoryFactError> {
+            Ok(Vec::new())
+        }
+
+        async fn update_memory_metadata(
+            &self,
+            _persona_id: &str,
+            _memory_id: &str,
+            _user_id: &str,
+            _metadata: serde_json::Map<String, Value>,
+        ) -> Result<(), MemoryFactError> {
+            Ok(())
+        }
+    }
+
+    /// Every store call fails.
+    #[derive(Default)]
+    struct AlwaysFailMemory {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl MemoryFactService for AlwaysFailMemory {
+        async fn store_fact(
+            &self,
+            _input: FactStoreInput,
+        ) -> Result<Option<String>, MemoryFactError> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Err(MemoryFactError("mem0 down".to_string()))
+        }
+
+        async fn list_fact_nodes(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+            _page_size: usize,
+        ) -> Result<Vec<ExistingFactNode>, MemoryFactError> {
+            Ok(Vec::new())
+        }
+
+        async fn update_memory_metadata(
+            &self,
+            _persona_id: &str,
+            _memory_id: &str,
+            _user_id: &str,
+            _metadata: serde_json::Map<String, Value>,
+        ) -> Result<(), MemoryFactError> {
+            Ok(())
+        }
+    }
+
+    /// Facts are written one at a time, never two store calls at once.
+    #[tokio::test]
+    async fn facts_are_stored_one_after_another() {
+        let w = window(vec![]);
+        let ex = extraction();
+        let memory = OverlapCheckingMemory::default();
+        let result = store_facts(
+            Some(&memory),
+            &three_facts(),
+            &context(&w, &ex),
+            &FakeWorldModel::default(),
+        )
+        .await;
+        assert_eq!(result.memory_ids.len(), 3);
+        assert_eq!(
+            memory
+                .max_in_flight
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1
+        );
+    }
+
+    /// One failed store leaves that fact pending; the others are still stored.
+    #[tokio::test]
+    async fn a_transient_failure_does_not_stop_the_remaining_facts() {
+        let w = window(vec![]);
+        let ex = extraction();
+        let result = store_facts(
+            Some(&FailFirstMemory::default()),
+            &three_facts(),
+            &context(&w, &ex),
+            &FakeWorldModel::default(),
+        )
+        .await;
+        assert_eq!(result.fail_count, 1);
+        assert_eq!(result.pending_count, 1);
+        assert_eq!(result.memory_ids.len(), 2);
+    }
+
+    /// The window's circuit opens after two consecutive failures: the third fact
+    /// is not sent to Mem0 and stays pending.
+    #[tokio::test]
+    async fn two_consecutive_failures_open_the_window_circuit() {
+        let w = window(vec![]);
+        let ex = extraction();
+        let memory = AlwaysFailMemory::default();
+        let result = store_facts(
+            Some(&memory),
+            &three_facts(),
+            &context(&w, &ex),
+            &FakeWorldModel::default(),
+        )
+        .await;
+        assert_eq!(
+            memory.calls.load(std::sync::atomic::Ordering::SeqCst),
+            MEM0_MAX_CONSECUTIVE_FAILURES_PER_WINDOW
+        );
+        assert_eq!(result.fail_count, 2);
+        assert_eq!(result.pending_count, 3);
+        assert!(result.memory_ids.is_empty());
+    }
+
+    /// Records the content and metadata of every stored fact.
+    #[derive(Default)]
+    struct RecordingMemory {
+        stored: std::sync::Mutex<Vec<(String, serde_json::Map<String, Value>)>>,
+    }
+
+    impl MemoryFactService for RecordingMemory {
+        async fn store_fact(
+            &self,
+            input: FactStoreInput,
+        ) -> Result<Option<String>, MemoryFactError> {
+            let mut stored = self.stored.lock().expect("lock");
+            stored.push((input.content, input.metadata));
+            Ok(Some(format!("mem-{}", stored.len())))
+        }
+
+        async fn list_fact_nodes(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+            _page_size: usize,
+        ) -> Result<Vec<ExistingFactNode>, MemoryFactError> {
+            Ok(Vec::new())
+        }
+
+        async fn update_memory_metadata(
+            &self,
+            _persona_id: &str,
+            _memory_id: &str,
+            _user_id: &str,
+            _metadata: serde_json::Map<String, Value>,
+        ) -> Result<(), MemoryFactError> {
+            Ok(())
+        }
+    }
+
+    /// Two facts that contradict each other in one batch: the later one is marked
+    /// as the contradiction, and the earlier one is stored as superseded.
+    #[tokio::test]
+    async fn contradicting_facts_in_one_batch_are_annotated() {
+        let w = window(vec![]);
+        let ex = extraction();
+        let memory = RecordingMemory::default();
+        let facts = vec![
+            "Nata ist meine Schwester".to_string(),
+            "Nata ist mein Bruder".to_string(),
+        ];
+        let result = store_facts(
+            Some(&memory),
+            &facts,
+            &context(&w, &ex),
+            &FakeWorldModel::default(),
+        )
+        .await;
+        assert_eq!(result.fail_count, 0);
+
+        let stored = memory.stored.lock().expect("lock");
+        assert_eq!(stored.len(), 2);
+        let (first_content, first_metadata) = &stored[0];
+        let (second_content, second_metadata) = &stored[1];
+        assert_eq!(first_content, "Nata ist meine Schwester");
+        assert_eq!(second_content, "Nata ist mein Bruder");
+        assert_eq!(first_metadata["lifecycleStatus"], "superseded");
+        assert_eq!(first_metadata["supersededBy"], "Nata ist mein Bruder");
+        assert_eq!(second_metadata["contradictionDetected"], true);
+        assert_eq!(second_metadata["supersedes"], "Nata ist meine Schwester");
     }
 }

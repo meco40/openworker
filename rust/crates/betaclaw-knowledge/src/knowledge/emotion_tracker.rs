@@ -240,6 +240,24 @@ mod tests {
     }
 
     #[test]
+    fn happiness_anger_and_anxiety_keep_their_own_labels() {
+        assert_eq!(
+            detect_emotion("ich bin gluecklich")
+                .expect("emotion")
+                .emotion,
+            "gluecklich"
+        );
+        assert_eq!(
+            detect_emotion("ich bin wuetend").expect("emotion").emotion,
+            "wuetend"
+        );
+        assert_eq!(
+            detect_emotion("ich habe Angst").expect("emotion").emotion,
+            "aengstlich"
+        );
+    }
+
+    #[test]
     fn text_without_an_emotion_yields_nothing() {
         assert_eq!(detect_emotion("Nata hat einen Bruder"), None);
     }

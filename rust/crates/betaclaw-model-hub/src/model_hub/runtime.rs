@@ -292,6 +292,38 @@ mod tests {
         );
     }
 
+    /// `runtime-key.test.ts:7-11`: an empty key is missing in development and production.
+    #[test]
+    fn an_empty_key_is_missing_in_development_and_production() {
+        for mode in ["development", "production"] {
+            let env = EnvOverrides::new()
+                .with("NODE_ENV", mode)
+                .with("MODEL_HUB_ENCRYPTION_KEY", "");
+            assert_eq!(
+                get_model_hub_encryption_key(&env),
+                Err(RuntimeError::MissingKey),
+                "{mode}"
+            );
+        }
+    }
+
+    /// `runtime-key.test.ts:13-20`: the public example is refused in its hex
+    /// spelling too, because the comparison is on the decoded bytes.
+    #[test]
+    fn the_public_example_is_refused_in_hex_as_well() {
+        let hex: String = "0123456789abcdef0123456789abcdef"
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+        let env = EnvOverrides::new()
+            .with("NODE_ENV", "production")
+            .with("MODEL_HUB_ENCRYPTION_KEY", hex);
+        assert_eq!(
+            get_model_hub_encryption_key(&env),
+            Err(RuntimeError::PublicExampleKey)
+        );
+    }
+
     /// `runtime.ts:64-84`: a `parallel-check` prompt answers with the canned
     /// `multi_tool_use_parallel` tool call and carries the model override.
     #[tokio::test]

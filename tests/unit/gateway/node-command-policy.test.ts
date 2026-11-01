@@ -3,7 +3,7 @@ import {
   commandFingerprint,
   evaluateNodeCommandPolicy,
   normalizeCommand,
-} from '@/server/gateway/node-command-policy';
+} from '@/shared/gateway/node-command-policy';
 
 describe('node command policy', () => {
   it('allows safe commands', () => {

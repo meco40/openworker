@@ -20,6 +20,10 @@ async function expectUpgradeRejected(url: string): Promise<number> {
       clearTimeout(timer);
       const statusCode = res.statusCode ?? 0;
       res.resume();
+      // The rejected handshake keeps its TCP socket. Close it here, so a later reset during
+      // server shutdown does not surface as an unhandled error.
+      socket.on('error', () => {});
+      socket.terminate();
       resolve(statusCode);
     });
 

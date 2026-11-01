@@ -419,4 +419,13 @@ mod tests {
             .expect("install");
         assert_eq!(row.id, "vendor-1");
     }
+
+    #[test]
+    fn unknown_ids_report_false_on_toggle_and_remove() {
+        // Port of "returns false for non-existent skill" (both toggle and remove)
+        // in tests/skill-repository.test.ts.
+        let repository = repository();
+        assert!(!repository.set_installed("missing", true).expect("toggle"));
+        assert!(!repository.remove_skill("missing").expect("remove"));
+    }
 }

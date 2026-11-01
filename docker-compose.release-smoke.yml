@@ -1,6 +1,6 @@
 services:
   migrate:
-    image: ${RELEASE_SMOKE_PROBE_IMAGE:?Set RELEASE_SMOKE_PROBE_IMAGE}
+    image: ${RELEASE_SMOKE_IMAGE:?Set RELEASE_SMOKE_IMAGE}
   gateway:
     image: ${RELEASE_SMOKE_IMAGE:?Set RELEASE_SMOKE_IMAGE}
     ports: !override []
@@ -13,8 +13,6 @@ services:
       OLLAMA_BASE_URL: http://probe:11434
       AGENT_ROOM_ENABLED: 'true'
       SWARM_ORCHESTRATOR_TICK_MS: '200'
-  web-ui:
-    image: ${RELEASE_SMOKE_PROBE_IMAGE}
   probe:
     image: ${RELEASE_SMOKE_PROBE_IMAGE}
     init: true

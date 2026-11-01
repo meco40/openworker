@@ -192,6 +192,20 @@ mod tests {
     }
 
     #[test]
+    fn the_root_directory_itself_is_allowed() {
+        // Port of "accepts the root directory itself" in tests/unit/security/file-access.test.ts.
+        let (_dir, base) = fixture();
+        let root = base.join("root");
+        let resolved = resolve_with_config(
+            &root.to_string_lossy(),
+            "",
+            &[Some(root.to_str().expect("utf-8 path"))],
+        )
+        .expect("the root itself is inside the root");
+        assert_eq!(resolved, real_path(&root).expect("real"));
+    }
+
+    #[test]
     fn sibling_sharing_the_root_prefix_is_403() {
         let (_dir, base) = fixture();
         let root = base.join("root");

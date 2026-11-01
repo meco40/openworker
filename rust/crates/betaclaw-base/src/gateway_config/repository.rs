@@ -316,11 +316,25 @@ fn replace_file(temp_path: &str, config_path: &str) -> std::io::Result<()> {
     match std::fs::rename(temp_path, config_path) {
         Ok(()) => Ok(()),
         Err(error) => {
-            if !std::path::Path::new(config_path).exists() {
+            // A failed rename must leave the previous file in place, as the TypeScript
+            // save does (tests/unit/config/gateway-config-rollback.test.ts). The old file
+            // is moved aside, not deleted, so it can be restored if the second rename fails.
+            let temp_exists = std::path::Path::new(temp_path).exists();
+            if !temp_exists || !std::path::Path::new(config_path).exists() {
                 return Err(error);
             }
-            std::fs::remove_file(config_path)?;
-            std::fs::rename(temp_path, config_path)
+            let previous = format!("{config_path}.replaced");
+            std::fs::rename(config_path, &previous)?;
+            match std::fs::rename(temp_path, config_path) {
+                Ok(()) => {
+                    let _ = std::fs::remove_file(&previous);
+                    Ok(())
+                }
+                Err(error) => {
+                    let _ = std::fs::rename(&previous, config_path);
+                    Err(error)
+                }
+            }
         }
     }
 }
@@ -423,6 +437,26 @@ mod tests {
         assert_eq!(reloaded.source, GatewayConfigSource::Db);
         assert_eq!(reloaded.config, saved.config);
         assert_eq!(reloaded.revision, saved.revision);
+    }
+
+    #[test]
+    fn failed_replace_keeps_the_previous_file() {
+        // Port of "cleans temp file when rename fails and keeps previous file"
+        // (tests/unit/config/gateway-config-rollback.test.ts). Before the fix the
+        // Windows fallback deleted the previous file before the source was checked.
+        let dir = TempDir::new("replace-fail");
+        let config = dir.join("gateway.json");
+        std::fs::write(&config, "previous").unwrap();
+
+        let missing_temp = dir.join("never-written.tmp");
+        assert!(replace_file(&missing_temp, &config).is_err());
+        assert_eq!(std::fs::read_to_string(&config).unwrap(), "previous");
+
+        let temp = dir.join("next.tmp");
+        std::fs::write(&temp, "next").unwrap();
+        replace_file(&temp, &config).unwrap();
+        assert_eq!(std::fs::read_to_string(&config).unwrap(), "next");
+        assert!(!std::path::Path::new(&temp).exists());
     }
 
     #[test]

@@ -1,12 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ManagedServer } from '../_shared/managedServer';
+import { createPersona } from '../_shared/personas';
 import { createWsRpcClient } from '../_shared/wsRpcClient';
 
 describe('ws multi_tool_use.parallel e2e', () => {
   const server = new ManagedServer();
+  let personaId = '';
 
   beforeAll(async () => {
     await server.start();
+    personaId = await createPersona(server, 'E2E Nexus');
   }, 180_000);
 
   afterAll(async () => {
@@ -21,7 +24,7 @@ describe('ws multi_tool_use.parallel e2e', () => {
     await client.stream('chat.stream', {
       conversationId,
       content: 'parallel-check',
-      personaId: 'persona-nexus',
+      personaId,
     });
 
     let hasParallelMessage = false;

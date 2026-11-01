@@ -240,4 +240,22 @@ mod tests {
             .expect_err("blocked");
         assert_eq!(err.0, "Command blocked by security policy.");
     }
+
+    #[tokio::test]
+    async fn playwright_cli_demands_an_approval_when_approvals_are_enabled() {
+        // Port of "makes the playwright cli demand an approval" in
+        // tests/unit/skills/exec-approval-policy.test.ts.
+        let dir = TempDir::new();
+        let err = playwright_cli(
+            &args(json!({ "command": "screenshot" })),
+            &SkillDispatchContext::default(),
+            &dir.env(true),
+        )
+        .await
+        .expect_err("needs approval");
+        assert!(err
+            .0
+            .starts_with("Command requires approval. Fingerprint: "));
+        assert!(err.0.contains("npm run cli -- node approve"));
+    }
 }

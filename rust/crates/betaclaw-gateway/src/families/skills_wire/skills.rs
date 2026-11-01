@@ -653,6 +653,25 @@ mod tests {
 
     use crate::families::skills_wire::test_support::{assert_keys, harness, send, OWNER};
 
+    #[test]
+    fn manifest_id_rejects_path_like_values() {
+        // Port of "rejects unsafe skill id" in tests/unit/skills/skill-installer-validation.test.ts
+        // (`validateManifest` in src/server/skills/skillInstaller.ts).
+        use super::is_valid_manifest_id;
+        assert!(is_valid_manifest_id("external-demo"));
+        assert!(is_valid_manifest_id("demo.skill_1"));
+        for id in [
+            "../skill",
+            "skill/name",
+            "skill\\name",
+            "",
+            ".hidden",
+            "a b",
+        ] {
+            assert!(!is_valid_manifest_id(id), "{id:?} must be refused");
+        }
+    }
+
     const SKILL_KEYS: &[&str] = &[
         "category",
         "createdAt",

@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = process.cwd();
 const SCAN_DIRS = ['src', 'tests'];
-const SCAN_FILES = ['server.ts'];
 
 const DEPRECATED_URL_PARSE_SNIPPETS = [
   "require('node:url').parse(",
@@ -56,10 +55,6 @@ describe('url.parse deprecation guard', () => {
 
     for (const relativeDir of SCAN_DIRS) {
       filesToScan.push(...collectTsFiles(path.join(ROOT, relativeDir)));
-    }
-
-    for (const relativeFile of SCAN_FILES) {
-      filesToScan.push(path.join(ROOT, relativeFile));
     }
 
     const violations: string[] = [];

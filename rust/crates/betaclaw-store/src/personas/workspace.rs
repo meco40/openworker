@@ -563,4 +563,10 @@ mod tests {
             "refactor_the_parser"
         );
     }
+
+    #[test]
+    fn project_names_become_safe_slugs() {
+        assert_eq!(slugify_project_name("  Notes App  "), "notes_app");
+        assert_eq!(slugify_project_name("Next.js + CRUD!!!"), "next_js_crud");
+    }
 }

@@ -1,0 +1,1446 @@
+{
+  "values": {
+    "DELETE /api/clawhub/[slug] (ungültiger Slug)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Invalid ClawHub skill slug: Bad Slug"
+      },
+      "text": "{\"ok\":false,\"error\":\"Invalid ClawHub skill slug: Bad Slug\"}"
+    },
+    "DELETE /api/skills/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Skill \"parity-missing\" not found."
+      },
+      "text": "{\"ok\":false,\"error\":\"Skill \\\"parity-missing\\\" not found.\"}"
+    },
+    "DELETE /api/skills/runtime-config ohne id": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "id is required."
+      },
+      "text": "{\"ok\":false,\"error\":\"id is required.\"}"
+    },
+    "GET /api/clawhub/installed": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "skills": []
+      },
+      "text": "{\"ok\":true,\"skills\":[]}"
+    },
+    "GET /api/clawhub/prompt": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "prompt": ""
+      },
+      "text": "{\"ok\":true,\"prompt\":\"\"}"
+    },
+    "GET /api/clawhub/search ohne q": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Missing query parameter \"q\"."
+      },
+      "text": "{\"ok\":false,\"error\":\"Missing query parameter \\\"q\\\".\"}"
+    },
+    "GET /api/files/preview (kein HTML)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Only HTML files can be previewed"
+      },
+      "text": "{\"error\":\"Only HTML files can be previewed\"}"
+    },
+    "GET /api/files/preview ohne path": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "path is required"
+      },
+      "text": "{\"error\":\"path is required\"}"
+    },
+    "GET /api/skills": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "skills": [
+          {
+            "id": "browser",
+            "name": "Managed Browser",
+            "description": "CDP-gesteuerter Chromium Browser für Snapshots und Interaktionen.",
+            "category": "Web",
+            "version": "1.0.2",
+            "installed": true,
+            "functionName": "browser_snapshot",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "browser_snapshot",
+              "description": "Fetch and inspect a web page to return title, metadata and excerpt.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Target URL to inspect."
+                  },
+                  "format": {
+                    "type": "string",
+                    "description": "png or jpeg"
+                  },
+                  "quality": {
+                    "type": "number",
+                    "description": "0-100"
+                  }
+                },
+                "required": ["url"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "search",
+            "name": "Google Search",
+            "description": "Echtzeit-Webzugriff via Google Search Grounding.",
+            "category": "Intelligence",
+            "version": "3.0.1",
+            "installed": true,
+            "functionName": "__built_in__",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "builtIn": true,
+              "providerConfig": {
+                "gemini": {
+                  "googleSearch": {}
+                }
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "python-runtime",
+            "name": "Python Executor",
+            "description": "Lokale REPL für Data Science, Plotting und Logik.",
+            "category": "Automation",
+            "version": "3.11.2",
+            "installed": true,
+            "functionName": "python_execute",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "python_execute",
+              "description": "Execute Python code in a safe REPL environment for calculations or data analysis.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "description": "The Python source code to execute."
+                  }
+                },
+                "required": ["code"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "shell-access",
+            "name": "Shell",
+            "description": "Runs commands on the host in the workspace directory. Not sandboxed: commands run with the server user permissions. Unapproved commands require approval by default; set BETACLAW_EXEC_APPROVALS_REQUIRED=false to disable it.",
+            "category": "Automation",
+            "version": "2.1.0",
+            "installed": true,
+            "functionName": "shell_execute",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "shell_execute",
+              "description": "Run a shell command on the host in the workspace directory (PowerShell on Windows, /bin/sh elsewhere). Not sandboxed: runs with the server permissions.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string",
+                    "description": "The shell command to run (e.g., 'ls -la')."
+                  }
+                },
+                "required": ["command"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "playwright-cli",
+            "name": "Playwright CLI",
+            "description": "Run Playwright via CLI for browser tests, tracing, and debugging.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": true,
+            "functionName": "playwright_cli",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "playwright_cli",
+              "description": "Execute Playwright CLI commands (CLI-first), e.g. test runs, trace/report viewing, and codegen.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "args": {
+                    "type": "array",
+                    "description": "CLI tokens passed after \"playwright\" (for example [\"test\",\"--project=chromium\"]).",
+                    "items": {
+                      "type": "string",
+                      "description": "One CLI token."
+                    }
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Alternative to args: full argument string after \"playwright\" (for example \"test --headed\")."
+                  }
+                },
+                "required": []
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "process-manager",
+            "name": "Process Manager",
+            "description": "Start and manage long-running background processes (servers, watchers, etc.) across multiple tool calls. Use this when shell_execute would block forever.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": true,
+            "functionName": "process_manager",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "process_manager",
+              "description": "Manage long-running background processes across tool calls.\n- start: spawn a process, returns id\n- poll / log: read buffered stdout+stderr output (non-blocking)\n- write: send text to stdin\n- kill: terminate a process\n- list: list all managed processes\n\nNOTE: Uses pipe stdio (no PTY). Interactive programs (vim, sudo with password, etc.) will not work.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["start", "poll", "log", "write", "kill", "list"],
+                    "description": "The action to perform."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "[start] The shell command to run."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "[poll, log, write, kill] The process id returned by start."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "[start] Human-readable label for the process (e.g. \"dev-server\")."
+                  },
+                  "cwd": {
+                    "type": "string",
+                    "description": "[start] Working directory for the process."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "[write] Text to write to the process stdin."
+                  },
+                  "bytes": {
+                    "type": "number",
+                    "description": "[poll, log] Maximum tail bytes to return from output buffer. Default: 4000."
+                  },
+                  "signal": {
+                    "type": "string",
+                    "description": "[kill] Signal to send (default SIGTERM)."
+                  },
+                  "start_timeout_ms": {
+                    "type": "number",
+                    "description": "[start] Milliseconds to wait for early crash detection before returning process id. Default: 2000."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "subagents",
+            "name": "Subagents",
+            "description": "Spawn and manage delegated helper agents for complex tasks.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": true,
+            "functionName": "subagents",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "subagents",
+              "description": "Manage delegated helper agents: list, spawn, kill, steer, inspect logs or status.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Operation to execute.",
+                    "enum": ["list", "spawn", "kill", "steer", "info", "log", "help", "profiles"]
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "description": "Logical helper id/profile for spawn (example: researcher or qa)."
+                  },
+                  "task": {
+                    "type": "string",
+                    "description": "Task text for spawn."
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Run target for kill/steer/info/log (run id, prefix, or #index)."
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Guidance text for steer."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Optional model override for spawned run."
+                  }
+                },
+                "required": []
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "multi-tool-use-parallel",
+            "name": "Multi Tool Use Parallel",
+            "description": "Execute multiple independent tool calls in parallel and aggregate results.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": true,
+            "functionName": "multi_tool_use_parallel",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "multi_tool_use_parallel",
+              "description": "Run multiple tool calls in parallel.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "tool_uses": {
+                    "type": "array",
+                    "description": "List of tool call entries. Each entry can carry name/recipient_name plus args/parameters.",
+                    "items": {
+                      "type": "object",
+                      "description": "Tool call entry object."
+                    }
+                  }
+                },
+                "required": ["tool_uses"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "github-manager",
+            "name": "GitHub Connector",
+            "description": "Repo-Management, Pull Requests und Code-Reviews.",
+            "category": "DevOps",
+            "version": "1.5.0",
+            "installed": false,
+            "functionName": "github_query",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "github_query",
+              "description": "Interact with GitHub repositories to manage code, issues, and PRs.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "description": "Target repository (e.g., 'facebook/react')"
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["list_issues", "list_pulls", "repo_info", "search_code"]
+                  },
+                  "query": {
+                    "type": "string",
+                    "description": "Search query if applicable"
+                  }
+                },
+                "required": ["repo", "action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "vision",
+            "name": "Live Vision",
+            "description": "Echtzeit-Analyse von Kamera-Feeds und Screen-Streams.",
+            "category": "Media",
+            "version": "2.4.0",
+            "installed": true,
+            "functionName": "vision_analyze",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "vision_analyze",
+              "description": "Analyze image input (URL or base64) for objects, text and scene context.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "focus": {
+                    "type": "string",
+                    "description": "Area of interest or specific object to look for."
+                  },
+                  "imageUrl": {
+                    "type": "string",
+                    "description": "Public image URL to analyze."
+                  },
+                  "imageBase64": {
+                    "type": "string",
+                    "description": "Base64 encoded image payload (without data URL prefix)."
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "description": "Mime type for base64 payload, e.g. image/png."
+                  }
+                }
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "sql-bridge",
+            "name": "SQL Bridge",
+            "description": "Sicherer Read/Write Zugriff auf SQL-Datenbanken.",
+            "category": "Data",
+            "version": "2.0.1",
+            "installed": false,
+            "functionName": "db_query",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "db_query",
+              "description": "Execute a read-only SQL query against the connected database.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Valid SQL SELECT statement."
+                  }
+                },
+                "required": ["query"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "filesystem",
+            "name": "File Gateway",
+            "description": "Sandbox-Zugriff auf lokale Dateien und Downloads.",
+            "category": "System",
+            "version": "0.9.8",
+            "installed": true,
+            "functionName": "file_read",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "file_read",
+              "description": "Read the content of a file in the workspace sandbox safely.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Relative path to the file within the sandbox."
+                  }
+                },
+                "required": ["path"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "gateway-self-heal",
+            "name": "Gateway Self-Heal",
+            "description": "Allows the agent to inspect and restart the gateway server process. Owner-only. Use when recovering from corrupted state or memory growth.",
+            "category": "System",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "gateway_self_heal",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "gateway_self_heal",
+              "description": "Inspect and restart the gateway server process (owner-only).\n- status: return current pid, uptime, memory usage\n- restart: schedule a graceful SIGTERM restart\n\nWARNING: restart will terminate the server — the user connection will drop temporarily.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["status", "restart"],
+                    "description": "Action to perform."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "[restart] Human-readable reason for the restart."
+                  },
+                  "delay_ms": {
+                    "type": "number",
+                    "description": "[restart] Milliseconds before sending SIGTERM. Default: 2000 (max 30000)."
+                  },
+                  "force": {
+                    "type": "boolean",
+                    "description": "[restart] If true, sends SIGKILL instead of SIGTERM (use only when graceful shutdown fails)."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "web-search",
+            "name": "Web Search",
+            "description": "Sucht im Web via Brave Search API (mit DuckDuckGo-Fallback).",
+            "category": "Intelligence",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "web_search",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "web_search",
+              "description": "Search the web for current information. Returns a list of results with titles, URLs, and snippets. Use for real-time information, news, documentation, or any topic that may have changed recently.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "The search query string."
+                  },
+                  "count": {
+                    "type": "number",
+                    "description": "Number of results to return (1–20, default 5)."
+                  }
+                },
+                "required": ["query"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "web-fetch",
+            "name": "Web Fetch",
+            "description": "Lädt eine URL und gibt den bereinigten Textinhalt zurück.",
+            "category": "Intelligence",
+            "version": "1.0.0",
+            "installed": true,
+            "functionName": "web_fetch",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "web_fetch",
+              "description": "Fetch a public URL and return its cleaned text content. Useful for reading documentation, articles, APIs, or any webpage. HTML is converted to readable text. Not for private/internal URLs.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "The full URL to fetch (must be a public HTTP/HTTPS URL)."
+                  },
+                  "maxLength": {
+                    "type": "number",
+                    "description": "Maximum characters to return (default 8000, max 40000)."
+                  }
+                },
+                "required": ["url"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "http-request",
+            "name": "HTTP Request",
+            "description": "Führt generische REST-API-Anfragen durch (GET, POST, PUT, PATCH, DELETE).",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "http_request",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "http_request",
+              "description": "Make an HTTP request to an external API. Supports GET, POST, PUT, PATCH, DELETE, HEAD. Can send JSON bodies and custom headers. Use for REST API calls, webhooks, or any HTTP interaction. Requires BETACLAW_HTTP_SKILL_ENABLED=true.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "The full URL to call (must be a public HTTP/HTTPS endpoint)."
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"],
+                    "description": "HTTP method (default: GET)."
+                  },
+                  "headers": {
+                    "type": "object",
+                    "description": "Optional request headers as key-value pairs."
+                  },
+                  "body": {
+                    "type": "object",
+                    "description": "Optional request body (object for JSON, string for raw)."
+                  }
+                },
+                "required": ["url"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "notifications",
+            "name": "Notifications",
+            "description": "Sendet Webhooks und E-Mails. Erfordert BETACLAW_NOTIFICATIONS_ENABLED=true.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "notifications",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "notifications",
+              "description": "Send notifications via webhook or email. Use action=\"webhook_send\" to POST JSON to a URL, or action=\"email_send\" to send an email. Requires BETACLAW_NOTIFICATIONS_ENABLED=true environment variable.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": ["webhook_send", "email_send"],
+                    "description": "The notification action to perform."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "[webhook_send] The webhook URL to POST to."
+                  },
+                  "payload": {
+                    "type": "object",
+                    "description": "[webhook_send] The JSON payload to send."
+                  },
+                  "headers": {
+                    "type": "object",
+                    "description": "[webhook_send] Optional extra headers."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "[email_send] Recipient address or comma-separated list of addresses."
+                  },
+                  "subject": {
+                    "type": "string",
+                    "description": "[email_send] Email subject line."
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "[email_send] Plain-text email body."
+                  },
+                  "from": {
+                    "type": "string",
+                    "description": "[email_send] Optional sender address (overrides SMTP_FROM)."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "pdf-generate",
+            "name": "PDF Generate",
+            "description": "Wandelt HTML oder Markdown in eine PDF-Datei um.",
+            "category": "Automation",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "pdf_generate",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "pdf_generate",
+              "description": "Convert HTML or Markdown content into a PDF file saved in the workspace output/ folder. Uses headless Chromium if available, falls back to wkhtmltopdf, or saves as HTML if no converter is installed.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "The HTML or Markdown content to convert to PDF."
+                  },
+                  "filename": {
+                    "type": "string",
+                    "description": "Output filename without extension (e.g. \"report\"). Default: \"document\"."
+                  }
+                },
+                "required": ["content"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "read",
+            "name": "Read (Compat)",
+            "description": "Demo-compat alias for safe file reads inside the workspace.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "read",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "read",
+              "description": "Read file content by path with optional line-range paging.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Workspace-relative file path."
+                  },
+                  "from": {
+                    "type": "number",
+                    "description": "Start line (1-based)."
+                  },
+                  "lines": {
+                    "type": "number",
+                    "description": "Number of lines to read."
+                  },
+                  "maxChars": {
+                    "type": "number",
+                    "description": "Maximum returned characters."
+                  }
+                },
+                "required": ["path"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "write",
+            "name": "Write (Compat)",
+            "description": "Demo-compat alias for writing files in the workspace.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "write",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "write",
+              "description": "Write or append text to a workspace-relative file path.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Workspace-relative file path."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "File content to write."
+                  },
+                  "append": {
+                    "type": "boolean",
+                    "description": "Append instead of overwrite when true."
+                  }
+                },
+                "required": ["path", "content"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "edit",
+            "name": "Edit (Compat)",
+            "description": "Demo-compat alias for text replacement and line-range edits.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "edit",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "edit",
+              "description": "Edit a file by old/new text replacement or by line range.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Workspace-relative file path."
+                  },
+                  "oldText": {
+                    "type": "string",
+                    "description": "Text to find."
+                  },
+                  "newText": {
+                    "type": "string",
+                    "description": "Replacement text."
+                  },
+                  "replaceAll": {
+                    "type": "boolean",
+                    "description": "Replace all matches when true."
+                  },
+                  "from": {
+                    "type": "number",
+                    "description": "Start line for range replace."
+                  },
+                  "to": {
+                    "type": "number",
+                    "description": "End line for range replace."
+                  }
+                },
+                "required": ["path"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "apply-patch",
+            "name": "Apply Patch (Compat)",
+            "description": "Demo-compat alias for unified diff patch application.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "apply_patch",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "apply_patch",
+              "description": "Apply patch text in *** Begin Patch format.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "input": {
+                    "type": "string",
+                    "description": "Patch input in Begin/End Patch format."
+                  }
+                },
+                "required": ["input"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "exec",
+            "name": "Exec (Compat)",
+            "description": "Demo-compat alias for shell command execution.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "exec",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "exec",
+              "description": "Alias of shell_execute for demo tool compatibility.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string",
+                    "description": "Shell command to execute."
+                  }
+                },
+                "required": ["command"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "process",
+            "name": "Process (Compat)",
+            "description": "Demo-compat alias for process_manager.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "process",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "process",
+              "description": "Alias of process_manager for demo tool compatibility.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Process action (start, poll, log, write, kill, list)."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Command to run for action=start."
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Managed process id for poll/log/write/kill."
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Input text for action=write."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "memory-search",
+            "name": "Memory Search (Compat)",
+            "description": "Search MEMORY.md and memory/*.md snippets.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "memory_search",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "memory_search",
+              "description": "Search memory markdown files by semantic token matching.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Search query text."
+                  },
+                  "maxResults": {
+                    "type": "number",
+                    "description": "Maximum number of hits."
+                  },
+                  "minScore": {
+                    "type": "number",
+                    "description": "Minimum score between 0 and 1."
+                  }
+                },
+                "required": ["query"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "memory-get",
+            "name": "Memory Get (Compat)",
+            "description": "Read line ranges from MEMORY.md and memory/*.md.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "memory_get",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "memory_get",
+              "description": "Read a snippet from memory markdown files.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Path to MEMORY.md or memory/*.md."
+                  },
+                  "from": {
+                    "type": "number",
+                    "description": "Start line (1-based)."
+                  },
+                  "lines": {
+                    "type": "number",
+                    "description": "Line count to read."
+                  }
+                },
+                "required": ["path"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "agents-list",
+            "name": "Agents List (Compat)",
+            "description": "List available agents for session targeting.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "agents_list",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "agents_list",
+              "description": "List known agents.",
+              "parameters": {
+                "type": "object",
+                "properties": {}
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "sessions-list",
+            "name": "Sessions List (Compat)",
+            "description": "List sessions visible in BetaClaw integrated mode.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "sessions_list",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "sessions_list",
+              "description": "List sessions with optional limit.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "limit": {
+                    "type": "number",
+                    "description": "Maximum number of sessions."
+                  }
+                }
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "sessions-history",
+            "name": "Sessions History (Compat)",
+            "description": "Read message history for a session.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "sessions_history",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "sessions_history",
+              "description": "Read conversation history from a session id.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "description": "Session id/key."
+                  }
+                },
+                "required": ["sessionId"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "sessions-send",
+            "name": "Sessions Send (Compat)",
+            "description": "Send a message to a target session.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "sessions_send",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "sessions_send",
+              "description": "Send content to a session id/key.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "description": "Target session id."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Message content."
+                  }
+                },
+                "required": ["sessionId", "content"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "sessions-spawn",
+            "name": "Sessions Spawn (Compat)",
+            "description": "Create a new session and optionally dispatch a first task.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "sessions_spawn",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "sessions_spawn",
+              "description": "Spawn/create a session with optional initial task.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "Human-readable session label."
+                  },
+                  "task": {
+                    "type": "string",
+                    "description": "Initial task/content to send."
+                  },
+                  "channel": {
+                    "type": "string",
+                    "description": "Target channel (optional)."
+                  }
+                }
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "session-status",
+            "name": "Session Status (Compat)",
+            "description": "Resolve status for a session, optionally with history.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "session_status",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "session_status",
+              "description": "Read session status by session id/key.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "description": "Session id to inspect."
+                  },
+                  "includeHistory": {
+                    "type": "boolean",
+                    "description": "Include message history."
+                  }
+                }
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "message",
+            "name": "Message (Compat)",
+            "description": "Demo-compat message send/read/delete tool wrapper.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "message",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "message",
+              "description": "Send, read, or delete messages through integrated BetaClaw APIs.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Action: send, read, or delete."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "Target session key for send/read."
+                  },
+                  "sessionKey": {
+                    "type": "string",
+                    "description": "Session key for send/read."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Message content for send."
+                  },
+                  "messageId": {
+                    "type": "string",
+                    "description": "Message id for delete."
+                  },
+                  "conversationId": {
+                    "type": "string",
+                    "description": "Conversation id for delete."
+                  },
+                  "limit": {
+                    "type": "number",
+                    "description": "History limit for read."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          },
+          {
+            "id": "browser-tool",
+            "name": "Browser (Compat)",
+            "description": "Demo-compat browser tool wrapper for status and lightweight snapshot actions.",
+            "category": "Compatibility",
+            "version": "1.0.0",
+            "installed": false,
+            "functionName": "browser",
+            "source": "built-in",
+            "sourceUrl": null,
+            "toolDefinition": {
+              "name": "browser",
+              "description": "Browser compatibility wrapper (status, snapshot/open, tabs, profiles).",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Browser action."
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Target URL for open/snapshot."
+                  },
+                  "targetUrl": {
+                    "type": "string",
+                    "description": "Alias target URL for open/snapshot."
+                  }
+                },
+                "required": ["action"]
+              }
+            },
+            "handlerPath": null,
+            "createdAt": "2026-10-31T20:11:13.304Z",
+            "updatedAt": "2026-10-31T20:11:13.304Z"
+          }
+        ]
+      },
+      "text": "{\"ok\":true,\"skills\":[{\"id\":\"browser\",\"name\":\"Managed Browser\",\"description\":\"CDP-gesteuerter Chromium Browser für Snapshots und Interaktionen.\",\"category\":\"Web\",\"version\":\"1.0.2\",\"installed\":true,\"functionName\":\"browser_snapshot\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"browser_snapshot\",\"description\":\"Fetch and inspect a web page to return title, metadata and excerpt.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\",\"description\":\"Target URL to inspect.\"},\"format\":{\"type\":\"string\",\"description\":\"png or jpeg\"},\"quality\":{\"type\":\"number\",\"description\":\"0-100\"}},\"required\":[\"url\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"search\",\"name\":\"Google Search\",\"description\":\"Echtzeit-Webzugriff via Google Search Grounding.\",\"category\":\"Intelligence\",\"version\":\"3.0.1\",\"installed\":true,\"functionName\":\"__built_in__\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"builtIn\":true,\"providerConfig\":{\"gemini\":{\"googleSearch\":{}}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"python-runtime\",\"name\":\"Python Executor\",\"description\":\"Lokale REPL für Data Science, Plotting und Logik.\",\"category\":\"Automation\",\"version\":\"3.11.2\",\"installed\":true,\"functionName\":\"python_execute\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"python_execute\",\"description\":\"Execute Python code in a safe REPL environment for calculations or data analysis.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"The Python source code to execute.\"}},\"required\":[\"code\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"shell-access\",\"name\":\"Shell\",\"description\":\"Runs commands on the host in the workspace directory. Not sandboxed: commands run with the server user permissions. Unapproved commands require approval by default; set BETACLAW_EXEC_APPROVALS_REQUIRED=false to disable it.\",\"category\":\"Automation\",\"version\":\"2.1.0\",\"installed\":true,\"functionName\":\"shell_execute\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"shell_execute\",\"description\":\"Run a shell command on the host in the workspace directory (PowerShell on Windows, /bin/sh elsewhere). Not sandboxed: runs with the server permissions.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"The shell command to run (e.g., 'ls -la').\"}},\"required\":[\"command\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"playwright-cli\",\"name\":\"Playwright CLI\",\"description\":\"Run Playwright via CLI for browser tests, tracing, and debugging.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":true,\"functionName\":\"playwright_cli\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"playwright_cli\",\"description\":\"Execute Playwright CLI commands (CLI-first), e.g. test runs, trace/report viewing, and codegen.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"args\":{\"type\":\"array\",\"description\":\"CLI tokens passed after \\\"playwright\\\" (for example [\\\"test\\\",\\\"--project=chromium\\\"]).\",\"items\":{\"type\":\"string\",\"description\":\"One CLI token.\"}},\"command\":{\"type\":\"string\",\"description\":\"Alternative to args: full argument string after \\\"playwright\\\" (for example \\\"test --headed\\\").\"}},\"required\":[]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"process-manager\",\"name\":\"Process Manager\",\"description\":\"Start and manage long-running background processes (servers, watchers, etc.) across multiple tool calls. Use this when shell_execute would block forever.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":true,\"functionName\":\"process_manager\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"process_manager\",\"description\":\"Manage long-running background processes across tool calls.\\n- start: spawn a process, returns id\\n- poll / log: read buffered stdout+stderr output (non-blocking)\\n- write: send text to stdin\\n- kill: terminate a process\\n- list: list all managed processes\\n\\nNOTE: Uses pipe stdio (no PTY). Interactive programs (vim, sudo with password, etc.) will not work.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"start\",\"poll\",\"log\",\"write\",\"kill\",\"list\"],\"description\":\"The action to perform.\"},\"command\":{\"type\":\"string\",\"description\":\"[start] The shell command to run.\"},\"id\":{\"type\":\"string\",\"description\":\"[poll, log, write, kill] The process id returned by start.\"},\"label\":{\"type\":\"string\",\"description\":\"[start] Human-readable label for the process (e.g. \\\"dev-server\\\").\"},\"cwd\":{\"type\":\"string\",\"description\":\"[start] Working directory for the process.\"},\"text\":{\"type\":\"string\",\"description\":\"[write] Text to write to the process stdin.\"},\"bytes\":{\"type\":\"number\",\"description\":\"[poll, log] Maximum tail bytes to return from output buffer. Default: 4000.\"},\"signal\":{\"type\":\"string\",\"description\":\"[kill] Signal to send (default SIGTERM).\"},\"start_timeout_ms\":{\"type\":\"number\",\"description\":\"[start] Milliseconds to wait for early crash detection before returning process id. Default: 2000.\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"subagents\",\"name\":\"Subagents\",\"description\":\"Spawn and manage delegated helper agents for complex tasks.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":true,\"functionName\":\"subagents\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"subagents\",\"description\":\"Manage delegated helper agents: list, spawn, kill, steer, inspect logs or status.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"description\":\"Operation to execute.\",\"enum\":[\"list\",\"spawn\",\"kill\",\"steer\",\"info\",\"log\",\"help\",\"profiles\"]},\"agentId\":{\"type\":\"string\",\"description\":\"Logical helper id/profile for spawn (example: researcher or qa).\"},\"task\":{\"type\":\"string\",\"description\":\"Task text for spawn.\"},\"target\":{\"type\":\"string\",\"description\":\"Run target for kill/steer/info/log (run id, prefix, or #index).\"},\"message\":{\"type\":\"string\",\"description\":\"Guidance text for steer.\"},\"model\":{\"type\":\"string\",\"description\":\"Optional model override for spawned run.\"}},\"required\":[]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"multi-tool-use-parallel\",\"name\":\"Multi Tool Use Parallel\",\"description\":\"Execute multiple independent tool calls in parallel and aggregate results.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":true,\"functionName\":\"multi_tool_use_parallel\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"multi_tool_use_parallel\",\"description\":\"Run multiple tool calls in parallel.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"tool_uses\":{\"type\":\"array\",\"description\":\"List of tool call entries. Each entry can carry name/recipient_name plus args/parameters.\",\"items\":{\"type\":\"object\",\"description\":\"Tool call entry object.\"}}},\"required\":[\"tool_uses\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"github-manager\",\"name\":\"GitHub Connector\",\"description\":\"Repo-Management, Pull Requests und Code-Reviews.\",\"category\":\"DevOps\",\"version\":\"1.5.0\",\"installed\":false,\"functionName\":\"github_query\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"github_query\",\"description\":\"Interact with GitHub repositories to manage code, issues, and PRs.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"repo\":{\"type\":\"string\",\"description\":\"Target repository (e.g., 'facebook/react')\"},\"action\":{\"type\":\"string\",\"description\":\"Action to perform\",\"enum\":[\"list_issues\",\"list_pulls\",\"repo_info\",\"search_code\"]},\"query\":{\"type\":\"string\",\"description\":\"Search query if applicable\"}},\"required\":[\"repo\",\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"vision\",\"name\":\"Live Vision\",\"description\":\"Echtzeit-Analyse von Kamera-Feeds und Screen-Streams.\",\"category\":\"Media\",\"version\":\"2.4.0\",\"installed\":true,\"functionName\":\"vision_analyze\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"vision_analyze\",\"description\":\"Analyze image input (URL or base64) for objects, text and scene context.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"focus\":{\"type\":\"string\",\"description\":\"Area of interest or specific object to look for.\"},\"imageUrl\":{\"type\":\"string\",\"description\":\"Public image URL to analyze.\"},\"imageBase64\":{\"type\":\"string\",\"description\":\"Base64 encoded image payload (without data URL prefix).\"},\"mimeType\":{\"type\":\"string\",\"description\":\"Mime type for base64 payload, e.g. image/png.\"}}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"sql-bridge\",\"name\":\"SQL Bridge\",\"description\":\"Sicherer Read/Write Zugriff auf SQL-Datenbanken.\",\"category\":\"Data\",\"version\":\"2.0.1\",\"installed\":false,\"functionName\":\"db_query\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"db_query\",\"description\":\"Execute a read-only SQL query against the connected database.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"Valid SQL SELECT statement.\"}},\"required\":[\"query\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"filesystem\",\"name\":\"File Gateway\",\"description\":\"Sandbox-Zugriff auf lokale Dateien und Downloads.\",\"category\":\"System\",\"version\":\"0.9.8\",\"installed\":true,\"functionName\":\"file_read\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"file_read\",\"description\":\"Read the content of a file in the workspace sandbox safely.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Relative path to the file within the sandbox.\"}},\"required\":[\"path\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"gateway-self-heal\",\"name\":\"Gateway Self-Heal\",\"description\":\"Allows the agent to inspect and restart the gateway server process. Owner-only. Use when recovering from corrupted state or memory growth.\",\"category\":\"System\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"gateway_self_heal\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"gateway_self_heal\",\"description\":\"Inspect and restart the gateway server process (owner-only).\\n- status: return current pid, uptime, memory usage\\n- restart: schedule a graceful SIGTERM restart\\n\\nWARNING: restart will terminate the server — the user connection will drop temporarily.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"status\",\"restart\"],\"description\":\"Action to perform.\"},\"reason\":{\"type\":\"string\",\"description\":\"[restart] Human-readable reason for the restart.\"},\"delay_ms\":{\"type\":\"number\",\"description\":\"[restart] Milliseconds before sending SIGTERM. Default: 2000 (max 30000).\"},\"force\":{\"type\":\"boolean\",\"description\":\"[restart] If true, sends SIGKILL instead of SIGTERM (use only when graceful shutdown fails).\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"web-search\",\"name\":\"Web Search\",\"description\":\"Sucht im Web via Brave Search API (mit DuckDuckGo-Fallback).\",\"category\":\"Intelligence\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"web_search\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"web_search\",\"description\":\"Search the web for current information. Returns a list of results with titles, URLs, and snippets. Use for real-time information, news, documentation, or any topic that may have changed recently.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"The search query string.\"},\"count\":{\"type\":\"number\",\"description\":\"Number of results to return (1–20, default 5).\"}},\"required\":[\"query\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"web-fetch\",\"name\":\"Web Fetch\",\"description\":\"Lädt eine URL und gibt den bereinigten Textinhalt zurück.\",\"category\":\"Intelligence\",\"version\":\"1.0.0\",\"installed\":true,\"functionName\":\"web_fetch\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"web_fetch\",\"description\":\"Fetch a public URL and return its cleaned text content. Useful for reading documentation, articles, APIs, or any webpage. HTML is converted to readable text. Not for private/internal URLs.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\",\"description\":\"The full URL to fetch (must be a public HTTP/HTTPS URL).\"},\"maxLength\":{\"type\":\"number\",\"description\":\"Maximum characters to return (default 8000, max 40000).\"}},\"required\":[\"url\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"http-request\",\"name\":\"HTTP Request\",\"description\":\"Führt generische REST-API-Anfragen durch (GET, POST, PUT, PATCH, DELETE).\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"http_request\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"http_request\",\"description\":\"Make an HTTP request to an external API. Supports GET, POST, PUT, PATCH, DELETE, HEAD. Can send JSON bodies and custom headers. Use for REST API calls, webhooks, or any HTTP interaction. Requires BETACLAW_HTTP_SKILL_ENABLED=true.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"url\":{\"type\":\"string\",\"description\":\"The full URL to call (must be a public HTTP/HTTPS endpoint).\"},\"method\":{\"type\":\"string\",\"enum\":[\"GET\",\"POST\",\"PUT\",\"PATCH\",\"DELETE\",\"HEAD\"],\"description\":\"HTTP method (default: GET).\"},\"headers\":{\"type\":\"object\",\"description\":\"Optional request headers as key-value pairs.\"},\"body\":{\"type\":\"object\",\"description\":\"Optional request body (object for JSON, string for raw).\"}},\"required\":[\"url\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"notifications\",\"name\":\"Notifications\",\"description\":\"Sendet Webhooks und E-Mails. Erfordert BETACLAW_NOTIFICATIONS_ENABLED=true.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"notifications\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"notifications\",\"description\":\"Send notifications via webhook or email. Use action=\\\"webhook_send\\\" to POST JSON to a URL, or action=\\\"email_send\\\" to send an email. Requires BETACLAW_NOTIFICATIONS_ENABLED=true environment variable.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"enum\":[\"webhook_send\",\"email_send\"],\"description\":\"The notification action to perform.\"},\"url\":{\"type\":\"string\",\"description\":\"[webhook_send] The webhook URL to POST to.\"},\"payload\":{\"type\":\"object\",\"description\":\"[webhook_send] The JSON payload to send.\"},\"headers\":{\"type\":\"object\",\"description\":\"[webhook_send] Optional extra headers.\"},\"to\":{\"type\":\"string\",\"description\":\"[email_send] Recipient address or comma-separated list of addresses.\"},\"subject\":{\"type\":\"string\",\"description\":\"[email_send] Email subject line.\"},\"body\":{\"type\":\"string\",\"description\":\"[email_send] Plain-text email body.\"},\"from\":{\"type\":\"string\",\"description\":\"[email_send] Optional sender address (overrides SMTP_FROM).\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"pdf-generate\",\"name\":\"PDF Generate\",\"description\":\"Wandelt HTML oder Markdown in eine PDF-Datei um.\",\"category\":\"Automation\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"pdf_generate\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"pdf_generate\",\"description\":\"Convert HTML or Markdown content into a PDF file saved in the workspace output/ folder. Uses headless Chromium if available, falls back to wkhtmltopdf, or saves as HTML if no converter is installed.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"content\":{\"type\":\"string\",\"description\":\"The HTML or Markdown content to convert to PDF.\"},\"filename\":{\"type\":\"string\",\"description\":\"Output filename without extension (e.g. \\\"report\\\"). Default: \\\"document\\\".\"}},\"required\":[\"content\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"read\",\"name\":\"Read (Compat)\",\"description\":\"Demo-compat alias for safe file reads inside the workspace.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"read\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"read\",\"description\":\"Read file content by path with optional line-range paging.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative file path.\"},\"from\":{\"type\":\"number\",\"description\":\"Start line (1-based).\"},\"lines\":{\"type\":\"number\",\"description\":\"Number of lines to read.\"},\"maxChars\":{\"type\":\"number\",\"description\":\"Maximum returned characters.\"}},\"required\":[\"path\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"write\",\"name\":\"Write (Compat)\",\"description\":\"Demo-compat alias for writing files in the workspace.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"write\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"write\",\"description\":\"Write or append text to a workspace-relative file path.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative file path.\"},\"content\":{\"type\":\"string\",\"description\":\"File content to write.\"},\"append\":{\"type\":\"boolean\",\"description\":\"Append instead of overwrite when true.\"}},\"required\":[\"path\",\"content\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"edit\",\"name\":\"Edit (Compat)\",\"description\":\"Demo-compat alias for text replacement and line-range edits.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"edit\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"edit\",\"description\":\"Edit a file by old/new text replacement or by line range.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Workspace-relative file path.\"},\"oldText\":{\"type\":\"string\",\"description\":\"Text to find.\"},\"newText\":{\"type\":\"string\",\"description\":\"Replacement text.\"},\"replaceAll\":{\"type\":\"boolean\",\"description\":\"Replace all matches when true.\"},\"from\":{\"type\":\"number\",\"description\":\"Start line for range replace.\"},\"to\":{\"type\":\"number\",\"description\":\"End line for range replace.\"}},\"required\":[\"path\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"apply-patch\",\"name\":\"Apply Patch (Compat)\",\"description\":\"Demo-compat alias for unified diff patch application.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"apply_patch\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"apply_patch\",\"description\":\"Apply patch text in *** Begin Patch format.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\",\"description\":\"Patch input in Begin/End Patch format.\"}},\"required\":[\"input\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"exec\",\"name\":\"Exec (Compat)\",\"description\":\"Demo-compat alias for shell command execution.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"exec\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"exec\",\"description\":\"Alias of shell_execute for demo tool compatibility.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"description\":\"Shell command to execute.\"}},\"required\":[\"command\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"process\",\"name\":\"Process (Compat)\",\"description\":\"Demo-compat alias for process_manager.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"process\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"process\",\"description\":\"Alias of process_manager for demo tool compatibility.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"description\":\"Process action (start, poll, log, write, kill, list).\"},\"command\":{\"type\":\"string\",\"description\":\"Command to run for action=start.\"},\"id\":{\"type\":\"string\",\"description\":\"Managed process id for poll/log/write/kill.\"},\"text\":{\"type\":\"string\",\"description\":\"Input text for action=write.\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"memory-search\",\"name\":\"Memory Search (Compat)\",\"description\":\"Search MEMORY.md and memory/*.md snippets.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"memory_search\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"memory_search\",\"description\":\"Search memory markdown files by semantic token matching.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"Search query text.\"},\"maxResults\":{\"type\":\"number\",\"description\":\"Maximum number of hits.\"},\"minScore\":{\"type\":\"number\",\"description\":\"Minimum score between 0 and 1.\"}},\"required\":[\"query\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"memory-get\",\"name\":\"Memory Get (Compat)\",\"description\":\"Read line ranges from MEMORY.md and memory/*.md.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"memory_get\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"memory_get\",\"description\":\"Read a snippet from memory markdown files.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"Path to MEMORY.md or memory/*.md.\"},\"from\":{\"type\":\"number\",\"description\":\"Start line (1-based).\"},\"lines\":{\"type\":\"number\",\"description\":\"Line count to read.\"}},\"required\":[\"path\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"agents-list\",\"name\":\"Agents List (Compat)\",\"description\":\"List available agents for session targeting.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"agents_list\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"agents_list\",\"description\":\"List known agents.\",\"parameters\":{\"type\":\"object\",\"properties\":{}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"sessions-list\",\"name\":\"Sessions List (Compat)\",\"description\":\"List sessions visible in BetaClaw integrated mode.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"sessions_list\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"sessions_list\",\"description\":\"List sessions with optional limit.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"limit\":{\"type\":\"number\",\"description\":\"Maximum number of sessions.\"}}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"sessions-history\",\"name\":\"Sessions History (Compat)\",\"description\":\"Read message history for a session.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"sessions_history\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"sessions_history\",\"description\":\"Read conversation history from a session id.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"sessionId\":{\"type\":\"string\",\"description\":\"Session id/key.\"}},\"required\":[\"sessionId\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"sessions-send\",\"name\":\"Sessions Send (Compat)\",\"description\":\"Send a message to a target session.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"sessions_send\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"sessions_send\",\"description\":\"Send content to a session id/key.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"sessionId\":{\"type\":\"string\",\"description\":\"Target session id.\"},\"content\":{\"type\":\"string\",\"description\":\"Message content.\"}},\"required\":[\"sessionId\",\"content\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"sessions-spawn\",\"name\":\"Sessions Spawn (Compat)\",\"description\":\"Create a new session and optionally dispatch a first task.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"sessions_spawn\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"sessions_spawn\",\"description\":\"Spawn/create a session with optional initial task.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"label\":{\"type\":\"string\",\"description\":\"Human-readable session label.\"},\"task\":{\"type\":\"string\",\"description\":\"Initial task/content to send.\"},\"channel\":{\"type\":\"string\",\"description\":\"Target channel (optional).\"}}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"session-status\",\"name\":\"Session Status (Compat)\",\"description\":\"Resolve status for a session, optionally with history.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"session_status\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"session_status\",\"description\":\"Read session status by session id/key.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"sessionId\":{\"type\":\"string\",\"description\":\"Session id to inspect.\"},\"includeHistory\":{\"type\":\"boolean\",\"description\":\"Include message history.\"}}}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"message\",\"name\":\"Message (Compat)\",\"description\":\"Demo-compat message send/read/delete tool wrapper.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"message\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"message\",\"description\":\"Send, read, or delete messages through integrated BetaClaw APIs.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"description\":\"Action: send, read, or delete.\"},\"to\":{\"type\":\"string\",\"description\":\"Target session key for send/read.\"},\"sessionKey\":{\"type\":\"string\",\"description\":\"Session key for send/read.\"},\"content\":{\"type\":\"string\",\"description\":\"Message content for send.\"},\"messageId\":{\"type\":\"string\",\"description\":\"Message id for delete.\"},\"conversationId\":{\"type\":\"string\",\"description\":\"Conversation id for delete.\"},\"limit\":{\"type\":\"number\",\"description\":\"History limit for read.\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"},{\"id\":\"browser-tool\",\"name\":\"Browser (Compat)\",\"description\":\"Demo-compat browser tool wrapper for status and lightweight snapshot actions.\",\"category\":\"Compatibility\",\"version\":\"1.0.0\",\"installed\":false,\"functionName\":\"browser\",\"source\":\"built-in\",\"sourceUrl\":null,\"toolDefinition\":{\"name\":\"browser\",\"description\":\"Browser compatibility wrapper (status, snapshot/open, tabs, profiles).\",\"parameters\":{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"description\":\"Browser action.\"},\"url\":{\"type\":\"string\",\"description\":\"Target URL for open/snapshot.\"},\"targetUrl\":{\"type\":\"string\",\"description\":\"Alias target URL for open/snapshot.\"}},\"required\":[\"action\"]}},\"handlerPath\":null,\"createdAt\":\"2026-10-31T20:11:13.304Z\",\"updatedAt\":\"2026-10-31T20:11:13.304Z\"}]}"
+    },
+    "GET /api/skills/external-host": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "status": {
+          "running": false,
+          "pid": null,
+          "connected": false,
+          "pendingRequests": 0,
+          "timeoutMs": 30000,
+          "idleMs": 60000,
+          "startedAt": null,
+          "totalRequests": 0
+        }
+      },
+      "text": "{\"ok\":true,\"status\":{\"running\":false,\"pid\":null,\"connected\":false,\"pendingRequests\":0,\"timeoutMs\":30000,\"idleMs\":60000,\"startedAt\":null,\"totalRequests\":0}}"
+    },
+    "GET /api/skills/runtime-config": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "configs": [
+          {
+            "id": "vision.gemini_api_key",
+            "skillId": "vision",
+            "label": "Vision (Gemini) API Key",
+            "description": "Required for image analysis in the Vision skill.",
+            "kind": "secret",
+            "required": true,
+            "envVars": ["GEMINI_API_KEY", "API_KEY"],
+            "configured": false,
+            "source": null,
+            "maskedValue": null,
+            "updatedAt": null
+          },
+          {
+            "id": "github-manager.github_token",
+            "skillId": "github-manager",
+            "label": "GitHub Token",
+            "description": "Optional. Increases API limits and allows private repository access.",
+            "kind": "secret",
+            "required": false,
+            "envVars": ["GITHUB_TOKEN"],
+            "configured": false,
+            "source": null,
+            "maskedValue": null,
+            "updatedAt": null
+          },
+          {
+            "id": "sql-bridge.sqlite_db_path",
+            "skillId": "sql-bridge",
+            "label": "SQLite Database Path",
+            "description": "Required for SQL Bridge queries (workspace-relative path).",
+            "kind": "text",
+            "required": true,
+            "envVars": ["SQLITE_DB_PATH"],
+            "configured": false,
+            "source": null,
+            "maskedValue": null,
+            "updatedAt": null
+          }
+        ]
+      },
+      "text": "{\"ok\":true,\"configs\":[{\"id\":\"vision.gemini_api_key\",\"skillId\":\"vision\",\"label\":\"Vision (Gemini) API Key\",\"description\":\"Required for image analysis in the Vision skill.\",\"kind\":\"secret\",\"required\":true,\"envVars\":[\"GEMINI_API_KEY\",\"API_KEY\"],\"configured\":false,\"source\":null,\"maskedValue\":null,\"updatedAt\":null},{\"id\":\"github-manager.github_token\",\"skillId\":\"github-manager\",\"label\":\"GitHub Token\",\"description\":\"Optional. Increases API limits and allows private repository access.\",\"kind\":\"secret\",\"required\":false,\"envVars\":[\"GITHUB_TOKEN\"],\"configured\":false,\"source\":null,\"maskedValue\":null,\"updatedAt\":null},{\"id\":\"sql-bridge.sqlite_db_path\",\"skillId\":\"sql-bridge\",\"label\":\"SQLite Database Path\",\"description\":\"Required for SQL Bridge queries (workspace-relative path).\",\"kind\":\"text\",\"required\":true,\"envVars\":[\"SQLITE_DB_PATH\"],\"configured\":false,\"source\":null,\"maskedValue\":null,\"updatedAt\":null}]}"
+    },
+    "PATCH /api/clawhub/[slug] (ungültiger Slug)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Invalid ClawHub skill slug: Bad Slug"
+      },
+      "text": "{\"ok\":false,\"error\":\"Invalid ClawHub skill slug: Bad Slug\"}"
+    },
+    "PATCH /api/skills/[id] (fehlend)": {
+      "status": 404,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Skill \"parity-missing\" not found."
+      },
+      "text": "{\"ok\":false,\"error\":\"Skill \\\"parity-missing\\\" not found.\"}"
+    },
+    "POST /api/clawhub/install ohne slug": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "External skill installation is disabled."
+      },
+      "text": "{\"ok\":false,\"error\":\"External skill installation is disabled.\"}"
+    },
+    "POST /api/clawhub/update ohne slug/all": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "External skill updates are disabled."
+      },
+      "text": "{\"ok\":false,\"error\":\"External skill updates are disabled.\"}"
+    },
+    "POST /api/files/reveal ohne filePath": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "filePath is required"
+      },
+      "text": "{\"error\":\"filePath is required\"}"
+    },
+    "POST /api/skills ohne source": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "External skill installation is disabled. Set EXTERNAL_SKILLS_ENABLED=true after review."
+      },
+      "text": "{\"ok\":false,\"error\":\"External skill installation is disabled. Set EXTERNAL_SKILLS_ENABLED=true after review.\"}"
+    },
+    "POST /api/skills/execute (unbekannter Skill)": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Skill is not active: parity-missing"
+      },
+      "text": "{\"ok\":false,\"error\":\"Skill is not active: parity-missing\"}"
+    },
+    "POST /api/skills/external-host ohne action": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Unsupported action. Use action=\"stop\"."
+      },
+      "text": "{\"ok\":false,\"error\":\"Unsupported action. Use action=\\\"stop\\\".\"}"
+    },
+    "PUT /api/skills/runtime-config ohne id": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "id is required."
+      },
+      "text": "{\"ok\":false,\"error\":\"id is required.\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

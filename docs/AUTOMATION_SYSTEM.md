@@ -84,7 +84,7 @@ Pro Tick werden fällige Rules enqueued und queued Runs verarbeitet. Bei Fehlern
 ## 5. Verifikation
 
 ```bash
-npm run dev:scheduler
+pnpm run dev   # startet den Rust-Scheduler im Stack mit
 npm run test -- tests/unit/automation
 npm run test -- tests/integration/automation
 npm run typecheck

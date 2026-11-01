@@ -394,4 +394,26 @@ mod tests {
 
         assert_eq!(status, StatusCode::BAD_GATEWAY);
     }
+
+    #[tokio::test]
+    async fn internal_load_errors_are_sanitised() {
+        // Port of "sanitizes unexpected internal errors and avoids path leaks"
+        // (tests/integration/config/config-route.test.ts). A directory where the
+        // config file should be makes the file read fail with a path in the message.
+        let scratch = ScratchDir::new();
+        let directory = scratch.path_string("config-is-a-directory");
+        std::fs::create_dir_all(&directory).expect("create directory");
+        let state = state_with(&scratch, |config| {
+            config.gateway_config_backend = ConfigBackend::File;
+            config.gateway_config_path = directory.clone();
+        });
+
+        let (status, body) = send(&state, Method::GET, "/api/config", Some(USER), None).await;
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_keys(&body, ERROR_KEYS);
+        assert_eq!(body["error"], "Unable to load config.");
+        assert_eq!(body["code"], "CONFIG_INTERNAL_ERROR");
+        assert!(!body.to_string().contains(&directory));
+    }
 }

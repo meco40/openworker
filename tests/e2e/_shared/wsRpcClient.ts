@@ -4,7 +4,7 @@ import type {
   RequestFrame,
   ResponseFrame,
   StreamFrame,
-} from '@/server/gateway/protocol';
+} from '@/shared/gateway/protocol';
 
 type GatewayIncoming = ResponseFrame | EventFrame | StreamFrame;
 

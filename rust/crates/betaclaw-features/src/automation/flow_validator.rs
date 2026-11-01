@@ -217,4 +217,30 @@ mod tests {
             "Node \"t\" has an invalid cron expression."
         );
     }
+
+    #[test]
+    fn a_second_trigger_is_rejected() {
+        let flow = graph(
+            vec![
+                test_node("t1", FlowNodeType::TriggerManual, json!({})),
+                test_node("t2", FlowNodeType::TriggerManual, json!({})),
+            ],
+            vec![],
+        );
+        let result = validate_flow_graph(&flow);
+        assert!(!result.valid);
+        assert!(result
+            .errors
+            .iter()
+            .any(|error| error.code == FlowValidationCode::MultipleTriggers));
+    }
+
+    #[test]
+    fn a_manual_trigger_needs_no_schedule() {
+        let flow = graph(
+            vec![test_node("t", FlowNodeType::TriggerManual, json!({}))],
+            vec![],
+        );
+        assert!(validate_flow_graph(&flow).valid);
+    }
 }

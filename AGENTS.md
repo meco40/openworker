@@ -83,6 +83,8 @@ docker compose -f docker-compose.postgres.yml up -d
 pnpm run world-model:migrate
 ```
 
+The `world-model:*` commands run Rust subcommands of `betaclaw-scheduler` (`migrate`, `provision-roles`, `verify-rls`, `reconcile`, `rebuild-projections`, `backfill`) through `scripts/rust-scheduler-ops.mjs`, which loads `.env.local` first. The TypeScript versions of these scripts are gone; flags, env variables and output are unchanged.
+
 2. Start the development stack; import the Node-era data once after the first start:
 
 ```powershell
@@ -111,19 +113,20 @@ owns the public listener, answers all 113 API routes natively in Rust, terminate
 `/ws`, and reverse proxies frontend pages and HMR to the Next.js dev server.
 `pnpm run dev:static` builds the static export (`pnpm run build:export`) and starts
 the Rust gateway in static mode (`BETACLAW_UI_MODE=static`), serving the UI natively
-from `out/` without a Node application server. `pnpm run dev:node` keeps the previous Node-only stack
-available for debugging.
+from `out/` without a Node application server. The Node-only stack (`dev:node`, `dev:web`,
+`dev:scheduler`, `start:web`, `start:scheduler`) was removed.
 
 #### Background Job Runtime Ownership
 
-Background jobs support tri-state ownership via `BETACLAW_TELEGRAM_POLLER`,
-`BETACLAW_SWARM_RUNNER`, and `BETACLAW_WORKSPACE_CLEANUP` (`rust` | `node` | `off`):
+Background jobs have an owner via `BETACLAW_TELEGRAM_POLLER`, `BETACLAW_SWARM_RUNNER`,
+and `BETACLAW_WORKSPACE_CLEANUP`. The values are `rust` or `off`:
 
-- In `docker-compose.yml`, they default to `rust`.
+- In `docker-compose.yml`, they are set to `rust` explicitly.
 - In native development (`pnpm run dev`), they can be configured in `.env.local`.
-- If set to `node`, Node.js handles them (legacy mode).
-- If set to `rust`, Rust handles them exclusively without conflict (no Telegram 409).
-- If unset, both implementations resolve to `node`; `off` disables the job.
+- Unset or blank means `rust`. `rust` runs the job in the Rust process without conflict (no Telegram 409).
+- `off` disables the job. `false` and `0` are accepted as aliases of `off`.
+- `node` is refused. Gateway and scheduler check all three switches before they open
+  a port or start a job, and exit with a message that names the switch.
 - Keep the values identical in all processes. `SWARM_RUNNER=server|scheduler`
   selects the swarm process; Compose selects `scheduler`. Cleanup runs in the scheduler.
 - UI mode and `UI_STATIC_DIR` are resolved at startup. `static` serves the export,
@@ -146,9 +149,6 @@ taken by another application on the machine.
 - The browser derives its WebSocket URL from the page origin, so no client or
   frontend configuration has to change for a different port.
 
-3. Start the scheduler separately only when `pnpm run dev:scheduler` is needed
-   for a focused automation run. The default `pnpm run dev` already includes it.
-
 Optional Mem0 compatibility runs require explicit `MEMORY_PROVIDER=mem0`, URL,
 API key and configured LLM/embedding providers. See README for that branch.
 Mem0 is not a prerequisite for the canonical workflow. Optional runtime helpers:
@@ -161,9 +161,10 @@ pnpm run mem0:local:down
 
 ### Rust backend rules
 
-The backend is being migrated to Rust. The plan, the slice order and the
-per-slice removal criteria live in `docs/RUST_MIGRATION.md`. While that migration
-is in progress:
+The backend is Rust. The TypeScript backend is removed; the last commit that had it is
+tagged `legacy-ts-backend`. `docs/RUST_MIGRATION.md` keeps the history and the open
+points, `docs/TS_TEST_COVERAGE_AUDIT.md` the backlog of TS test cases without a Rust
+counterpart.
 
 - Do not add a Rust dependency when an existing crate in the workspace already
   covers the need. Check `rust/Cargo.toml` first.
@@ -175,15 +176,26 @@ is in progress:
   keep working. Put new code in the lowest crate that owns the domain and never
   add a dependency from a lower crate to a higher one. A new crate also needs a
   `COPY` line in `docker/Dockerfile.gateway`.
-- Port behaviour, not just signatures. Every Rust module names the TypeScript
-  file it mirrors so drift is reviewable.
+- Behaviour is defined by the Rust tests, the parity golden files, the E2E lanes
+  and the production smoke, not by a TypeScript source. Write idiomatic Rust; there
+  is nothing left to mirror line by line. The `Port of src/...` module headers are
+  history: keep them, and update one only when its module changes anyway. To close
+  a backlog gap, read the TS original from the tag
+  (`git show legacy-ts-backend:<path>`).
+- Keep the external contracts: the NextAuth session cookie format, the SQLite schemas
+  and `_migrations`, the World-Model SQL files and RLS grants, the WS protocol `v2`
+  and the JSON wire formats of the API. JavaScript semantics in `js.rs` stay where
+  they touch stored data or a wire format.
 - Verify foreign details instead of assuming them. Session cookies are checked
   against a fixture generated with the real `next-auth@4.24.15`; shared constants
   are generated, not transcribed. After changing either, regenerate the fixture
   and confirm CI's freshness check passes.
 - Never weaken a security boundary: loopback marker, origin policy, RLS scope,
-  exec approvals, webhook signatures and secret handling stay as they are in the
-  TypeScript implementation.
+  exec approvals, webhook signatures and secret handling stay as strict as they are.
+- Host `cargo` commands run inside `rust/` (or a script that sets that working
+  directory). With `--manifest-path rust/Cargo.toml` from the repository root, rustup
+  ignores `rust/rust-toolchain.toml`, uses the host default toolchain and rebuilds
+  `rust/target` with a different compiler.
 - The dev gateway is built natively with the toolchain pinned in
   `rust/rust-toolchain.toml`. Gates (`rust:test`, `rust:clippy`, `rust:fmt:check`)
   run through the pinned container image.
@@ -205,12 +217,26 @@ pnpm run rust:clippy
 pnpm run rust:test
 ```
 
-When a slice changes a route that both implementations serve, run the parity
-check as well:
+When a change touches a route that the parity suite covers, run the parity checks
+against a running gateway as well. Expected values are the golden files in
+`scripts/verify/parity/golden/`, not live TypeScript. Start the gateway as the CI step
+does, with a fresh working directory: stores without an explicit path resolve to
+`.local/` below the working directory, and real data there (prompt logs, automation
+lease) shows up as false differences. That directory needs copies of
+`docs/contracts/DOMAIN_REGISTRY.json` and `config/harness-rollout-gates.json`:
 
 ```powershell
 pnpm run verify:logs-parity
+pnpm run verify:route-parity
+pnpm run verify:route-coverage
 ```
+
+The golden files are fixed references. The TypeScript backend they were recorded from is
+removed (tag `legacy-ts-backend`), so there is no re-record command. A change to a golden
+file is a reviewed edit. `verify:route-coverage` checks the Rust route table against
+`scripts/verify/route-table.json`; a route added or removed there is a reviewed edit too.
+The auth lane (`REQUIRE_AUTH=true` on the gateway and in the command) has its own keys for
+channels-wire, master, ops, skills, stats and tasks.
 
 E2E lanes:
 
@@ -218,8 +244,11 @@ E2E lanes:
 pnpm run test:e2e:smoke
 pnpm run test:e2e:browser
 pnpm run test:e2e:production
-pnpm run test:e2e:live
 ```
+
+Smoke and browser lanes run against the Rust gateway (static UI from `out/`, plus
+`betaclaw-scheduler`). They build the binaries first via `scripts/e2e/prepare-rust-gateway.mjs`;
+the browser lane also runs `pnpm run build:export`. Shared launcher: `tests/e2e/_shared/rustGateway.ts`.
 
 ### Container workflows
 
@@ -235,12 +264,11 @@ docker compose --env-file .env.local logs -f gateway scheduler
 docker compose --env-file .env.local down
 ```
 
-Compose starts PostgreSQL, migrations and role provisioning, then the Rust
-gateway and scheduler. Rust serves the static UI, declared API handlers and
+Compose starts PostgreSQL, then the `migrate` service (`betaclaw-scheduler migrate --provision-roles --apply`,
+Rust, gateway image), then the Rust gateway and scheduler. Rust serves the static UI, declared API handlers and
 WebSocket. Route coverage checks declarations; behavior requires parity and smoke tests.
 The image includes Python and Node/Playwright/Chromium for on-demand tool subprocesses.
-No Node application server starts in the standard stack. The optional legacy Next.js server can be started for regression
-checks via `--profile legacy-node-ui`. Use
+No Node application server starts in the standard stack. Use
 `GATEWAY_PUBLISHED_PORT` when port 3000 is occupied (see the port conflicts
 section above). Runtime roles are
 `world_model_app` and `world_model_worker`; their RLS grants are tested
@@ -298,3 +326,13 @@ A task is done when:
 - impact is explained (what changed, where, why),
 - follow-ups are listed if anything was intentionally left out.
 - docs/RUST_MIGRATION.md ist aktualisiert, wenn sich Slice-Stand, Testzahl oder offene Punkte ändern.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

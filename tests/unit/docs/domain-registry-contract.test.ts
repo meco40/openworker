@@ -5,7 +5,7 @@ import {
   loadDomainRegistry,
   loadScenarioMatrix,
   readContractLastReviewed,
-} from '@/server/ci/harnessDomainRegistry';
+} from '@/shared/ci/harnessDomainRegistry';
 
 describe('domain registry contract', () => {
   it('keeps every domain mapped to exactly one contract and existing files', () => {

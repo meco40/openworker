@@ -1,0 +1,21 @@
+{
+  "values": {
+    "typescript": {
+      "default": {
+        "ok": true,
+        "hasConversationId": true,
+        "messages": []
+      },
+      "created": {
+        "ok": true,
+        "hasConversationId": true,
+        "messages": []
+      },
+      "unknownConversation": {
+        "ok": true,
+        "hasConversationId": true,
+        "messages": []
+      }
+    }
+  }
+}

@@ -94,10 +94,8 @@ impl LoginRateLimiter {
 
     fn active_entry(&mut self, key: &str) -> Option<&Entry> {
         let now = now_ms();
-        let expired = match self.entries.get(key) {
-            Some(entry) => now.saturating_sub(entry.window_start_ms) >= self.window_ms,
-            None => return None,
-        };
+        let entry = self.entries.get(key)?;
+        let expired = now.saturating_sub(entry.window_start_ms) >= self.window_ms;
         if expired {
             self.remove(key);
             return None;
@@ -212,6 +210,43 @@ mod tests {
             limiter.record_failure(&format!("key-{index}"));
         }
         assert_eq!(limiter.len(), 8, "size must never exceed max_entries");
+    }
+
+    #[test]
+    fn blocked_key_unblocks_after_window_and_starts_fresh_budget() {
+        // Port of "keeps blocking until the window passes, then unblocks" and
+        // "starts a fresh budget after the window expires". The limiter reads the
+        // real clock, so the window is kept short instead of injecting a clock.
+        let mut limiter = LoginRateLimiter::new(2, 50, 100);
+        limiter.record_failure("email:a@x.dev");
+        limiter.record_failure("email:a@x.dev");
+        assert!(limiter.is_blocked("email:a@x.dev"));
+
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        assert!(!limiter.is_blocked("email:a@x.dev"), "window expired");
+
+        limiter.record_failure("email:a@x.dev");
+        assert!(
+            !limiter.is_blocked("email:a@x.dev"),
+            "one failure in a fresh window is below the limit"
+        );
+    }
+
+    #[test]
+    fn prunes_expired_entries_once_a_window_has_elapsed() {
+        // Port of "prunes expired entries once a window has elapsed".
+        let mut limiter = LoginRateLimiter::new(10, 50, 100);
+        limiter.record_failure("email:old@x.dev");
+        limiter.record_failure("email:older@x.dev");
+        assert_eq!(limiter.len(), 2);
+
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        limiter.record_failure("email:new@x.dev");
+        assert_eq!(
+            limiter.len(),
+            1,
+            "expired keys are dropped on the next write"
+        );
     }
 
     #[test]

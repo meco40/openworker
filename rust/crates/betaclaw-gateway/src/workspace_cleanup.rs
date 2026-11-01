@@ -24,17 +24,14 @@ pub type WorkspaceCleanupHandle = BackgroundTask;
 pub struct WorkspaceCleanup;
 
 impl WorkspaceCleanup {
-    pub fn is_enabled_from_env() -> bool {
+    pub fn is_enabled_from_env() -> Result<bool, String> {
         let cleanup_mode = std::env::var("BETACLAW_WORKSPACE_CLEANUP").ok();
-        Self::parse_enabled(cleanup_mode.as_deref())
-            && parse_boolean_env("TASK_WORKSPACES_CLEANUP_ENABLED", true)
+        Ok(Self::parse_enabled(cleanup_mode.as_deref())?
+            && parse_boolean_env("TASK_WORKSPACES_CLEANUP_ENABLED", true))
     }
 
-    pub fn parse_enabled(val: Option<&str>) -> bool {
-        match val {
-            Some(v) => v.trim().eq_ignore_ascii_case("rust"),
-            None => false,
-        }
+    pub fn parse_enabled(val: Option<&str>) -> Result<bool, String> {
+        Ok(crate::background::parse_job_owner("BETACLAW_WORKSPACE_CLEANUP", val)? == "rust")
     }
 
     pub fn should_run_startup() -> bool {
@@ -122,10 +119,10 @@ impl WorkspaceCleanup {
     }
 
     /// Starts the periodic workspace cleanup runtime.
-    pub fn start(state: SharedState) -> Option<WorkspaceCleanupHandle> {
-        if !Self::is_enabled_from_env() {
+    pub fn start(state: SharedState) -> Result<Option<WorkspaceCleanupHandle>, String> {
+        if !Self::is_enabled_from_env()? {
             tracing::info!("[task-workspaces] cleanup runtime disabled via env");
-            return None;
+            return Ok(None);
         }
 
         let interval_ms = Self::resolve_interval_ms();
@@ -145,7 +142,7 @@ impl WorkspaceCleanup {
                 Self::run_once_async(state.clone(), "interval").await;
             }
         });
-        Some(BackgroundTask { stop, task })
+        Ok(Some(BackgroundTask { stop, task }))
     }
 }
 
@@ -233,14 +230,15 @@ mod tests {
 
     #[test]
     fn test_parse_enabled_table() {
-        assert!(!WorkspaceCleanup::parse_enabled(None));
-        assert!(!WorkspaceCleanup::parse_enabled(Some("")));
-        assert!(!WorkspaceCleanup::parse_enabled(Some("node")));
-        assert!(!WorkspaceCleanup::parse_enabled(Some("off")));
-        assert!(!WorkspaceCleanup::parse_enabled(Some("false")));
-        assert!(WorkspaceCleanup::parse_enabled(Some("rust")));
-        assert!(WorkspaceCleanup::parse_enabled(Some("RUST")));
-        assert!(WorkspaceCleanup::parse_enabled(Some("  rust  ")));
+        // Unset means rust: the cleanup runs unless the switch says off.
+        assert_eq!(WorkspaceCleanup::parse_enabled(None), Ok(true));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("")), Ok(true));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("off")), Ok(false));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("false")), Ok(false));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("rust")), Ok(true));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("RUST")), Ok(true));
+        assert_eq!(WorkspaceCleanup::parse_enabled(Some("  rust  ")), Ok(true));
+        assert!(WorkspaceCleanup::parse_enabled(Some("node")).is_err());
     }
 
     #[test]

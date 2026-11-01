@@ -478,4 +478,60 @@ mod tests {
         assert_eq!(body["text"], "Pairing required.");
         assert!(h.port.callbacks.lock().unwrap().is_empty());
     }
+
+    #[tokio::test]
+    async fn an_authorized_callback_reaches_the_model_handler() {
+        let h = harness();
+        h.store
+            .set_credential("telegram", "pairing_status", "connected");
+        h.store.set_credential("telegram", "paired_chat_id", "42");
+        let update: TelegramUpdate = serde_json::from_value(json!({
+            "update_id": 4,
+            "callback_query": {
+                "id": "cb10",
+                "data": "model:x",
+                "message": {"message_id": 1, "chat": {"id": 42, "type": "private"}},
+            },
+        }))
+        .expect("valid update");
+
+        let outcome = h
+            .inbound
+            .process_update(&update, None)
+            .await
+            .expect("processed");
+
+        assert!(outcome.handled);
+        assert_eq!(*h.port.callbacks.lock().unwrap(), vec!["cb10".to_string()]);
+        assert!(h.transport.calls("answerCallbackQuery").is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_second_chat_is_refused_once_the_pairing_is_connected() {
+        let h = harness();
+        h.store
+            .set_credential("telegram", "pairing_status", "connected");
+        h.store.set_credential("telegram", "paired_chat_id", "42");
+
+        let outcome = h
+            .inbound
+            .process_message(
+                &message(json!({
+                    "message_id": 2,
+                    "chat": {"id": 99, "type": "private"},
+                    "text": "hello",
+                })),
+                None,
+            )
+            .await
+            .expect("processed");
+
+        assert!(!outcome.handled);
+        assert!(h.port.dispatched.lock().unwrap().is_empty());
+        let calls = h.transport.calls("sendMessage");
+        let body = ScriptedTransport::body_of(&calls[0]);
+        assert!(body["text"]
+            .as_str()
+            .is_some_and(|text| text.contains("already paired with another chat")));
+    }
 }

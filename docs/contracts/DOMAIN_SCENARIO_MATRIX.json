@@ -3,40 +3,40 @@
   "generatedAt": "2026-03-05T11:10:00Z",
   "scenarios": [
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "cinema-dinner",
       "domains": ["world-model"],
-      "command": "pnpm run test -- tests/integration/world-model/cinema-dinner-language-flow.test.ts"
+      "command": "pnpm run rust:test -- world_model"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "core-api-health",
       "domains": ["core-api"],
-      "command": "pnpm run test -- tests/integration/app-smoke.test.ts"
+      "command": "pnpm run rust:test -- gateway_http"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "auth-session-guard",
       "domains": ["auth", "session"],
-      "command": "pnpm run test -- tests/integration/channels/omnichannel-security.contract.test.ts"
+      "command": "pnpm run rust:test -- auth"
     },
     {
-      "runner": "vitest",
+      "runner": "playwright",
       "id": "memory-operations",
       "domains": ["memory"],
-      "command": "pnpm run test -- tests/integration/memory/memory-route.test.ts"
+      "command": "pnpm exec playwright test tests/e2e/memory/memory-operations.spec.ts"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "gateway-rpc-core",
       "domains": ["omnichannel-gateway"],
-      "command": "pnpm run test -- tests/unit/gateway/gateway-contract.test.ts"
+      "command": "pnpm run rust:test -- gateway"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "model-hub-pipeline",
       "domains": ["model-hub"],
-      "command": "pnpm run test -- tests/integration/model-hub/pipeline-route.test.ts"
+      "command": "pnpm run rust:test -- model_hub"
     },
     {
       "runner": "playwright",
@@ -45,52 +45,52 @@
       "command": "pnpm exec playwright test tests/e2e/browser/chat-queue-and-persona.spec.ts"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "ops-engineering-stats",
       "domains": ["ops-observability"],
-      "command": "pnpm run test -- tests/integration/stats/engineering-route.test.ts"
+      "command": "pnpm run rust:test -- stats"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "automation-reminder-cycle",
       "domains": ["automation"],
-      "command": "pnpm run test -- tests/unit/master/master-notes-reminders-cron.test.ts"
+      "command": "pnpm run rust:test -- automation"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "skills-policy-guard",
       "domains": ["skills"],
-      "command": "pnpm run test -- tests/unit/skills/skills-registry.test.ts"
+      "command": "pnpm run rust:test -- skills"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "clawhub-sync",
       "domains": ["clawhub"],
-      "command": "pnpm run test -- tests/unit/clawhub/clawhub-service.test.ts"
+      "command": "pnpm run rust:test -- clawhub"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "knowledge-retrieval-guard",
       "domains": ["knowledge-base"],
-      "command": "pnpm run test -- tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts"
+      "command": "pnpm run rust:test -- knowledge"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "security-authz-guard",
       "domains": ["security"],
-      "command": "pnpm run test -- tests/integration/channels/omnichannel-security.contract.test.ts"
+      "command": "pnpm run rust:test -- auth"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "project-workspace-guard",
       "domains": ["project-workspace"],
-      "command": "pnpm run test -- tests/unit/channels/message-service-project-workspace-cwd.test.ts"
+      "command": "pnpm run rust:test -- workspace"
     },
     {
-      "runner": "vitest",
+      "runner": "shell",
       "id": "tasks-lifecycle",
       "domains": ["tasks"],
-      "command": "pnpm run test -- tests/integration/mission-control/tasks-route-workspaces.test.ts"
+      "command": "pnpm run rust:test -- tasks"
     },
     {
       "runner": "playwright",

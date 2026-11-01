@@ -52,7 +52,8 @@ function run(args, options = {}) {
 try {
   if (!process.env.RELEASE_SMOKE_IMAGE)
     run(['build', '-f', 'docker/Dockerfile.gateway', '-t', image, '.']);
-  if (!process.env.RELEASE_SMOKE_PROBE_IMAGE) run(['build', '-t', probeImage, '.']);
+  if (!process.env.RELEASE_SMOKE_PROBE_IMAGE)
+    run(['build', '-f', 'docker/Dockerfile.probe', '-t', probeImage, '.']);
   run([...compose, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180', 'scheduler']);
   run([...compose, 'run', '--rm', '--no-deps', '--use-aliases', 'probe']);
   run([...compose, 'exec', '-T', 'gateway', 'python3', '-c', 'print("python-runtime-ok")']);
@@ -91,40 +92,6 @@ try {
     'data:text/html,release-browser-ok',
     '/tmp/release-browser.png',
   ]);
-  if (process.argv.includes('--benchmark')) {
-    run([...compose, '--profile', 'legacy-node-ui', 'up', '-d', '--no-build', '--wait', 'web-ui']);
-    fs.writeFileSync(
-      path.join(logDir, 'benchmark.json'),
-      run(
-        [
-          ...compose,
-          'run',
-          '--rm',
-          '--no-deps',
-          'probe',
-          'node',
-          'scripts/verify/node-elimination-benchmark.mjs',
-        ],
-        { capture: true, stdoutOnly: true },
-      ),
-    );
-    fs.writeFileSync(
-      path.join(logDir, 'benchmark-memory.jsonl'),
-      run(
-        [
-          'stats',
-          '--no-stream',
-          '--format',
-          '{{json .}}',
-          project + '-gateway-1',
-          project + '-scheduler-1',
-          project + '-web-ui-1',
-          project + '-postgres-1',
-        ],
-        { capture: true },
-      ),
-    );
-  }
   console.log(
     JSON.stringify({
       ok: true,
@@ -142,5 +109,5 @@ try {
     path.join(logDir, 'compose.log'),
     run([...compose, 'logs', '--no-color'], { capture: true, allowFailure: true }),
   );
-  run([...compose, '--profile', 'legacy-node-ui', 'down', '--volumes']);
+  run([...compose, 'down', '--volumes']);
 }

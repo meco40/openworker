@@ -5,7 +5,7 @@ import {
   makeError,
   makeEvent,
   makeStream,
-} from '@/server/gateway/protocol';
+} from '@/shared/gateway/protocol';
 
 // ─── parseFrame ──────────────────────────────────────────────
 

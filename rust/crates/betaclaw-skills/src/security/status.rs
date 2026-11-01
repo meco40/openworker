@@ -458,4 +458,59 @@ mod tests {
             .unwrap();
         assert_eq!(slack.status, "warning");
     }
+
+    #[test]
+    fn channel_verification_kinds_match_typescript() {
+        // Port of "reports signed verification for telegram and discord" and
+        // "reports shared_secret verification for whatsapp, imessage, and slack".
+        let result = build_security_status_snapshot(&SnapshotInput {
+            commands: &[],
+            app_url: "https://x.example",
+            messages_db_path: std::path::Path::new("nope.db"),
+            secure_crypto: true,
+            channel_secret_configured: &|_, _| false,
+        });
+        let kind = |name: &str| {
+            result
+                .channels
+                .iter()
+                .find(|c| c.channel == name)
+                .map(|c| c.verification)
+                .unwrap()
+        };
+        assert_eq!(kind("telegram"), "signed");
+        assert_eq!(kind("discord"), "signed");
+        assert_eq!(kind("whatsapp"), "shared_secret");
+        assert_eq!(kind("imessage"), "shared_secret");
+        assert_eq!(kind("slack"), "shared_secret");
+        assert!(result
+            .channels
+            .iter()
+            .all(|c| c.status == "warning" && c.detail == "Verification secret missing."));
+    }
+
+    #[test]
+    fn audit_check_is_ok_when_the_messages_database_exists() {
+        // Port of "marks ok when audit database exists" and
+        // "warns when audit database does not exist" (status.ts audit check).
+        let path = std::env::temp_dir().join(format!("betaclaw-audit-{}.db", uuid::Uuid::new_v4()));
+        std::fs::write(&path, b"").unwrap();
+        let result = build_security_status_snapshot(&SnapshotInput {
+            commands: &[],
+            app_url: "https://x.example",
+            messages_db_path: &path,
+            secure_crypto: true,
+            channel_secret_configured: &|_, _| true,
+        });
+        let _ = std::fs::remove_file(&path);
+        let audit = result.checks.iter().find(|c| c.id == "audit").unwrap();
+        assert_eq!(audit.status, CheckStatus::Ok);
+    }
+
+    #[test]
+    fn generated_at_is_a_valid_rfc3339_timestamp() {
+        // Port of "includes a valid ISO timestamp".
+        let result = snapshot(&[], "https://x.example", true);
+        assert!(chrono::DateTime::parse_from_rfc3339(&result.generated_at).is_ok());
+    }
 }

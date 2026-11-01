@@ -333,4 +333,58 @@ mod tests {
         repo.release_lease("b").unwrap();
         assert!(repo.get_lease_state().unwrap().is_none());
     }
+
+    #[test]
+    fn unknown_ids_give_none_or_false() {
+        let repo = repo();
+        let patch = UpdateAutomationRuleInput {
+            name: Some("Renamed".to_string()),
+            ..Default::default()
+        };
+        assert!(repo.update_rule("missing", "u1", &patch).unwrap().is_none());
+        assert!(!repo.delete_rule("missing", "u1").unwrap());
+        assert!(repo.get_rule_by_id("missing").unwrap().is_none());
+        assert!(repo.get_run("missing").unwrap().is_none());
+        let graph = FlowGraph {
+            version: 1,
+            nodes: vec![],
+            edges: vec![],
+        };
+        assert!(repo
+            .save_flow_graph("missing", "u1", &graph)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn a_saved_flow_graph_is_read_back_and_a_legacy_rule_has_none() {
+        let repo = repo();
+        let rule = repo.create_rule(&rule_input("u1")).unwrap();
+        assert!(rule.flow_graph.is_none());
+
+        let graph = FlowGraph {
+            version: 1,
+            nodes: vec![],
+            edges: vec![],
+        };
+        let saved = repo
+            .save_flow_graph(&rule.id, "u1", &graph)
+            .unwrap()
+            .expect("rule exists");
+        assert_eq!(saved.flow_graph.as_ref().map(|g| g.version), Some(1));
+    }
+
+    #[test]
+    fn a_corrupt_stored_flow_graph_reads_as_none() {
+        let repo = repo();
+        let rule = repo.create_rule(&rule_input("u1")).unwrap();
+        repo.lock()
+            .execute(
+                "UPDATE automation_rules SET flow_graph = ?1 WHERE id = ?2",
+                rusqlite::params!["not-valid-json{{{", rule.id],
+            )
+            .unwrap();
+        let read = repo.get_rule_by_id(&rule.id).unwrap().expect("rule exists");
+        assert!(read.flow_graph.is_none());
+    }
 }

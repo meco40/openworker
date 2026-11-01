@@ -1901,4 +1901,60 @@ mod tests {
         );
         assert!(default_memory_db_path().ends_with("messages.db"));
     }
+    #[test]
+    fn a_duplicate_id_is_rejected_and_the_first_row_stays() {
+        let dir = TempDir::new("duplicate-id");
+        let repository = open(&dir);
+        repository
+            .insert_node("persona-a", &node("mem-1", MemoryType::Fact, "first"), None)
+            .expect("insert");
+
+        let second = repository.insert_node(
+            "persona-a",
+            &node("mem-1", MemoryType::Fact, "second"),
+            None,
+        );
+
+        assert!(second.is_err(), "the primary key refuses the second row");
+        let nodes = repository.list_nodes("persona-a", None).expect("list");
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].content, "first");
+    }
+
+    #[test]
+    fn long_special_and_large_values_round_trip_unchanged() {
+        let dir = TempDir::new("large-values");
+        let repository = open(&dir);
+        let content = format!("Zeile \"eins\"\nzwei \\ drei 🙂 {}", "lang ".repeat(2_000));
+        let mut big = node("mem-big", MemoryType::Lesson, &content);
+        // Binary fractions, so the check does not depend on the float parser's
+        // last-bit rounding (see the report: serde_json without `float_roundtrip`).
+        big.embedding = (0..1536).map(|index| (index % 64) as f64 * 0.5).collect();
+        big.importance = 5.0;
+        big.confidence = 1.0;
+        big.metadata = None;
+        repository
+            .insert_node("persona-a", &big, None)
+            .expect("insert");
+
+        let stored = repository.list_nodes("persona-a", None).expect("list");
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].content, content);
+        assert_eq!(stored[0].embedding, big.embedding);
+        assert_eq!(stored[0].importance, 5.0);
+        assert_eq!(stored[0].confidence, 1.0);
+        assert!(stored[0].metadata.is_none());
+    }
+    #[test]
+    fn empty_content_is_stored_and_read_back_as_given() {
+        let dir = TempDir::new("empty-content");
+        let repository = open(&dir);
+        repository
+            .insert_node("persona-a", &node("mem-empty", MemoryType::Fact, ""), None)
+            .expect("insert");
+
+        let nodes = repository.list_nodes("persona-a", None).expect("list");
+        assert_eq!(nodes.len(), 1);
+        assert_eq!(nodes[0].content, "");
+    }
 }

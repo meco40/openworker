@@ -102,4 +102,40 @@ mod tests {
             .expect("run succeeds");
         assert_eq!(result.summary, DEFAULT_SUMMARY);
     }
+
+    struct SummaryRunner;
+
+    impl PromptRunner for SummaryRunner {
+        async fn run_prompt(&self, _input: PromptRunInput) -> Result<PromptRunOutput, String> {
+            Ok(PromptRunOutput {
+                summary: Some("ok".to_string()),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn the_runner_summary_is_returned_for_the_user_and_prompt() {
+        let input = AgentRunExecutionInput {
+            user_id: "user-a".to_string(),
+            prompt: "Generate morning briefing".to_string(),
+            timeout_ms: None,
+        };
+        let result = execute_agent_run_action(input, &SummaryRunner)
+            .await
+            .expect("run succeeds");
+        assert_eq!(result.summary, "ok");
+    }
+
+    #[tokio::test]
+    async fn a_missing_or_zero_timeout_uses_the_default_instead_of_cutting_the_run() {
+        for timeout_ms in [None, Some(0)] {
+            let input = AgentRunExecutionInput {
+                user_id: "u1".to_string(),
+                prompt: "quick".to_string(),
+                timeout_ms,
+            };
+            let result = execute_agent_run_action(input, &SummaryRunner).await;
+            assert_eq!(result.expect("run succeeds").summary, "ok");
+        }
+    }
 }

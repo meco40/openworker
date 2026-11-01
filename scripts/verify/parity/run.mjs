@@ -2,13 +2,16 @@
 /**
  * Runs the cross-implementation parity families against a running Rust gateway.
  *
- *   node --import tsx scripts/verify/parity/run.mjs                # all families
- *   node --import tsx scripts/verify/parity/run.mjs --family=logs  # one family
+ *   node scripts/verify/parity/run.mjs                # all families
+ *   node scripts/verify/parity/run.mjs --family=logs  # one family
  *
  * The gateway is expected under `GATEWAY_BASE_URL` (CI: started release binary)
  * or as `GATEWAY_CONTAINER` (documented local docker flow, default
  * `betaclaw-gateway-ws`). Every migrated route family must have a family here;
  * CI runs all of them, so a slice is only done when its family is green.
+ *
+ * The reference is `golden/*.json`; the run loads no TypeScript. Changing a golden
+ * file is a reviewed edit (see the README).
  */
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';

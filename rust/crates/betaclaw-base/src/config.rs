@@ -257,7 +257,7 @@ fn resolve_max_requests_per_minute() -> usize {
     match parsed {
         Some(value) if value > 0 => {
             let clamped = value.clamp(10, 10_000) as usize;
-            clamped.max(BASE).max(0)
+            clamped.max(BASE)
         }
         _ => BASE.max(DEFAULT),
     }

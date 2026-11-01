@@ -1,0 +1,244 @@
+{
+  "values": {
+    "GET /api/debug/conversations": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "conversations": []
+      },
+      "text": "{\"ok\":true,\"conversations\":[]}"
+    },
+    "GET /api/debug/conversations/[id]/turns (fehlend)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "turns": [],
+        "pagination": {
+          "limit": 50,
+          "returned": 0,
+          "hasMore": false,
+          "nextBeforeSeq": null
+        }
+      },
+      "text": "{\"ok\":true,\"turns\":[],\"pagination\":{\"limit\":50,\"returned\":0,\"hasMore\":false,\"nextBeforeSeq\":null}}"
+    },
+    "GET /api/events": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": [],
+      "text": "[]"
+    },
+    "GET /api/knowledge/graph (fehlende Persona)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "graph": {
+          "nodes": [],
+          "edges": []
+        },
+        "stats": {
+          "nodes": 0,
+          "edges": 0,
+          "categories": {},
+          "truncated": false
+        },
+        "meta": {
+          "durationMs": 82,
+          "generatedAt": "2026-10-31T20:11:16.747Z"
+        }
+      },
+      "text": "{\"ok\":true,\"graph\":{\"nodes\":[],\"edges\":[]},\"stats\":{\"nodes\":0,\"edges\":0,\"categories\":{},\"truncated\":false},\"meta\":{\"durationMs\":82,\"generatedAt\":\"2026-10-31T20:11:16.747Z\"}}"
+    },
+    "GET /api/knowledge/graph ohne personaId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "personaId is required."
+      },
+      "text": "{\"ok\":false,\"error\":\"personaId is required.\"}"
+    },
+    "GET /api/stats": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "overview": {
+          "uptimeSeconds": 2,
+          "totalRequests": 0
+        },
+        "tokenUsage": {
+          "total": {
+            "prompt": 0,
+            "completion": 0,
+            "total": 0
+          },
+          "byModel": []
+        }
+      },
+      "text": "{\"ok\":true,\"overview\":{\"uptimeSeconds\":2,\"totalRequests\":0},\"tokenUsage\":{\"total\":{\"prompt\":0,\"completion\":0,\"total\":0},\"byModel\":[]}}"
+    },
+    "GET /api/stats/engineering": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "snapshot": {
+          "windowDays": 7,
+          "leadTimeMedianHours": null,
+          "mergeThroughputPerWeek": null,
+          "firstPassCiRate": null,
+          "flakyRate": null,
+          "revertRate": null,
+          "medianPrSize": null,
+          "asyncFailureSlaBreaches": 0,
+          "generatedAt": "2026-10-31T20:11:16.279Z",
+          "source": "fallback",
+          "snapshotAgeHours": null,
+          "isFallback": true,
+          "domainCoverage": {
+            "activeDomains": 19,
+            "coveredDomains": 0,
+            "coverageRate": 0,
+            "uncoveredDomains": [
+              "core-api",
+              "auth",
+              "session",
+              "world-model",
+              "memory",
+              "omnichannel-gateway",
+              "model-hub",
+              "persona-rooms",
+              "ops-observability",
+              "automation",
+              "skills",
+              "clawhub",
+              "knowledge-base",
+              "security",
+              "master-agent",
+              "project-workspace",
+              "tasks",
+              "chat",
+              "mission-control"
+            ]
+          },
+          "scenarioSuccessRates": [],
+          "worktreeHarness": {
+            "totalWorktrees": 0,
+            "healthyWorktrees": 0,
+            "successRate": null,
+            "unstableWorktrees": 0
+          },
+          "criticalFailAutoReverts": 0,
+          "observability": {
+            "laneSuccessRates": []
+          },
+          "rollout": {
+            "phase": null,
+            "phaseWindow": {
+              "start": null,
+              "end": null
+            },
+            "mode": null,
+            "baselineId": "baseline-2026-02-07_2026-03-08",
+            "overallStatus": "unknown",
+            "recommendation": "hold",
+            "exitGates": [],
+            "deltaVsBaseline": {
+              "firstPassCiRate": null,
+              "revertRate": null,
+              "flakyRate": null,
+              "mergeThroughputPerWeek": null,
+              "medianPrSize": null
+            }
+          }
+        }
+      },
+      "text": "{\"ok\":true,\"snapshot\":{\"windowDays\":7,\"leadTimeMedianHours\":null,\"mergeThroughputPerWeek\":null,\"firstPassCiRate\":null,\"flakyRate\":null,\"revertRate\":null,\"medianPrSize\":null,\"asyncFailureSlaBreaches\":0,\"generatedAt\":\"2026-10-31T20:11:16.279Z\",\"source\":\"fallback\",\"snapshotAgeHours\":null,\"isFallback\":true,\"domainCoverage\":{\"activeDomains\":19,\"coveredDomains\":0,\"coverageRate\":0,\"uncoveredDomains\":[\"core-api\",\"auth\",\"session\",\"world-model\",\"memory\",\"omnichannel-gateway\",\"model-hub\",\"persona-rooms\",\"ops-observability\",\"automation\",\"skills\",\"clawhub\",\"knowledge-base\",\"security\",\"master-agent\",\"project-workspace\",\"tasks\",\"chat\",\"mission-control\"]},\"scenarioSuccessRates\":[],\"worktreeHarness\":{\"totalWorktrees\":0,\"healthyWorktrees\":0,\"successRate\":null,\"unstableWorktrees\":0},\"criticalFailAutoReverts\":0,\"observability\":{\"laneSuccessRates\":[]},\"rollout\":{\"phase\":null,\"phaseWindow\":{\"start\":null,\"end\":null},\"mode\":null,\"baselineId\":\"baseline-2026-02-07_2026-03-08\",\"overallStatus\":\"unknown\",\"recommendation\":\"hold\",\"exitGates\":[],\"deltaVsBaseline\":{\"firstPassCiRate\":null,\"revertRate\":null,\"flakyRate\":null,\"mergeThroughputPerWeek\":null,\"medianPrSize\":null}}}}"
+    },
+    "GET /api/stats/engineering (ungültiges windowDays)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "windowDays must be 7 or 30"
+      },
+      "text": "{\"ok\":false,\"error\":\"windowDays must be 7 or 30\"}"
+    },
+    "GET /api/stats/prompt-logs": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "entries": [],
+        "total": 0,
+        "summary": {
+          "totalEntries": 0,
+          "flaggedEntries": 0,
+          "promptTokensTotal": 0,
+          "promptTokensExactCount": 0,
+          "promptTokensEstimatedCount": 0,
+          "totalCostUsd": 0
+        },
+        "diagnostics": {
+          "loggerActive": true,
+          "attemptsSinceBoot": 0,
+          "writesSinceBoot": 0,
+          "lastAttemptAt": null,
+          "lastInsertAt": null,
+          "lastError": null,
+          "lastErrorAt": null
+        }
+      },
+      "text": "{\"ok\":true,\"entries\":[],\"total\":0,\"summary\":{\"totalEntries\":0,\"flaggedEntries\":0,\"promptTokensTotal\":0,\"promptTokensExactCount\":0,\"promptTokensEstimatedCount\":0,\"totalCostUsd\":0},\"diagnostics\":{\"loggerActive\":true,\"attemptsSinceBoot\":0,\"writesSinceBoot\":0,\"lastAttemptAt\":null,\"lastInsertAt\":null,\"lastError\":null,\"lastErrorAt\":null}}"
+    },
+    "GET /api/stats/prompt-logs (preset, limit)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "entries": [],
+        "total": 0,
+        "summary": {
+          "totalEntries": 0,
+          "flaggedEntries": 0,
+          "promptTokensTotal": 0,
+          "promptTokensExactCount": 0,
+          "promptTokensEstimatedCount": 0,
+          "totalCostUsd": 0
+        },
+        "diagnostics": {
+          "loggerActive": true,
+          "attemptsSinceBoot": 0,
+          "writesSinceBoot": 0,
+          "lastAttemptAt": null,
+          "lastInsertAt": null,
+          "lastError": null,
+          "lastErrorAt": null
+        }
+      },
+      "text": "{\"ok\":true,\"entries\":[],\"total\":0,\"summary\":{\"totalEntries\":0,\"flaggedEntries\":0,\"promptTokensTotal\":0,\"promptTokensExactCount\":0,\"promptTokensEstimatedCount\":0,\"totalCostUsd\":0},\"diagnostics\":{\"loggerActive\":true,\"attemptsSinceBoot\":0,\"writesSinceBoot\":0,\"lastAttemptAt\":null,\"lastInsertAt\":null,\"lastError\":null,\"lastErrorAt\":null}}"
+    },
+    "POST /api/debug/conversations/[id]/replay ohne fromSeq": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "fromSeq must be an integer >= 1"
+      },
+      "text": "{\"ok\":false,\"error\":\"fromSeq must be an integer >= 1\"}"
+    },
+    "POST /api/events ohne type/message": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "error": "Type and message are required"
+      },
+      "text": "{\"error\":\"Type and message are required\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

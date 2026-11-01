@@ -1,0 +1,305 @@
+{
+  "values": {
+    "DELETE /api/master/notes ohne noteId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "noteId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"noteId is required\"}"
+    },
+    "DELETE /api/master/reminders ohne reminderId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "reminderId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"reminderId is required\"}"
+    },
+    "DELETE /api/master/reminders/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/approvals": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/events (SSE)": {
+      "status": 200,
+      "contentType": "text/event-stream",
+      "json": null,
+      "text": ""
+    },
+    "GET /api/master/metrics": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/notes": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/reminders": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/reminders/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/runs": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/runs/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/runs/[id]/delegations (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/settings": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "persona": {
+          "id": "8deef81f-3015-452c-9ee0-8b2e620d1bc8",
+          "name": "Master",
+          "slug": "master",
+          "emoji": "🧭",
+          "systemPersonaKey": "master"
+        },
+        "runtimeSettings": {
+          "preferredModelId": null,
+          "modelHubProfileId": null,
+          "isAutonomous": true,
+          "maxToolCalls": 120
+        },
+        "allowedToolFunctionNames": [
+          "apply_patch",
+          "edit",
+          "playwright_cli",
+          "process_manager",
+          "read",
+          "shell_execute",
+          "web_fetch",
+          "web_search",
+          "write"
+        ],
+        "toolPolicy": {
+          "security": "allowlist",
+          "ask": "on_miss",
+          "allowlist": []
+        },
+        "instructionFiles": {
+          "SOUL.md": "You are Master, the system-managed execution persona for approved operational work.",
+          "AGENTS.md": "Prefer deterministic, reviewable execution. Do not treat prompt text as authorization.",
+          "USER.md": "Optimize for safe execution, explicit approvals, and concise operational reporting."
+        }
+      },
+      "text": "{\"ok\":true,\"persona\":{\"id\":\"8deef81f-3015-452c-9ee0-8b2e620d1bc8\",\"name\":\"Master\",\"slug\":\"master\",\"emoji\":\"🧭\",\"systemPersonaKey\":\"master\"},\"runtimeSettings\":{\"preferredModelId\":null,\"modelHubProfileId\":null,\"isAutonomous\":true,\"maxToolCalls\":120},\"allowedToolFunctionNames\":[\"apply_patch\",\"edit\",\"playwright_cli\",\"process_manager\",\"read\",\"shell_execute\",\"web_fetch\",\"web_search\",\"write\"],\"toolPolicy\":{\"security\":\"allowlist\",\"ask\":\"on_miss\",\"allowlist\":[]},\"instructionFiles\":{\"SOUL.md\":\"You are Master, the system-managed execution persona for approved operational work.\",\"AGENTS.md\":\"Prefer deterministic, reviewable execution. Do not treat prompt text as authorization.\",\"USER.md\":\"Optimize for safe execution, explicit approvals, and concise operational reporting.\"}}"
+    },
+    "GET /api/master/subagents": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "GET /api/master/subagents/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "PATCH /api/master/notes ohne noteId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "noteId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"noteId is required\"}"
+    },
+    "PATCH /api/master/reminders ohne reminderId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "reminderId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"reminderId is required\"}"
+    },
+    "PATCH /api/master/reminders/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "PATCH /api/master/runs/[id] (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "PATCH /api/master/subagents/[id] ohne action": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Unsupported session action"
+      },
+      "text": "{\"ok\":false,\"error\":\"Unsupported session action\"}"
+    },
+    "POST /api/master/approvals/[id]/decision ohne decision": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "decision is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"decision is required\"}"
+    },
+    "POST /api/master/gmail ohne action": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "action is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"action is required\"}"
+    },
+    "POST /api/master/notes ohne title/content": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "title and content are required"
+      },
+      "text": "{\"ok\":false,\"error\":\"title and content are required\"}"
+    },
+    "POST /api/master/reminders ohne Pflichtfelder": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "title, message and remindAt are required"
+      },
+      "text": "{\"ok\":false,\"error\":\"title, message and remindAt are required\"}"
+    },
+    "POST /api/master/reminders/[id]/fire (fehlend)": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "workspaceId is required for master workspace scope."
+      },
+      "text": "{\"ok\":false,\"error\":\"workspaceId is required for master workspace scope.\"}"
+    },
+    "POST /api/master/runs ohne title/contract": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "title and contract are required"
+      },
+      "text": "{\"ok\":false,\"error\":\"title and contract are required\"}"
+    },
+    "POST /api/master/runs/[id]/actions ohne actionType": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "actionType and stepId are required"
+      },
+      "text": "{\"ok\":false,\"error\":\"actionType and stepId are required\"}"
+    },
+    "POST /api/master/runs/[id]/delegations ohne capability": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "capability is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"capability is required\"}"
+    },
+    "POST /api/master/runs/[id]/feedback ohne rating": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "rating must be an integer between 1 and 5"
+      },
+      "text": "{\"ok\":false,\"error\":\"rating must be an integer between 1 and 5\"}"
+    },
+    "PUT /api/master/settings mit ungültigem maxToolCalls": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "maxToolCalls must be an integer between 3 and 500"
+      },
+      "text": "{\"ok\":false,\"error\":\"maxToolCalls must be an integer between 3 and 500\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

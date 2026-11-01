@@ -657,4 +657,188 @@ mod tests {
         assert!(raw.contains("\"status\": \"paused\""));
         let _ = fs::remove_dir_all(dir);
     }
+
+    #[test]
+    fn a_missing_invalid_or_mismatched_store_loads_as_empty() {
+        let (dir, path) = temp_store();
+        assert!(SubagentRegistry::new(&path)
+            .list_active("conv-1")
+            .unwrap()
+            .is_empty());
+
+        fs::create_dir_all(&dir).unwrap();
+        let cases = [
+            "not json".to_string(),
+            serde_json::json!({"version": 2, "runs": []}).to_string(),
+            serde_json::json!({"version": 1}).to_string(),
+        ];
+        for raw in cases {
+            fs::write(&path, raw).unwrap();
+            assert!(SubagentRegistry::new(&path)
+                .list_active("conv-1")
+                .unwrap()
+                .is_empty());
+        }
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn records_missing_a_required_field_are_dropped_on_load() {
+        let (dir, path) = temp_store();
+        fs::create_dir_all(&dir).unwrap();
+        let valid = serde_json::json!({
+            "runId": "run-valid",
+            "requesterConversationId": "conv-1",
+            "requesterUserId": "u1",
+            "agentId": "researcher",
+            "task": "Task",
+            "status": "completed",
+            "createdAt": "2026-10-11T10:00:00.000Z",
+            "startedAt": "2026-10-11T10:00:00.000Z",
+            "endedAt": now_iso()
+        });
+        let invalid = serde_json::json!({"runId": "run-invalid", "agentId": "researcher"});
+        let store = serde_json::json!({"version": 1, "runs": [valid, invalid]});
+        fs::write(&path, store.to_string()).unwrap();
+
+        let listing = SubagentRegistry::new(&path)
+            .list_for_conversation("conv-1", 60)
+            .unwrap();
+        assert!(listing.active.is_empty());
+        assert_eq!(listing.recent.len(), 1);
+        assert_eq!(listing.recent[0].run_id, "run-valid");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn updates_for_an_unknown_run_return_none() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+        assert!(registry.complete_run("missing", None).unwrap().is_none());
+        assert!(registry.fail_run("missing", "boom").unwrap().is_none());
+        assert!(registry.mark_killed("missing", None).unwrap().is_none());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_failed_run_is_an_error_unless_it_was_already_killed() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+
+        let running = registry.create_run(input()).unwrap();
+        let failed = registry
+            .fail_run(&running.run_id, "execution error")
+            .unwrap()
+            .unwrap();
+        assert_eq!(failed.status, SubagentRunStatus::Error);
+        assert_eq!(failed.error.as_deref(), Some("execution error"));
+
+        let killed = registry.create_run(input()).unwrap();
+        registry
+            .mark_killed(&killed.run_id, Some("killed first"))
+            .unwrap();
+        let after = registry
+            .fail_run(&killed.run_id, "new error")
+            .unwrap()
+            .unwrap();
+        assert_eq!(after.status, SubagentRunStatus::Killed);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn aborting_without_a_runtime_marks_the_run_killed_and_reports_false() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+        let run = registry.create_run(input()).unwrap();
+
+        assert!(!registry.abort_run(&run.run_id, None).unwrap());
+        let listing = registry.list_for_conversation("conv-1", 60).unwrap();
+        assert_eq!(listing.recent[0].status, SubagentRunStatus::Killed);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn running_runs_are_active_and_finished_runs_are_recent() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+        let running = registry.create_run(input()).unwrap();
+        let finished = registry.create_run(input()).unwrap();
+        registry.complete_run(&finished.run_id, None).unwrap();
+
+        let listing = registry.list_for_conversation("conv-1", 60).unwrap();
+        assert_eq!(listing.active.len(), 1);
+        assert_eq!(listing.active[0].run_id, running.run_id);
+        assert_eq!(listing.recent.len(), 1);
+        assert_eq!(listing.recent[0].run_id, finished.run_id);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_recent_window_is_at_least_one_minute_and_excludes_older_runs() {
+        let (dir, path) = temp_store();
+        fs::create_dir_all(&dir).unwrap();
+        let old = serde_json::json!({
+            "runId": "run-old",
+            "requesterConversationId": "conv-1",
+            "requesterUserId": "u1",
+            "agentId": "researcher",
+            "task": "Task",
+            "status": "completed",
+            "createdAt": "2000-01-01T00:00:00.000Z",
+            "startedAt": "2000-01-01T00:00:00.000Z",
+            "endedAt": "2000-01-01T00:00:00.000Z"
+        });
+        let mut fresh = old.clone();
+        fresh["runId"] = serde_json::json!("run-fresh");
+        fresh["endedAt"] = serde_json::json!(now_iso());
+        fs::write(
+            &path,
+            serde_json::json!({"version": 1, "runs": [old, fresh]}).to_string(),
+        )
+        .unwrap();
+
+        let zero = SubagentRegistry::new(&path)
+            .list_for_conversation("conv-1", 0)
+            .unwrap();
+        assert_eq!(zero.recent.len(), 1);
+        assert_eq!(zero.recent[0].run_id, "run-fresh");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn count_active_counts_only_running_runs_of_the_conversation() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+        assert_eq!(registry.count_active("conv-1").unwrap(), 0);
+
+        let first = registry.create_run(input()).unwrap();
+        registry.create_run(input()).unwrap();
+        registry.complete_run(&first.run_id, None).unwrap();
+        assert_eq!(registry.count_active("conv-1").unwrap(), 1);
+        assert_eq!(registry.count_active("conv-2").unwrap(), 0);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn listings_return_only_the_runs_of_the_given_conversation() {
+        let (dir, path) = temp_store();
+        let registry = SubagentRegistry::new(&path);
+        let mine = registry.create_run(input()).unwrap();
+        let mut other = input();
+        other.requester_conversation_id = "conv-2".to_string();
+        registry.create_run(other).unwrap();
+
+        let active = registry.list_active("conv-1").unwrap();
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].run_id, mine.run_id);
+        assert_eq!(
+            registry
+                .list_for_conversation("conv-1", 60)
+                .unwrap()
+                .active
+                .len(),
+            1
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
 }

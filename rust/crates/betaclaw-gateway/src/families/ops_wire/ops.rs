@@ -8,9 +8,6 @@
 //! exec approvals (S11) and the personas. Health and doctor come from the
 //! diagnostics port. A failing port call is a 500 with its message, as the
 //! TypeScript `catch` returns.
-//!
-//! Not carried over: `requestCount` and `seq` of an instance connection. The Rust
-//! `ClientHandle` does not keep them, so they are `null`.
 
 use axum::body::Bytes;
 use axum::extract::{ConnectInfo, FromRequestParts, State};
@@ -106,8 +103,8 @@ async fn instances(State(state): State<SharedState>, headers: HeaderMap, uri: Ur
                 "connId": &*client.conn_id,
                 "connectedAt": iso_from_ms(client.connected_at() as i64),
                 "subscriptionCount": client.subscriptions().len(),
-                "requestCount": Value::Null,
-                "seq": Value::Null,
+                "requestCount": client.request_count(),
+                "seq": client.sequence(),
             })
         })
         .collect();

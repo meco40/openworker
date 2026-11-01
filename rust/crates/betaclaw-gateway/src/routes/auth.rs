@@ -98,15 +98,11 @@ fn resolve_base_url(state: &AppState, headers: &HeaderMap) -> String {
 }
 
 fn resolve_client_ip(headers: &HeaderMap) -> Option<String> {
-    if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = xff.split(',').next() {
-            let trimmed = first.trim();
-            if !trimmed.is_empty() && trimmed.len() <= 64 {
-                return Some(trimmed.to_string());
-            }
-        }
-    }
-    None
+    // Same rule as `resolveClientIp` in src/server/auth/loginRateLimiter.ts: the
+    // first hop, trimmed and truncated to 64 characters. Rejecting long values
+    // instead would silently drop the IP budget for them.
+    let forwarded = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok());
+    betaclaw_core::auth::limiter::resolve_client_ip(forwarded)
 }
 
 pub fn sanitize_callback_url(raw: Option<&str>, base_url: &str) -> String {
@@ -654,6 +650,86 @@ mod tests {
                 .status(),
             StatusCode::UNAUTHORIZED
         );
+    }
+
+    #[tokio::test]
+    async fn a_successful_login_resets_the_email_budget() {
+        // Port of "resets the email budget after a successful login"
+        // (tests/unit/auth/credentials-rate-limit.test.ts).
+        let state = test_state();
+        let (token, cookie) = create_csrf_token(&state.config.auth_secret, None);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(
+            header::COOKIE,
+            format!("next-auth.csrf-token={}", cookie.replace('|', "%7C"))
+                .parse()
+                .unwrap(),
+        );
+        for _round in 0..2 {
+            for _ in 0..9 {
+                let body = Bytes::from(json!({"email":"login@example.invalid","password":"wrong-password","csrfToken":token,"json":true}).to_string());
+                assert_eq!(
+                    callback_credentials(State(state.clone()), headers.clone(), body)
+                        .await
+                        .status(),
+                    StatusCode::UNAUTHORIZED
+                );
+            }
+            // Nine failures plus this success stay below the ten-failure block only
+            // if the success resets the email budget.
+            let body = Bytes::from(json!({"email":"login@example.invalid","password":"isolated-test-password","csrfToken":token,"json":true}).to_string());
+            // JSON requests answer 200 with the target URL; a form post would redirect.
+            assert_eq!(
+                callback_credentials(State(state.clone()), headers.clone(), body)
+                    .await
+                    .status(),
+                StatusCode::OK
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn ip_budget_blocks_correct_credentials_across_emails() {
+        // Port of "blocks a client IP across different emails, but not other IPs"
+        // (tests/unit/auth/credentials-rate-limit.test.ts).
+        let state = test_state();
+        {
+            let mut limiter = state.login_limiter.lock().await;
+            for _ in 0..10 {
+                limiter.record_failure("ip:203.0.113.50");
+            }
+        }
+        let (token, cookie) = create_csrf_token(&state.config.auth_secret, None);
+        let mut headers = HeaderMap::new();
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(
+            header::COOKIE,
+            format!("next-auth.csrf-token={}", cookie.replace('|', "%7C"))
+                .parse()
+                .unwrap(),
+        );
+        headers.insert("x-forwarded-for", "203.0.113.50, 10.0.0.1".parse().unwrap());
+        let body = Bytes::from(json!({"email":"login@example.invalid","password":"isolated-test-password","csrfToken":token,"json":true}).to_string());
+        assert_eq!(
+            callback_credentials(State(state.clone()), headers, body)
+                .await
+                .status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert!(!state
+            .login_limiter
+            .lock()
+            .await
+            .is_blocked("ip:198.51.100.1"));
+    }
+
+    #[test]
+    fn client_ip_is_truncated_to_64_characters_not_dropped() {
+        // Port of "bounds the length of the returned value" in resolveClientIp.
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", "a".repeat(200).parse().unwrap());
+        assert_eq!(resolve_client_ip(&headers).unwrap().len(), 64);
     }
 
     #[tokio::test]

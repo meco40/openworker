@@ -6,7 +6,7 @@ import {
   loadDomainRegistry,
   loadScenarioMatrix,
   parseCommitTrailers,
-} from '@/server/ci/harnessDomainRegistry';
+} from '@/shared/ci/harnessDomainRegistry';
 
 describe('main policy utilities', () => {
   it('parses commit trailers case-insensitively', () => {
@@ -28,8 +28,8 @@ describe('main policy utilities', () => {
   });
 
   it('flags high-risk path patterns', () => {
-    expect(isHighRiskPath('src/server/auth/userContext.ts')).toBe(true);
-    expect(isHighRiskPath('src/server/gateway/index.ts')).toBe(true);
+    expect(isHighRiskPath('rust/crates/betaclaw-base/src/auth/user_store.rs')).toBe(true);
+    expect(isHighRiskPath('rust/crates/betaclaw-base/src/gateway/client.rs')).toBe(true);
     expect(isHighRiskPath('src/modules/chat/components/ChatMainPane.tsx')).toBe(false);
   });
 
@@ -37,8 +37,8 @@ describe('main policy utilities', () => {
     const registry = loadDomainRegistry();
     const matches = classifyChangedDomains(
       [
-        'src/server/memory/service.ts',
-        'app/api/model-hub/pipeline/route.ts',
+        'rust/crates/betaclaw-memory/src/lib.rs',
+        'rust/crates/betaclaw-gateway/src/routes/model_hub.rs',
         'src/shared/contracts/modelHub.ts',
         'app/mission-control/page.tsx',
         'src/modules/app-shell/components/AppShellViewContent.tsx',

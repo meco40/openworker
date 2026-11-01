@@ -326,4 +326,118 @@ mod tests {
         assert_eq!(filter.limit, Some(10_000));
         assert_eq!(filter.user_id, "u-1");
     }
+
+    use crate::knowledge::ingestion::types::MemoryFactError;
+    use crate::knowledge::repository::{KnowledgeRepository, UpsertKnowledgeEpisodeInput};
+    use crate::knowledge::sqlite_knowledge_repository::SqliteKnowledgeRepository;
+
+    fn episode(facts: Vec<&str>, memory_ids: Vec<&str>) -> UpsertKnowledgeEpisodeInput {
+        UpsertKnowledgeEpisodeInput {
+            user_id: "u-1".into(),
+            persona_id: "p-1".into(),
+            conversation_id: "c-1".into(),
+            topic_key: "topic".into(),
+            counterpart: None,
+            teaser: "Teaser".into(),
+            episode: "Episode".into(),
+            facts: facts.into_iter().map(str::to_string).collect(),
+            source_seq_start: 1,
+            source_seq_end: 2,
+            source_refs: vec![],
+            memory_ids: memory_ids.into_iter().map(str::to_string).collect(),
+            event_at: None,
+        }
+    }
+
+    /// The cleanup task counts placeholder and low-relevance facts and deletes
+    /// nothing.
+    #[test]
+    fn the_cleanup_pass_counts_bad_facts_and_deletes_nothing() {
+        let repo = SqliteKnowledgeRepository::open(":memory:").expect("open");
+        repo.upsert_episode(&episode(
+            // "Guten Morgen" would also count as a stale relative time ("morgen").
+            vec![
+                "Die Protagonistin ist traurig",
+                "Nata hat einen Bruder",
+                "Hallo",
+            ],
+            vec![],
+        ))
+        .expect("episode");
+
+        let cleaned = run_cleanup_pass(&repo, 1_800_000_000_000).expect("cleanup");
+
+        assert_eq!(cleaned, 2);
+        let episodes = repo
+            .list_episodes(&scope_filter("u-1", "p-1"))
+            .expect("episodes");
+        assert_eq!(episodes.len(), 1);
+        assert_eq!(episodes[0].facts.len(), 3);
+    }
+
+    /// The memory side of the reconciliation: a stub that returns fixed entries.
+    struct Snapshot(Vec<SnapshotEntry>);
+
+    impl MemorySnapshot for Snapshot {
+        async fn snapshot(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+        ) -> Result<Vec<SnapshotEntry>, MemoryFactError> {
+            Ok(self.0.clone())
+        }
+    }
+
+    struct FailingSnapshot;
+
+    impl MemorySnapshot for FailingSnapshot {
+        async fn snapshot(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+        ) -> Result<Vec<SnapshotEntry>, MemoryFactError> {
+            Err(MemoryFactError("mem0 unreachable".into()))
+        }
+    }
+
+    /// One unreferenced memory and one knowledge reference without a memory are
+    /// each counted once.
+    #[tokio::test]
+    async fn reconciliation_counts_the_orphans_on_both_sides() {
+        let repo = SqliteKnowledgeRepository::open(":memory:").expect("open");
+        repo.upsert_episode(&episode(
+            vec!["Nata hat einen Bruder"],
+            vec!["mem-known", "mem-gone"],
+        ))
+        .expect("episode");
+        let memory = Snapshot(vec![
+            SnapshotEntry {
+                id: "mem-known".into(),
+                content: "Nata hat einen Bruder".into(),
+            },
+            SnapshotEntry {
+                id: "mem-orphan".into(),
+                content: "Lose Notiz".into(),
+            },
+        ]);
+
+        let counts = run_reconciliation_pass(&repo, Some(&memory))
+            .await
+            .expect("reconciliation");
+
+        assert_eq!(counts, (1, 1));
+    }
+
+    /// A failed memory read is an error for the caller to log, not a zero count
+    /// that looks like a clean store.
+    #[tokio::test]
+    async fn a_memory_read_failure_is_an_error_not_a_zero_count() {
+        let repo = SqliteKnowledgeRepository::open(":memory:").expect("open");
+        repo.upsert_episode(&episode(vec!["Nata hat einen Bruder"], vec![]))
+            .expect("episode");
+
+        let result = run_reconciliation_pass(&repo, Some(&FailingSnapshot)).await;
+
+        assert!(matches!(result, Err(ReconciliationError::Memory(_))));
+    }
 }

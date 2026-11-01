@@ -2,8 +2,6 @@
 * @djm2k
 
 # Master + Chat pilot domains
-/app/api/master/ @djm2k
-/app/api/tasks/ @djm2k
 /src/modules/chat/ @djm2k
 /src/server/master/ @djm2k
 /src/server/channels/messages/ @djm2k

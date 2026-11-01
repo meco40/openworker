@@ -618,6 +618,76 @@ mod tests {
     }
 
     #[test]
+    fn opaque_null_origin_and_mismatching_referer_are_cross_site() {
+        // Port of "treats an opaque \"null\" Origin as cross-site" and "treats a
+        // mismatching Referer as cross-site" (tests/unit/auth/proxy-policy.test.ts).
+        let mut headers = browser("app.example.com");
+        headers.origin = Some("null".to_string());
+        assert!(is_cross_site_browser_request(&headers));
+
+        let mut headers = browser("app.example.com");
+        headers.referer = Some("https://evil.example.com/page".to_string());
+        assert!(is_cross_site_browser_request(&headers));
+        assert!(!is_same_origin_browser_request(&headers));
+
+        let mut headers = browser("app.example.com");
+        headers.referer = Some("https://app.example.com/page".to_string());
+        assert!(!is_cross_site_browser_request(&headers));
+        assert!(is_same_origin_browser_request(&headers));
+    }
+
+    #[test]
+    fn request_without_browser_headers_is_neither_cross_site_nor_same_origin() {
+        // Port of "treats a request without browser headers as neither
+        // cross-site nor same-origin". A plain curl call must not be classed
+        // as either, so the loopback-only anonymous rule decides it.
+        let headers = browser("localhost:3000");
+        assert!(!is_cross_site_browser_request(&headers));
+        assert!(!is_same_origin_browser_request(&headers));
+    }
+
+    #[test]
+    fn missing_host_header_is_never_loopback() {
+        // Port of "rejects a missing Host header" and "denies a missing Host header".
+        assert!(!is_loopback_host_header(None));
+        let input = AnonymousLocalPrincipalInput {
+            require_auth: false,
+            mc_api_token_configured: false,
+            socket_loopback: true,
+            browser: BrowserRequestHeaders::default(),
+        };
+        assert!(!should_allow_anonymous_local_principal(&input));
+    }
+
+    #[test]
+    fn csrf_from_evil_origin_aimed_at_loopback_is_denied() {
+        // Port of "denies CSRF from an evil origin aimed at localhost" and
+        // "denies a LAN client that spoofs a same-origin Origin". The Host is
+        // loopback, but the Origin names another site, so the anonymous principal
+        // is refused even from a loopback socket.
+        let mut browser_headers = browser("localhost:3000");
+        browser_headers.origin = Some("https://evil.example.com".to_string());
+        let input = AnonymousLocalPrincipalInput {
+            require_auth: false,
+            mc_api_token_configured: false,
+            socket_loopback: true,
+            browser: browser_headers,
+        };
+        assert!(!should_allow_anonymous_local_principal(&input));
+
+        // A LAN peer that copies a same-origin Origin still fails the socket check.
+        let mut spoofed = browser("localhost:3000");
+        spoofed.origin = Some("http://localhost:3000".to_string());
+        let input = AnonymousLocalPrincipalInput {
+            require_auth: false,
+            mc_api_token_configured: true,
+            socket_loopback: false,
+            browser: spoofed,
+        };
+        assert!(!should_allow_anonymous_local_principal(&input));
+    }
+
+    #[test]
     fn gate_sets_demo_header_for_non_api_paths() {
         let outcome = evaluate_gate(
             "/",

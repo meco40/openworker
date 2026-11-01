@@ -3,18 +3,18 @@
 # Topology during the Rust migration (see docs/RUST_MIGRATION.md):
 #
 #   browser / CLI ──► gateway (Rust, axum)  :3000  public listener
-#                       ├── /ws    native WebSocket gateway
-#                       ├── /api/* routes already migrated to Rust
-#                       └── everything else ──► web-ui (Next.js) :3001
+#                       ├── /ws       native WebSocket gateway
+#                       ├── /api/*    every API route, answered in Rust
+#                       └── pages     static UI export (/app/out) served by the gateway
 #
-# `gateway` owns the public port from slice S0 onwards, so the auth gate and the
-# tenant scope live in exactly one process and ws://host:3000/ws?protocol=v2 is
-# unchanged for the browser client and the CLI. `web-ui` is internal only and
-# disappears as a proxy target in slice S13, when Next.js only serves UI assets.
+# No Node application server runs in this file. The UI is the static export that
+# `docker/Dockerfile.gateway` builds, and the gateway serves it. The auth gate and the
+# tenant scope live in exactly one process, and ws://host:3000/ws?protocol=v2 is
+# unchanged for the browser client and the CLI.
 
-# Shared runtime environment. The Rust gateway and the Node UI process read the
-# same variables so the session cookie, the loopback marker and the database
-# paths stay consistent across the two implementations.
+# Shared runtime environment. The Rust gateway and the scheduler read the same
+# variables so the session cookie, the loopback marker and the database paths stay
+# consistent.
 x-betaclaw-runtime-env: &runtime-env
   NODE_ENV: production
   HOSTNAME: 0.0.0.0
@@ -40,6 +40,7 @@ x-betaclaw-runtime-env: &runtime-env
   SCHEDULER_HEALTH_TOKEN: ${SCHEDULER_HEALTH_TOKEN:-}
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
   LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+  # Job owners: `rust` (default) or `off`. `node` is refused at start-up.
   BETACLAW_TELEGRAM_POLLER: ${BETACLAW_TELEGRAM_POLLER:-rust}
   BETACLAW_SWARM_RUNNER: ${BETACLAW_SWARM_RUNNER:-rust}
   BETACLAW_WORKSPACE_CLEANUP: ${BETACLAW_WORKSPACE_CLEANUP:-rust}
@@ -60,16 +61,15 @@ services:
       timeout: 5s
       retries: 20
 
+  # One-shot: applies the World-Model migrations and provisions the runtime roles
+  # with the Rust subcommand (`betaclaw-scheduler migrate`). Same image as gateway.
   migrate:
-    build: .
-    image: betaclaw-local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    image: betaclaw-gateway-local
     restart: 'no'
-    command:
-      [
-        'sh',
-        '-c',
-        'node --import tsx scripts/world-model-migrate.ts && node --import tsx scripts/world-model-provision-roles.ts --apply',
-      ]
+    command: ['betaclaw-scheduler', 'migrate', '--provision-roles', '--apply']
     environment:
       WORLD_MODEL_ADMIN_DATABASE_URL: postgresql://betaclaw_admin:${POSTGRES_PASSWORD}@postgres:5432/betaclaw
       WORLD_MODEL_APP_ROLE_PASSWORD: ${WORLD_MODEL_APP_ROLE_PASSWORD:?Set a unique WORLD_MODEL_APP_ROLE_PASSWORD}
@@ -78,11 +78,11 @@ services:
       postgres:
         condition: service_healthy
 
-  # Rust gateway. Owns the public listener, the WebSocket upgrade, the auth gate
-  # and every API route that has been migrated so far.
+  # Rust gateway. Owns the public listener, the WebSocket upgrade, the auth gate,
+  # every API route and the static UI export.
   #
   # Only the published host port is configurable. The container always listens on
-  # 3000, so `web-ui` and the scheduler keep a fixed upstream target. Set
+  # 3000, so the scheduler keeps a fixed upstream target. Set
   # GATEWAY_PUBLISHED_PORT in `.env.local` when another application already
   # occupies 3000 on this machine; NEXTAUTH_URL has to be adapted to match,
   # because it is the OAuth callback origin.
@@ -98,8 +98,8 @@ services:
     environment:
       <<: *runtime-env
       PORT: '3000'
-      # When UI_STATIC_DIR is present, the gateway serves the UI directly without Node.
-      # Set GATEWAY_UPSTREAM_ORIGIN only if proxying to an external web-ui.
+      # UI_STATIC_DIR serves the static export. The proxy origin is only used by
+      # `pnpm run dev` (Next dev server), so it stays empty here.
       GATEWAY_UPSTREAM_ORIGIN: ${GATEWAY_UPSTREAM_ORIGIN:-}
       UI_STATIC_DIR: /app/out
       RUST_LOG: ${RUST_LOG:-info}
@@ -116,44 +116,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
-
-  # Optional fallback: Next.js Node UI process. Retained under profile
-  # 'legacy-node-ui' for regression checks. In normal production operation,
-  # the Rust gateway answers 100% of requests natively.
-  web-ui:
-    profiles:
-      - legacy-node-ui
-    build: .
-    image: betaclaw-local
-    restart: unless-stopped
-    init: true
-    expose:
-      - '3001'
-    command: ['node', '--import', 'tsx', 'server.ts']
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-    environment:
-      <<: *runtime-env
-      PORT: '3001'
-      # The UI process never accepts the /ws upgrade during the migration; the
-      # Rust gateway terminates it. server.ts only uses this to skip its own
-      # WebSocket server.
-      BETACLAW_DISABLE_WS: 'true'
-      # Set by the gateway through the socket-derived marker; the UI must never
-      # trust a value supplied by the browser.
-      TRUST_PROXY_LOOPBACK_MARKER: 'true'
-    volumes:
-      - app-data:/app/.local
-      - workspaces:/app/workspaces
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://127.0.0.1:3001/login']
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
 
   scheduler:
     build:

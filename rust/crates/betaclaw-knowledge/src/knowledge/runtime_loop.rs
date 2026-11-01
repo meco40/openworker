@@ -212,4 +212,19 @@ mod tests {
         loop_.start();
         assert!(loop_.timer.lock().expect("lock").is_none());
     }
+    /// Stopping the loop takes its timer, so no tick is scheduled afterwards.
+    #[tokio::test]
+    async fn stop_takes_the_timer_so_no_further_tick_is_scheduled() {
+        let ingestion = Arc::new(AtomicUsize::new(0));
+        let loop_ = KnowledgeRuntimeLoop::new(options(
+            Arc::clone(&ingestion),
+            Arc::new(AtomicUsize::new(0)),
+            true,
+        ));
+        loop_.start();
+        assert!(loop_.timer.lock().expect("lock").is_some());
+        loop_.stop();
+        assert!(loop_.timer.lock().expect("lock").is_none());
+        assert_eq!(ingestion.load(Ordering::SeqCst), 0);
+    }
 }

@@ -181,4 +181,35 @@ mod tests {
 
         assert_eq!(error.0, r#"setMyCommands failed: {"description":"bad"}"#);
     }
+
+    #[tokio::test]
+    async fn a_rate_limit_is_retried_like_a_server_error() {
+        let transport = ScriptedTransport::new();
+        transport.then("sendMessage", json_response(429, json!({"ok": false})));
+        transport.then("sendMessage", json_response(200, json!({"ok": true})));
+        let api = TelegramApi::new(transport.clone()).with_backoff(Duration::ZERO);
+
+        let response = api
+            .post_with_retry("1:t", "sendMessage", &json!({}))
+            .await
+            .expect("transport answers");
+
+        assert!(response.is_ok());
+        assert_eq!(transport.calls("sendMessage").len(), 2);
+    }
+
+    #[tokio::test]
+    async fn retries_stop_after_three_attempts_and_return_the_last_answer() {
+        let transport = ScriptedTransport::new();
+        transport.then("sendMessage", json_response(500, json!({"ok": false})));
+        let api = TelegramApi::new(transport.clone()).with_backoff(Duration::ZERO);
+
+        let response = api
+            .post_with_retry("1:t", "sendMessage", &json!({}))
+            .await
+            .expect("transport answers");
+
+        assert_eq!(response.status.as_u16(), 500);
+        assert_eq!(transport.calls("sendMessage").len(), 3);
+    }
 }

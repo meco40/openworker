@@ -1353,4 +1353,58 @@ mod tests {
             .expect("message")
             .contains("slug already exists"));
     }
+
+    /// `preferred_model_available` reads the process environment, so the
+    /// tests that touch `MODEL_HUB_DB_PATH` serialise on this lock.
+    static MODEL_HUB_ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    #[tokio::test]
+    async fn unavailable_models_and_blank_profile_ids_are_rejected() {
+        let _lock = MODEL_HUB_ENV_LOCK.lock().await;
+        let scratch = ScratchDir::new();
+        std::env::set_var("MODEL_HUB_DB_PATH", scratch.path_string("model-hub.db"));
+        let state = state_in(&scratch);
+
+        // An empty pipeline has no active model, so the name is not available.
+        let (status, body) = send(
+            &state,
+            Method::POST,
+            "/api/personas",
+            Some(OWNER),
+            Some(r#"{"name":"Ghost","preferredModelId":"not-allowed-model"}"#),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"]
+            .as_str()
+            .expect("message")
+            .contains("is not available"));
+
+        let (status, _) = send(
+            &state,
+            Method::POST,
+            "/api/personas",
+            Some(OWNER),
+            Some(r#"{"name":"Blank","modelHubProfileId":"   "}"#),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn put_on_a_foreign_persona_is_not_found() {
+        let scratch = ScratchDir::new();
+        let id = seed(&scratch, OTHER, "Beta", false);
+        let state = state_in(&scratch);
+
+        let (status, _) = send(
+            &state,
+            Method::PUT,
+            &format!("/api/personas/{id}"),
+            Some(OWNER),
+            Some(r#"{"preferredModelId":null}"#),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
 }

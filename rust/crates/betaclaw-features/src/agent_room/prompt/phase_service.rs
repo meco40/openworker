@@ -103,4 +103,77 @@ mod tests {
         assert_eq!(simple_swarm_max_turns_from_env(None, Some("100")), 60);
         assert_eq!(simple_swarm_max_turns_from_env(Some("abc"), None), 40);
     }
+
+    #[test]
+    fn turns_required_is_rounds_times_agents() {
+        assert_eq!(get_turns_required_for_phase(SwarmPhase::Analysis, 2), 2);
+        assert_eq!(get_turns_required_for_phase(SwarmPhase::Ideation, 2), 4);
+        assert_eq!(get_turns_required_for_phase(SwarmPhase::Critique, 2), 6);
+        assert_eq!(get_turns_required_for_phase(SwarmPhase::Critique, 3), 9);
+        assert_eq!(get_turns_required_for_phase(SwarmPhase::Result, 3), 3);
+    }
+
+    #[test]
+    fn a_phase_stays_open_until_every_agent_has_spoken() {
+        let one = "--- Analysis ---\n\n**[A]:** first";
+        assert_eq!(
+            compute_next_phase_after_turn(SwarmPhase::Analysis, one, 2),
+            PhaseAdvanceResult {
+                next_phase: SwarmPhase::Analysis,
+                phase_complete: false,
+                swarm_complete: false,
+            }
+        );
+        let two = "--- Analysis ---\n\n**[A]:** first\n\n**[B]:** second";
+        assert_eq!(
+            compute_next_phase_after_turn(SwarmPhase::Analysis, two, 2),
+            PhaseAdvanceResult {
+                next_phase: SwarmPhase::Research,
+                phase_complete: true,
+                swarm_complete: false,
+            }
+        );
+    }
+
+    #[test]
+    fn critique_runs_three_rounds_before_best_case() {
+        let turns = |count: usize| {
+            let body: Vec<String> = (0..count)
+                .map(|i| {
+                    let speaker = if i % 2 == 0 { "A" } else { "B" };
+                    format!("**[{speaker}]:** round {}", i / 2 + 1)
+                })
+                .collect();
+            format!("--- Critique ---\n\n{}", body.join("\n\n"))
+        };
+        let four = compute_next_phase_after_turn(SwarmPhase::Critique, &turns(4), 2);
+        assert_eq!(
+            (four.next_phase, four.phase_complete),
+            (SwarmPhase::Critique, false)
+        );
+        let six = compute_next_phase_after_turn(SwarmPhase::Critique, &turns(6), 2);
+        assert_eq!(
+            (six.next_phase, six.phase_complete),
+            (SwarmPhase::BestCase, true)
+        );
+    }
+
+    #[test]
+    fn the_result_phase_completes_the_swarm() {
+        let artifact = "--- Result ---\n\n**[A]:** final\n\n**[B]:** agreed";
+        let result = compute_next_phase_after_turn(SwarmPhase::Result, artifact, 2);
+        assert!(result.swarm_complete);
+        assert!(result.phase_complete);
+    }
+
+    #[test]
+    fn the_turn_cap_is_checked_by_count_only() {
+        assert!(!should_complete_swarm_after_turn_with_turn_count(7, 8));
+        assert!(should_complete_swarm_after_turn_with_turn_count(8, 8));
+    }
+
+    #[test]
+    fn a_value_inside_the_range_is_used_as_given() {
+        assert_eq!(simple_swarm_max_turns_from_env(Some("20"), None), 20);
+    }
 }

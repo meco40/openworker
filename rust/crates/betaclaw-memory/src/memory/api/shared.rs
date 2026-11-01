@@ -715,4 +715,163 @@ mod tests {
             "an authenticated user reads its own scope only"
         );
     }
+    fn update(fields: Value) -> Result<ParsedUpdateBody, MemoryApiError> {
+        let mut map = object(json!({"personaId": "p1", "id": "n1"}));
+        map.extend(object(fields));
+        parse_update_body(&map)
+    }
+
+    fn validation_message<T: std::fmt::Debug>(result: Result<T, MemoryApiError>) -> String {
+        match result {
+            Err(MemoryApiError::Validation(text)) => text,
+            other => panic!("expected a validation error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn recall_args_default_and_clamp_the_limit_and_need_a_query() {
+        let parsed = parse_recall_args(&object(json!({"personaId": " p1 ", "query": " Tee "})))
+            .expect("valid");
+        assert_eq!(parsed.persona_id, "p1");
+        assert_eq!(parsed.query, "Tee");
+        assert_eq!(parsed.limit, 3, "the default limit is 3");
+
+        let limit = |value: Value| {
+            parse_recall_args(&object(
+                json!({"personaId": "p1", "query": "x", "limit": value}),
+            ))
+            .expect("valid")
+            .limit
+        };
+        assert_eq!(limit(json!(0)), 1);
+        assert_eq!(limit(json!(99)), 20);
+        assert_eq!(
+            limit(json!("abc")),
+            3,
+            "a non-numeric limit takes the default"
+        );
+        assert_eq!(limit(json!(7.9)), 7);
+
+        assert_eq!(
+            validation_message(parse_recall_args(&object(
+                json!({"personaId": "p1", "query": "  "})
+            ))),
+            "query is required."
+        );
+        assert!(parse_recall_args(&object(json!({"personaId": "  ", "query": "x"}))).is_err());
+    }
+
+    #[test]
+    fn a_node_id_is_trimmed_and_an_empty_one_is_rejected() {
+        assert_eq!(
+            parse_memory_node_id(Some(&json!("  n1 "))).expect("valid"),
+            "n1"
+        );
+        assert!(parse_memory_node_id(Some(&json!("   "))).is_err());
+        assert!(parse_memory_node_id(None).is_err());
+    }
+
+    #[test]
+    fn update_bodies_parse_each_field_and_reject_bad_values() {
+        assert_eq!(
+            update(json!({"type": "fact"})).expect("valid").node_type,
+            Some(MemoryType::Fact)
+        );
+        assert_eq!(
+            validation_message(update(json!({"type": "nope"}))),
+            "Invalid memory type."
+        );
+
+        assert_eq!(
+            update(json!({"content": " neu "}))
+                .expect("valid")
+                .content
+                .as_deref(),
+            Some("neu")
+        );
+        assert_eq!(
+            validation_message(update(json!({"content": "   "}))),
+            "content must not be empty."
+        );
+
+        assert_eq!(
+            update(json!({"importance": 9})).expect("valid").importance,
+            Some(5.0),
+            "importance is clamped to [1,5]"
+        );
+        assert_eq!(
+            validation_message(update(json!({"importance": "abc"}))),
+            "importance must be numeric."
+        );
+
+        let versioned = update(json!({"content": "x", "expectedVersion": 2.7})).expect("valid");
+        assert_eq!(versioned.expected_version, Some(2.0), "floored");
+        assert_eq!(
+            validation_message(update(json!({"content": "x", "expectedVersion": 0}))),
+            "expectedVersion must be a positive integer."
+        );
+
+        assert_eq!(
+            update(json!({"restoreIndex": 1}))
+                .expect("valid")
+                .restore_index,
+            Some(1)
+        );
+        assert_eq!(
+            validation_message(update(json!({"restoreIndex": -1}))),
+            "restoreIndex must be a non-negative integer."
+        );
+    }
+
+    #[test]
+    fn flags_and_the_type_filter_follow_the_source_spellings() {
+        for truthy in [json!(true), json!("1"), json!(" YES "), json!("on")] {
+            assert!(parse_flag(Some(&truthy)), "{truthy}");
+        }
+        for falsy in [json!(false), json!("0"), json!("no"), json!("")] {
+            assert!(!parse_flag(Some(&falsy)), "{falsy}");
+        }
+        assert!(!parse_flag(None));
+
+        assert_eq!(parse_optional_type(None).expect("valid"), None);
+        assert_eq!(
+            parse_optional_type(Some(&json!("all"))).expect("valid"),
+            None
+        );
+        assert_eq!(
+            parse_optional_type(Some(&json!("fact"))).expect("valid"),
+            Some(MemoryType::Fact)
+        );
+        assert!(parse_optional_type(Some(&json!("nope"))).is_err());
+
+        assert!(is_delete_all_confirmed(Some(&json!(
+            DELETE_ALL_CONFIRM_TOKEN
+        ))));
+        assert!(!is_delete_all_confirmed(Some(&json!("ja"))));
+    }
+
+    #[test]
+    fn bulk_bodies_reject_unknown_actions_and_empty_ids_and_parse_updates() {
+        let bulk = |fields: Value| {
+            let mut map = object(json!({"personaId": "p1", "ids": ["a"]}));
+            map.extend(object(fields));
+            parse_bulk_body(&map)
+        };
+
+        assert_eq!(
+            validation_message(bulk(json!({"action": "archive"}))),
+            "action must be either \"update\" or \"delete\"."
+        );
+        let empty = parse_bulk_body(&object(
+            json!({"personaId": "p1", "ids": [], "action": "delete"}),
+        ));
+        assert_eq!(validation_message(empty), "ids must be a non-empty array.");
+
+        let typed = bulk(json!({"action": "update", "type": "fact"})).expect("valid");
+        assert_eq!(typed.action, BulkAction::Update);
+        assert_eq!(typed.updates.node_type, Some(MemoryType::Fact));
+
+        let weighted = bulk(json!({"action": "update", "importance": 9})).expect("valid");
+        assert_eq!(weighted.updates.importance, Some(5.0));
+    }
 }

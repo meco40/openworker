@@ -222,6 +222,17 @@ pub trait PgSession: Send + Sync {
     fn query<'a>(&'a self, statement: PgStatement)
         -> BoxFuture<'a, Result<PgQueryResult, PgError>>;
 
+    /// `client.query(sql)` without values: a script of one or more statements, such
+    /// as a migration file. `pg` sends a query without values with the simple
+    /// protocol, which accepts several commands. A prepared statement does not, so
+    /// the script cannot go through [`PgSession::query`] on a real connection.
+    ///
+    /// The default runs the script as one statement, which is what the recording
+    /// double needs. A driver overrides it with the simple protocol.
+    fn execute_script<'a>(&'a self, sql: &'a str) -> BoxFuture<'a, Result<(), PgError>> {
+        Box::pin(async move { self.query(PgStatement::new(sql)).await.map(|_| ()) })
+    }
+
     /// `client.release()` in the `finally` block of `db.ts:83` and `db.ts:225`.
     ///
     /// An implementation that returns the connection to its pool when the

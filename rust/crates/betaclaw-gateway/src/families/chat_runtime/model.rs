@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use betaclaw_core::channels::messages::service::execution::ports::PortResult;
+use betaclaw_core::channels::messages::service::execution::ports::{PortError, PortResult};
 use betaclaw_core::channels::messages::service::ports::{BoxFuture, ModelGateway};
 use betaclaw_core::knowledge::extractor::{ExtractionModel, ExtractionModelError};
 use betaclaw_core::model_hub::env::EnvOverrides;
@@ -14,12 +14,13 @@ use betaclaw_core::model_hub::http::HttpTransport;
 use betaclaw_core::model_hub::openai_compatible::NOOP_ATTACHMENT_STORE;
 use betaclaw_core::model_hub::repository::RepositoryError;
 use betaclaw_core::model_hub::runtime::{
-    get_model_hub_encryption_key, get_model_hub_service, RuntimeError,
+    build_test_mode_service, get_model_hub_encryption_key, get_model_hub_service,
+    is_model_hub_test_mode, RuntimeError,
 };
 use betaclaw_core::model_hub::service::gateway::NoopObserver;
 use betaclaw_core::model_hub::service::refresh::NoCodexRefresh;
 use betaclaw_core::model_hub::service::types::DispatchWithFallbackOptions;
-use betaclaw_core::model_hub::service::ServiceDependencies;
+use betaclaw_core::model_hub::service::{ServiceDependencies, ServiceError};
 use betaclaw_core::model_hub::sqlite::SqliteModelHubRepository;
 use betaclaw_core::model_hub::types::{
     GatewayAuditContext, GatewayAuditKind, GatewayMessage, GatewayRequest, GatewayResponse,
@@ -66,6 +67,19 @@ impl ModelGateway for ModelHubGateway {
         options: DispatchWithFallbackOptions,
     ) -> BoxFuture<'_, PortResult<GatewayResponse>> {
         Box::pin(async move {
+            // `getModelHubService` in `src/server/model-hub/runtime.ts` returns the canned
+            // test service under MODEL_HUB_TEST_MODE=1. The E2E lanes depend on it: no provider
+            // is reached.
+            if is_model_hub_test_mode(&self.env) {
+                return build_test_mode_service()
+                    .dispatch_with_fallback(&profile_id, &request, Some(&options))
+                    .await
+                    .map_err(|error| match error {
+                        // The TypeScript `AbortError`: the dispatcher answers `Generation aborted.`.
+                        RuntimeError::Aborted => PortError::Aborted,
+                        other => failed(other),
+                    });
+            }
             let dependencies = ServiceDependencies {
                 transport: self.transport.as_ref(),
                 attachments: &NOOP_ATTACHMENT_STORE,
@@ -77,7 +91,12 @@ impl ModelGateway for ModelHubGateway {
             service
                 .dispatch_with_fallback(&profile_id, &encryption_key, &request, Some(&options))
                 .await
-                .map_err(failed)
+                .map_err(|error| match error {
+                    // A provider abort or timeout: the dispatcher answers `Generation aborted.`
+                    // as for the TypeScript `AbortError`, not `AI dispatch failed: …`.
+                    ServiceError::Aborted(_) => PortError::Aborted,
+                    other => failed(other),
+                })
         })
     }
 }

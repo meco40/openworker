@@ -147,7 +147,7 @@ static HTTP: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 /// `getConfiguredEmbeddingProvider()` + `generateEmbeddingOnce` of the semantic branch of
 /// `searchMemories` (`postgresMemoryClient.ts:267-270`). The provider is resolved per
 /// query, as TypeScript does, so a Model Hub change applies without a restart.
-struct ConfiguredQueryEmbedder;
+pub(crate) struct ConfiguredQueryEmbedder;
 
 impl QueryEmbedder for ConfiguredQueryEmbedder {
     fn embed<'a>(&'a self, text: &'a str) -> BoxFuture<'a, Result<Option<Vec<f64>>, PgError>> {

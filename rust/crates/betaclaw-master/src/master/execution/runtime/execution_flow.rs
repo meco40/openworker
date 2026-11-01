@@ -483,18 +483,16 @@ pub fn execute_master_run_flow(
                         input.tool_runner,
                         (input.now)(),
                     ) {
-                        Ok(result) => DelegationTaskResult {
+                        Ok(result) => Ok(DelegationTaskResult {
                             output: result.output,
                             confidence: Some(result.confidence),
-                        },
-                        // The source's `await` rethrows a rejected task; the error is
-                        // kept here and raised once the delegation has returned.
+                        }),
+                        // The pool marks the job and the session `failed` with this text
+                        // (`subagentPool.ts:78-99`). The source's `await` then rethrows it;
+                        // the error is kept here and raised once the delegation has returned.
                         Err(error) => {
-                            *task_error.borrow_mut() = Some(error);
-                            DelegationTaskResult {
-                                output: String::new(),
-                                confidence: None,
-                            }
+                            *task_error.borrow_mut() = Some(error.clone());
+                            Err(error)
                         }
                     }
                 }),

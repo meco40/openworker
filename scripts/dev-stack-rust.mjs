@@ -11,11 +11,16 @@
  * (incremental), runs copies from .local/rust-dev/bin and watches rust/crates: a saved
  * change rebuilds and restarts gateway and scheduler. The copies keep the target files
  * unlocked on Windows, so cargo links while the old processes still serve. A failed
- * build leaves them running. Without `cargo`, the release binary or the container
- * image is used as before.
+ * build leaves them running. Without `cargo`, the release binaries in rust/target/release
+ * are used; the gateway can also run from the container image (`pnpm run rust:build`).
+ *
+ * The Node application servers (server.ts, scheduler.ts) were removed. The UI is the
+ * Next dev server in proxy mode (BETACLAW_UI_MODE=proxy), so the gateway serves the
+ * pages and the HMR socket through its public port.
  *
  * Environment:
- *   BETACLAW_DEV_GATEWAY=off   start the legacy Node gateway only (pnpm dev:node)
+ *   GATEWAY_PORT   public gateway port (default 3000)
+ *   WEB_UI_PORT    Next dev server port (default 3001)
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -313,7 +318,7 @@ function startRustGateway(port, isStaticMode, staticDir, cargoMode) {
         ...(isWindows ? ['--add-host', 'host.docker.internal:host-gateway'] : []),
         ...staticMount,
         // Persistent data of the Rust gateway (auth, personas, model hub). The host .local
-        // stays with the Node UI; `pnpm run dev:import-legacy` fills this volume.
+        // stays untouched; `pnpm run dev:import-legacy` fills this volume.
         '-v',
         `${DEV_DATA_VOLUME}:/app/.local`,
         '-e',
@@ -395,8 +400,8 @@ function startRustGateway(port, isStaticMode, staticDir, cargoMode) {
 }
 
 /**
- * The Rust scheduler binary (staged dev build or release binary), or null, which
- * falls back to the TypeScript scheduler (`dev:scheduler`).
+ * The Rust scheduler binary (staged dev build or release binary), or null. The stack
+ * refuses to start without it: there is no Node scheduler any more.
  */
 function rustSchedulerBinary(cargoMode) {
   const binaryPath = cargoMode
@@ -406,11 +411,6 @@ function rustSchedulerBinary(cargoMode) {
 }
 
 function startRustScheduler(binaryPath) {
-  if (!binaryPath) {
-    startChild('scheduler', ['run', 'dev:scheduler']);
-    return;
-  }
-
   console.log(`[dev-stack] starting Rust scheduler: ${binaryPath}`);
   spawnHostRust('scheduler', binaryPath, {
     ...process.env,
@@ -483,13 +483,6 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
 async function main() {
-  if (String(process.env.BETACLAW_DEV_GATEWAY || 'on').toLowerCase() === 'off') {
-    console.log('[dev-stack] Rust gateway disabled — starting the legacy Node stack');
-    startChild('web', ['run', 'dev:web']);
-    startChild('scheduler', ['run', 'dev:scheduler']);
-    return;
-  }
-
   const isStaticMode =
     process.argv.includes('--static') ||
     String(process.env.BETACLAW_UI_MODE || '').toLowerCase() === 'static';
@@ -536,28 +529,32 @@ async function main() {
     stageRustBinaries();
   }
 
+  // Checked before the gateway starts, so a missing scheduler leaves nothing running.
+  const schedulerBinary = rustSchedulerBinary(cargoMode);
+  if (!schedulerBinary) {
+    console.error(
+      `[dev-stack] Rust scheduler binary not found at ${stagedBinary('betaclaw-scheduler')} or rust/target/release.\n` +
+        '          Start the stack with cargo on the host (the default), or build the binary first.\n',
+    );
+    shutdown(1);
+    return;
+  }
+
   const gateway = startRustGateway(gatewayPort, isStaticMode, staticDir, cargoMode);
   if (!gateway) return;
-  const schedulerBinary = rustSchedulerBinary(cargoMode);
   // Only a containerised gateway needs a non-loopback UI listener (host.docker.internal).
-  const uiEnv = { HOSTNAME: gateway === 'docker' ? '0.0.0.0' : '127.0.0.1' };
-  // Rust runs the workspace cleanup in its scheduler only. Without that binary the
-  // TS scheduler takes over, which has no cleanup, so the Node UI server owns it.
-  const cleanupOwner = String(process.env.BETACLAW_WORKSPACE_CLEANUP || '')
-    .trim()
-    .toLowerCase();
-  if (!schedulerBinary && cleanupOwner === 'rust') {
-    if (isStaticMode) {
-      console.warn(
-        '[dev-stack] no Rust scheduler binary: workspace cleanup does not run in static mode',
-      );
-    } else {
-      console.log('[dev-stack] no Rust scheduler binary: workspace cleanup owner=node (web-ui)');
-      uiEnv.BETACLAW_WORKSPACE_CLEANUP = 'node';
-    }
-  }
+  const uiHost = gateway === 'docker' ? '0.0.0.0' : '127.0.0.1';
   if (!isStaticMode) {
-    startChild('web-ui', ['run', 'dev:web-ui'], uiEnv);
+    startChild('web-ui', [
+      'exec',
+      'next',
+      'dev',
+      '--turbopack',
+      '-H',
+      uiHost,
+      '-p',
+      String(UI_PORT),
+    ]);
   } else {
     console.log('[dev-stack] static UI mode active — web-ui (Node) process omitted');
   }

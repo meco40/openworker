@@ -305,4 +305,11 @@ mod tests {
         assert_eq!(TaskType::Deadline.as_str(), "deadline");
         assert_eq!(TaskType::Preference.as_str(), "preference");
     }
+    #[test]
+    fn an_empty_task_list_never_matches() {
+        assert_eq!(
+            detect_task_completion("Zahnarzt Termin ist erledigt", &[]),
+            None
+        );
+    }
 }

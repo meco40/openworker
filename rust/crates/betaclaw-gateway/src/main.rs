@@ -38,6 +38,8 @@ fn init_tracing() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    // Before the listener opens: a removed `node` switch value stops the process here.
+    betaclaw_gateway::background::validate_job_switches()?;
     let config = GatewayConfig::from_env()?;
     tracing::info!(
         bind = %format!("{}:{}", config.hostname, config.port),
@@ -82,9 +84,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let poller_enabled = betaclaw_gateway::persona_poller::PersonaPoller::is_enabled_from_env();
+    let poller_enabled = betaclaw_gateway::persona_poller::PersonaPoller::is_enabled_from_env()?;
     tracing::info!(
-        owner = betaclaw_gateway::background::job_owner("BETACLAW_TELEGRAM_POLLER"),
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_TELEGRAM_POLLER")?,
         "[telegram-poller] status"
     );
     let persona_poller = if poller_enabled {
@@ -108,9 +110,9 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let swarm_enabled =
-        betaclaw_gateway::swarm_runtime::SwarmRuntime::should_run_for_role("server");
+        betaclaw_gateway::swarm_runtime::SwarmRuntime::should_run_for_role("server")?;
     tracing::info!(
-        owner = betaclaw_gateway::background::job_owner("BETACLAW_SWARM_RUNNER"),
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_SWARM_RUNNER")?,
         "[swarm-runtime] status"
     );
     let swarm_runtime = if swarm_enabled {
@@ -126,7 +128,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     tracing::info!(
-        owner = betaclaw_gateway::background::job_owner("BETACLAW_WORKSPACE_CLEANUP"),
+        owner = betaclaw_gateway::background::job_owner("BETACLAW_WORKSPACE_CLEANUP")?,
         "[task-workspaces] status"
     );
 

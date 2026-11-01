@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ManagedServer } from '../_shared/managedServer';
+import { createPersona } from '../_shared/personas';
 import { createWsRpcClient } from '../_shared/wsRpcClient';
 
 describe('ws persona stickiness e2e', () => {
   const server = new ManagedServer();
+  let personaId = '';
+  let otherPersonaId = '';
 
   beforeAll(async () => {
     await server.start();
+    personaId = await createPersona(server, 'E2E Nexus');
+    otherPersonaId = await createPersona(server, 'E2E Other');
   }, 180_000);
 
   afterAll(async () => {
@@ -21,14 +26,14 @@ describe('ws persona stickiness e2e', () => {
     await client.stream('chat.stream', {
       conversationId,
       content: 'first persona bind',
-      personaId: 'persona-nexus',
+      personaId,
     });
 
     await expect(
       client.stream('chat.stream', {
         conversationId,
         content: 'try switch persona',
-        personaId: 'persona-other',
+        personaId: otherPersonaId,
       }),
     ).rejects.toThrow(/personaId mismatch/i);
 
@@ -36,7 +41,7 @@ describe('ws persona stickiness e2e', () => {
     const list = conversations.payload as Array<{ id: string; personaId?: string | null }>;
     const current = list.find((entry) => entry.id === conversationId);
 
-    expect(current?.personaId).toBe('persona-nexus');
+    expect(current?.personaId).toBe(personaId);
     await client.close();
   });
 });

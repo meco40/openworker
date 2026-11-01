@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PersonaWithFiles } from '@/server/personas/personaTypes';
+import type { PersonaWithFiles } from '@/shared/personas/personaTypes';
 import { applySavedPersonaFile } from '@/components/personas/hooks/usePersonaSelection';
 
 function buildPersona(): PersonaWithFiles {

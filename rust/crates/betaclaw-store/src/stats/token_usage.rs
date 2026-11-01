@@ -298,4 +298,60 @@ mod tests {
             .expect("list")
             .is_empty());
     }
+
+    #[test]
+    fn totals_and_summary_respect_the_time_range() {
+        let repository = TokenUsageRepository::in_memory().expect("open");
+        repository
+            .record_usage("gemini", "flash", 100, 100, 200)
+            .expect("record");
+        let future = "2099-01-01T00:00:00.000Z";
+        assert_eq!(
+            repository
+                .get_total_tokens(Some(future), Some("2099-12-31T23:59:59.999Z"))
+                .expect("total")
+                .total_tokens,
+            0
+        );
+        assert_eq!(
+            repository
+                .get_total_tokens(Some("2020-01-01T00:00:00.000Z"), None)
+                .expect("total")
+                .total_tokens,
+            200
+        );
+        assert!(repository
+            .get_usage_summary(Some(future), None)
+            .expect("summary")
+            .is_empty());
+    }
+
+    #[test]
+    fn list_entries_is_newest_first() {
+        let repository = TokenUsageRepository::in_memory().expect("open");
+        {
+            // Explicit timestamps: two inserts in the same millisecond would tie.
+            let connection = repository.lock();
+            for (id, created) in [
+                ("tu-a", "2026-01-01T00:00:00.000Z"),
+                ("tu-c", "2026-01-03T00:00:00.000Z"),
+                ("tu-b", "2026-01-02T00:00:00.000Z"),
+            ] {
+                connection
+                    .execute(
+                        "INSERT INTO token_usage (id, provider_id, model_name, prompt_tokens, completion_tokens, total_tokens, created_at)
+                         VALUES (?, 'p', 'm', 1, 1, 2, ?)",
+                        params![id, created],
+                    )
+                    .expect("insert");
+            }
+        }
+        let ids: Vec<String> = repository
+            .list_entries(None, None, 10)
+            .expect("list")
+            .into_iter()
+            .map(|entry| entry.id)
+            .collect();
+        assert_eq!(ids, vec!["tu-c", "tu-b", "tu-a"]);
+    }
 }

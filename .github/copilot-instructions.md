@@ -2,42 +2,34 @@
 
 ## Architecture Overview
 
-Monolithic Next.js 16 (App Router, React 19) application with a **custom server** ([server.ts](../server.ts)) that serves both REST API and WebSocket gateway on a single port. Persistence uses SQLite via `better-sqlite3`. A separate **scheduler process** ([scheduler.ts](../scheduler.ts)) runs automation and room orchestration cycles.
+Rust backend plus a Next.js 16 (React 19) UI. The Rust gateway (`rust/crates/betaclaw-gateway`, binary `betaclaw-gateway`) owns the port: it answers every `/api/*` route, terminates the WebSocket gateway at `/ws`, and serves the UI as a static export (`out/`, `pnpm run build:export`). In development (`pnpm run dev`) it reverse proxies UI pages and HMR to the Next dev server on port 3001. A separate Rust scheduler (`betaclaw-scheduler`) runs automation, knowledge ingestion, outbox and the World-Model workers, and carries the ops subcommands (`migrate`, `verify-rls`, `backfill`, …). Persistence: SQLite per domain and PostgreSQL for the World Model. The TypeScript backend is removed (tag `legacy-ts-backend`).
 
 **Two communication paths exist:**
 
-- **REST** — `fetch('/api/…')` → `app/api/*/route.ts` (thin wrapper) → `src/server/*/` domain service → SQLite
-- **WebSocket** — `GatewayClient` at `/ws` → JSON-RPC frames (`req`/`res`/`event`/`stream`) → `src/server/gateway/methods/` handlers — used for real-time chat streaming, worker status, presence, log subscriptions
+- **REST** — `fetch('/api/…')` → Rust route in `rust/crates/betaclaw-gateway/src/routes` or `src/families` → domain crate
+- **WebSocket** — `GatewayClient` at `/ws` → JSON frames (`req`/`res`/`event`/`stream`, protocol `v2`) → `families/ws_wire` handlers — chat streaming, worker status, presence, log subscriptions
 
 ## Project Layout
 
-| Path           | Purpose                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `app/api/`     | Next.js API routes — validate input, delegate to `src/server/` services                                                                          |
-| `src/server/`  | Domain services: `gateway/`, `worker/`, `rooms/`, `channels/`, `personas/`, `skills/`, `model-hub/`, `memory/`, `auth/`, `stats/`, `automation/` |
-| `src/modules/` | Frontend feature modules with `hooks/`, `services/`, `components/` — e.g., `app-shell/`, `gateway/`, `chat/`, `worker/`                          |
-| `src/shared/`  | Cross-cutting utilities and types — consumed by both `src/modules/` and `src/server/`, never the reverse                                         |
-| `components/`  | Presentational React components wired by `App.tsx`                                                                                               |
-| `skills/`      | Skill plugins: `browser/`, `filesystem/`, `github-manager/`, `python-runtime/`, `search/`, `shell-access/`, `sql-bridge/`, `vision/`             |
-| `tests/`       | `unit/` mirrors `src/server/` structure, `integration/` for route-level tests, `contract/` for API surface stability                             |
+| Path                     | Purpose                                                                                                                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rust/crates/betaclaw-*` | Backend crates (base, model-hub, store, world-model, memory, knowledge, skills, channels, master, features); `betaclaw-core` re-exports them, `betaclaw-gateway` holds routes, WS, scheduler binary |
+| `src/modules/`           | Frontend feature modules with `hooks/`, `services/`, `components/`                                                                                                                                  |
+| `src/shared/`            | Types and utilities shared by UI and CLI, including the gateway protocol (`src/shared/gateway`)                                                                                                     |
+| `src/cli/`               | CLI programs talking to the gateway over HTTP/WS                                                                                                                                                    |
+| `components/`            | Presentational React components                                                                                                                                                                     |
+| `tests/`                 | Vitest for UI, shared, CLI and scripts; `e2e/` runs against the Rust gateway                                                                                                                        |
+| `scripts/verify/parity/` | Parity suite: Rust responses against fixed golden files                                                                                                                                             |
 
 ## Key Patterns
 
-### API Routes
+### Backend changes
 
-Export named HTTP handlers (`GET`, `POST`, etc.). Always set `export const runtime = 'nodejs'` for SQLite access. Auth via `resolveRequestUserContext()` from `src/server/auth/userContext.ts`. Return `NextResponse.json({ ok: true, ... })` or `{ ok: false, error }`.
-
-### Repository Singletons
-
-Domain services use lazy singletons — module-level `let _instance` with `getSomeRepository()` factories (e.g., `getWorkerRepository()`, `getSkillRepository()`). For tests, instantiate with `:memory:` SQLite.
-
-### Gateway Methods
-
-Register handlers via `registerMethod('domain.action', handler)` in `src/server/gateway/methods/`. Method names follow `domain.action` convention (e.g., `chat.send`, `worker.submit`, `sessions.delete`). Registration is side-effect-based — importing the file registers the method.
+Change the Rust crate that owns the domain. Behaviour is defined by Rust tests, the parity golden files, the E2E lanes and the production smoke. See `AGENTS.md` (Rust backend rules) for crate layering and gates.
 
 ### Path Alias
 
-`@` resolves to project root: `import { ... } from '@/src/server/worker/repository'`.
+`@` resolves to `src`: `import { ... } from '@/shared/gateway/protocol'`.
 
 ### ID Generation
 
@@ -46,32 +38,28 @@ Use `createId(prefix)` from `src/shared/lib/` — produces `prefix-timestamp-ran
 ## Development Commands
 
 ```bash
-npm run dev          # tsx watch server.ts (custom server + WebSocket + Next.js)
-npm run dev:next     # Next.js only (no WebSocket gateway)
-npm run dev:scheduler # Automation scheduler process
-npm run test         # vitest run
-npm run test:watch   # vitest (watch mode)
-npm run typecheck    # tsc --noEmit
-npm run check        # typecheck + lint + format check (full CI gate)
-npm run build        # next build (production)
+pnpm run dev          # Rust gateway + Rust scheduler + Next dev server (proxy mode)
+pnpm run dev:static   # Rust gateway serving the static export
+pnpm run test         # vitest run
+pnpm run typecheck    # tsc --noEmit
+pnpm run check        # typecheck + lint + format check
+pnpm run rust:check   # host cargo check over all crates
+pnpm run rust:test    # Rust tests in the pinned container
 ```
 
 ## Testing Conventions
 
 - **Framework:** Vitest with `globals: true` — use `describe`/`it`/`expect` without imports
 - **File naming:** `*.test.ts` (not `.spec.ts`), kebab-case
-- **Repository tests:** instantiate with `:memory:` SQLite in `beforeEach`; use factory helpers like `makeTask(overrides?)`
-- **Integration tests:** mock `resolveRequestUserContext` via `vi.mock()` to simulate auth
-- **Architectural guard tests** run in CI: `no-explicit-any-guard`, `sqlite-dependency-guard`, `url-parse-deprecation-guard` — these scan source files to enforce invariants
-- **Coverage threshold:** 60% (lines, functions, branches, statements)
+- **Backend behaviour** is tested in Rust (`#[test]`/`#[tokio::test]` next to the code), not in Vitest
+- **Coverage threshold:** 70 % (`pnpm run test:coverage`)
 
 ## Strict Rules
 
-1. **No `any`** — `@typescript-eslint/no-explicit-any: error` is enforced by ESLint AND a guard test that scans the codebase
-2. **UI components must not contain infrastructure/execution logic** — business operations live in `src/server/` services
-3. **API routes only parse + delegate** — no business logic in route files
-4. **`src/shared/` dependency direction** — consumed by `src/modules/` and `src/server/`, never imports from them
-5. **No import cycles** — `eslint-plugin-import-x` `no-cycle` is enforced (known runtime singletons are explicitly whitelisted)
+1. **No `any`** — enforced by the linter and a guard test
+2. **UI components must not contain infrastructure/execution logic** — business operations live in the Rust backend
+3. **`src/shared/` dependency direction** — consumed by `src/modules/` and `src/cli/`, never imports from them
+4. **No import cycles**
 
 ## Environment Variables
 

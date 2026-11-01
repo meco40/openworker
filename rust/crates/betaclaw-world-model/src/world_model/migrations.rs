@@ -2,16 +2,20 @@
 //!
 //! `docs/RUST_MIGRATION.md:71-73` fixes two properties that this module keeps:
 //!
-//! * the 19 `.sql` files stay where they are (`src/server/world-model/migrations`)
-//!   and are applied by Rust with the same advisory-lock procedure, so there is
-//!   no second copy that could drift;
+//! * the 19 `.sql` files live in `rust/crates/betaclaw-world-model/migrations` and
+//!   are applied by Rust with the same advisory-lock procedure, so there is no
+//!   second copy that could drift. They were moved there from
+//!   `src/server/world-model/migrations` in Phase 1 of
+//!   `docs/TS_BACKEND_REMOVAL_PLAN.md`; the file names did not change, because the
+//!   bookkeeping table records them;
 //! * the bookkeeping table is `_world_model_migrations` with the same `id`
 //!   values (the file name without `.sql`) and the same `applied_at` column.
 //!
-//! The directory is resolved like `db.ts:138` — `path.join(process.cwd(), 'src',
-//! 'server', 'world-model', 'migrations')` — and can be pointed elsewhere with
-//! `WORLD_MODEL_MIGRATIONS_DIR` for tests and for a container whose working
-//! directory is not the repository root.
+//! The directory is resolved like `db.ts:138`, now `path.join(process.cwd(),
+//! 'rust', 'crates', 'betaclaw-world-model', 'migrations')`, and can be pointed
+//! elsewhere with `WORLD_MODEL_MIGRATIONS_DIR` for tests and for a container
+//! whose working directory is not the repository root. The gateway image copies
+//! the directory to the same relative path, so the default resolves there too.
 
 use std::path::{Path, PathBuf};
 
@@ -41,6 +45,9 @@ pub const ADVISORY_LOCK_KEY: &str = "clawtest:world-model:migrations";
 pub const ADMIN_DATABASE_URL_ENV: &str = "WORLD_MODEL_ADMIN_DATABASE_URL";
 /// The override for the migration directory (see the module header).
 pub const MIGRATIONS_DIR_ENV: &str = "WORLD_MODEL_MIGRATIONS_DIR";
+/// The default migration directory, relative to the working directory: the
+/// repository root in development and `/app` in the gateway image.
+pub const DEFAULT_MIGRATIONS_SUBDIR: &str = "rust/crates/betaclaw-world-model/migrations";
 
 /// Everything `runWorldModelMigrations` reads from the process environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,8 +61,8 @@ impl MigrationSettings {
     /// The default resolution of `db.ts:138`.
     pub fn default_migrations_dir() -> String {
         std::env::current_dir()
-            .map(|cwd| cwd.join("src/server/world-model/migrations"))
-            .unwrap_or_else(|_| PathBuf::from("src/server/world-model/migrations"))
+            .map(|cwd| cwd.join(DEFAULT_MIGRATIONS_SUBDIR))
+            .unwrap_or_else(|_| PathBuf::from(DEFAULT_MIGRATIONS_SUBDIR))
             .to_string_lossy()
             .into_owned()
     }
@@ -83,10 +90,43 @@ impl MigrationSettings {
 }
 
 /// The failure of `db.ts:176-181`: the canonical database is not reachable.
+///
+/// The message shows the URL without its password. The TypeScript prints the
+/// admin URL unchanged; the `migrate` subcommand prints this error to stderr, so
+/// the port does not repeat that.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("[world-model:db] canonical PostgreSQL is not reachable at {database_url}")]
+#[error(
+    "[world-model:db] canonical PostgreSQL is not reachable at {}",
+    redact_database_url(.database_url)
+)]
 pub struct UnreachableCanonicalDatabase {
     pub database_url: String,
+}
+
+/// Replaces the password of a `scheme://user:password@host/...` URL with `***`.
+///
+/// URLs without a password, and strings that are not URLs, come back unchanged.
+pub fn redact_database_url(url: &str) -> String {
+    let Some(scheme_end) = url.find("://") else {
+        return url.to_string();
+    };
+    let rest_start = scheme_end + 3;
+    let rest = &url[rest_start..];
+    let authority_end = rest.find(['/', '?']).unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+    let Some(at) = authority.rfind('@') else {
+        return url.to_string();
+    };
+    let userinfo = &authority[..at];
+    let Some(colon) = userinfo.find(':') else {
+        return url.to_string();
+    };
+    format!(
+        "{}{}:***{}",
+        &url[..rest_start],
+        &userinfo[..colon],
+        &rest[at..]
+    )
 }
 
 /// `isConnectionUsable(pool)` (`db.ts:121-128`).
@@ -148,7 +188,7 @@ pub async fn apply_migrations(session: &dyn PgSession, dir: &Path) -> Result<Vec
 
 /// The `try` block of `db.ts:154-163`: the file, its bookkeeping row, `COMMIT`.
 async fn apply_one(session: &dyn PgSession, sql: &str, id: &str) -> Result<(), PgError> {
-    session.query(PgStatement::new(sql)).await?;
+    session.execute_script(sql).await?;
     session
         .query(PgStatement::with_params(
             "INSERT INTO _world_model_migrations (id) VALUES ($1)",
@@ -459,6 +499,37 @@ mod tests {
             error.message
         );
         assert!(executor.calls().is_empty(), "the app pool is not used");
+    }
+
+    #[test]
+    fn the_password_of_a_database_url_is_never_shown() {
+        assert_eq!(
+            redact_database_url("postgresql://betaclaw_admin:s3cret@postgres:5432/betaclaw"),
+            "postgresql://betaclaw_admin:***@postgres:5432/betaclaw"
+        );
+        assert_eq!(
+            redact_database_url("postgres://admin@host/db?sslmode=disable"),
+            "postgres://admin@host/db?sslmode=disable"
+        );
+        assert_eq!(redact_database_url("not a url"), "not a url");
+        let error = UnreachableCanonicalDatabase {
+            database_url: "postgresql://u:hunter2@db:5432/x".to_string(),
+        };
+        assert!(!error.to_string().contains("hunter2"), "{error}");
+    }
+
+    #[test]
+    fn the_default_directory_is_the_moved_one() {
+        let default = MigrationSettings::default_migrations_dir();
+        assert!(
+            Path::new(&default).ends_with(DEFAULT_MIGRATIONS_SUBDIR),
+            "{default}"
+        );
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+        let files = migration_files(&fixtures).expect("the moved migrations");
+        assert_eq!(files.len(), 19, "all 19 migration files moved");
+        assert_eq!(files[0].0, "001_world_model");
+        assert_eq!(files[18].0, "019_worker_runtime_grants");
     }
 
     #[test]

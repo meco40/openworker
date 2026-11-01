@@ -126,4 +126,16 @@ mod tests {
         assert!(is_duplicate_content("  Hallo Welt ", "hallo welt"));
         assert!(!is_duplicate_content("Hallo Welt", "hallo welt!"));
     }
+    #[test]
+    fn a_higher_confidence_scores_higher_at_the_same_age() {
+        let low = adjust_recall_score(&RecallScoreInput {
+            confidence: 0.6,
+            ..input(1.0)
+        });
+        let high = adjust_recall_score(&RecallScoreInput {
+            confidence: 0.9,
+            ..input(1.0)
+        });
+        assert!(high > low, "{high} > {low}");
+    }
 }

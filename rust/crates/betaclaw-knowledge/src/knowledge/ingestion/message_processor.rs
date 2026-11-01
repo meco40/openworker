@@ -843,4 +843,29 @@ mod tests {
         assert!(marker.marks.lock().expect("lock").is_empty());
         assert!(world_model.enqueued.lock().expect("lock").is_empty());
     }
+    /// Without canonical projection the window keeps the legacy path: nothing is
+    /// projected and nothing is queued for a retry.
+    #[tokio::test]
+    async fn without_canonical_projection_the_legacy_path_is_used_and_nothing_is_queued() {
+        let world_model = FakeWorldModel::default();
+        let marker = RecordingMarker::default();
+        let repo = SqliteKnowledgeRepository::open(":memory:").expect("open in-memory store");
+        let window = window(vec![message(5, "user", "Hallo"), message(6, "agent", "Hi")]);
+
+        let result = process_window(ProcessWindowContext {
+            window: &window,
+            extractor: &FixedExtractor(extraction()),
+            repo: &repo,
+            memory: Some(&FakeMemory),
+            world_model: &world_model,
+            resolve_persona_name: None,
+            marker: Some(&marker),
+        })
+        .await
+        .expect("the window completes");
+
+        assert!(!result.world_model_projected);
+        assert_eq!(result.events_stored, 1);
+        assert!(world_model.enqueued.lock().expect("lock").is_empty());
+    }
 }

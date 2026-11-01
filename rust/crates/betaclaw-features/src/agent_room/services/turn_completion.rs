@@ -208,4 +208,65 @@ mod tests {
         );
         assert!(find_completion_event(&events, "missing").is_none());
     }
+
+    #[test]
+    fn the_lookup_takes_the_first_terminal_event_of_the_command() {
+        assert!(find_completion_event(&[], "c").is_none());
+        let deltas = vec![
+            json!({"commandId":"c","type":"agent.v2.model.delta","seq":1}),
+            json!({"commandId":"c","type":"agent.v2.tool.started","seq":2}),
+        ];
+        assert!(find_completion_event(&deltas, "c").is_none());
+        let error = vec![json!({"commandId":"c","type":"agent.v2.error","seq":1})];
+        assert_eq!(
+            find_completion_event(&error, "c").unwrap()["type"],
+            "agent.v2.error"
+        );
+        let mixed = vec![
+            json!({"commandId":"c","type":"agent.v2.model.delta","seq":1}),
+            json!({"commandId":"c","type":"agent.v2.command.completed","seq":2}),
+            json!({"commandId":"c","type":"agent.v2.error","seq":3}),
+        ];
+        assert_eq!(find_completion_event(&mixed, "c").unwrap()["seq"], 2);
+        let skipping = vec![
+            json!({"commandId":"other","type":"agent.v2.command.completed","seq":1}),
+            json!({"commandId":"c","type":"agent.v2.model.delta","seq":2}),
+            json!({"commandId":"c","type":"agent.v2.command.completed","seq":3}),
+        ];
+        assert_eq!(find_completion_event(&skipping, "c").unwrap()["seq"], 3);
+    }
+
+    #[test]
+    fn the_completed_text_comes_from_the_first_known_field() {
+        let content = json!({"payload":{"result":{"content":"Generated content."}}});
+        assert_eq!(extract_completed_text(&content), "Generated content.");
+        let both =
+            json!({"payload":{"result":{"message":"From message.","content":"From content."}}});
+        assert_eq!(extract_completed_text(&both), "From message.");
+        assert_eq!(
+            extract_completed_text(&json!({"payload":{"text":"Fallback text."}})),
+            "Fallback text."
+        );
+        assert_eq!(
+            extract_completed_text(&json!({"payload":{"content":"Content fallback."}})),
+            "Content fallback."
+        );
+        assert_eq!(
+            extract_completed_text(&json!({"payload":{"message":"Message fallback."}})),
+            "Message fallback."
+        );
+    }
+
+    #[test]
+    fn no_known_text_field_gives_an_empty_string() {
+        assert_eq!(
+            extract_completed_text(&json!({"payload":{"foo":"bar"}})),
+            ""
+        );
+        assert_eq!(extract_completed_text(&json!({"payload":{}})), "");
+        assert_eq!(
+            extract_completed_text(&json!({"payload":{"result":"string-result"}})),
+            ""
+        );
+    }
 }

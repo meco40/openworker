@@ -132,4 +132,13 @@ mod tests {
         let error = parse_skill_md("---\n- a\n---\n", "p", SkillSource::User).expect_err("list");
         assert!(error.contains("must be a YAML mapping"));
     }
+
+    #[test]
+    fn crlf_line_endings_parse_like_lf() {
+        let text = "---\r\nid: shell-access\r\nemoji: 🐚\r\n---\r\n\r\nUse this skill.\r\n";
+        let parsed = parse_skill_md(text, "a/SKILL.md", SkillSource::Bundled).expect("parses");
+        assert_eq!(parsed.str_field("id"), Some("shell-access"));
+        assert!(parsed.body.contains("Use this skill."));
+        assert!(!parsed.body.contains('\r'));
+    }
 }

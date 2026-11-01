@@ -79,7 +79,7 @@ fn connect_blocking(settings: &PgPoolSettings) -> Result<SqlxPgExecutor, PgError
     tokio::task::block_in_place(|| handle.block_on(SqlxPgExecutor::connect(settings)))
 }
 
-struct PgEventTimeline;
+pub(crate) struct PgEventTimeline;
 
 impl EventTimelineLoader for PgEventTimeline {
     fn timeline<'a>(

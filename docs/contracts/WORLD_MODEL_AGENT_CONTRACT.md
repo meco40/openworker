@@ -54,8 +54,8 @@ Knowledge-Ingestion, Tool-Runner und Scheduler verwenden dieselben Services.
 
 ## API- und Migrationsmatrix
 
-In Produktion führt ein separater Admin-Migrationsdienst `world-model:migrate`
-und die Rollen-Provisionierung aus. App und Scheduler führen keine DDL aus.
+In Produktion führt ein separater Admin-Migrationsdienst die Migrationen und die
+Rollen-Provisionierung aus (`betaclaw-scheduler migrate --provision-roles --apply`, Compose-Dienst `migrate`). App und Scheduler führen keine DDL aus.
 Migration 019 gewährt dem Worker die benötigten Tabellenrechte; RLS bleibt aktiv.
 Worker verarbeiten explizit gescopte Aufträge. Scopes stammen aus dem gemeinsamen
 Chat-Speicher oder `WORLD_MODEL_DISPATCH_SCOPES`; reine externe Scopes ohne

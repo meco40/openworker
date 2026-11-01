@@ -90,7 +90,7 @@ pub struct DelegationDispatchOutcome {
 pub struct DelegateInput<'a> {
     pub capability: &'a str,
     pub payload: &'a str,
-    pub task: Box<dyn FnOnce() -> DelegationTaskResult + 'a>,
+    pub task: Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + 'a>,
 }
 
 /// Seam for `master/delegation/dispatcher.ts` (package P3).
@@ -99,7 +99,7 @@ pub trait DelegationDispatcherPort {
     fn dispatch(
         &self,
         input: &DelegationDispatchInput<'_>,
-        task: Box<dyn FnOnce() -> DelegationTaskResult + '_>,
+        task: Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + '_>,
     ) -> DelegationDispatchOutcome;
 }
 
@@ -418,13 +418,13 @@ mod tests {
         fn dispatch(
             &self,
             input: &DelegationDispatchInput<'_>,
-            task: Box<dyn FnOnce() -> DelegationTaskResult + '_>,
+            task: Box<dyn FnOnce() -> Result<DelegationTaskResult, String> + '_>,
         ) -> DelegationDispatchOutcome {
             self.dispatched.lock().unwrap().push(format!(
                 "{}|{}|{}|{}",
                 input.scope.user_id, input.run_id, input.capability, input.payload
             ));
-            let result = task();
+            let result = task().expect("the fake task succeeds");
             DelegationDispatchOutcome {
                 job_id: format!("job-for-{}", result.output),
                 accepted: result.confidence.is_some(),
@@ -686,9 +686,11 @@ mod tests {
             DelegateInput {
                 capability: &capability,
                 payload: &payload,
-                task: Box::new(|| DelegationTaskResult {
-                    output: "done".to_string(),
-                    confidence: Some(0.8),
+                task: Box::new(|| {
+                    Ok(DelegationTaskResult {
+                        output: "done".to_string(),
+                        confidence: Some(0.8),
+                    })
                 }),
             },
         );

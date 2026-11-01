@@ -2084,6 +2084,39 @@ mod tests {
         );
     }
 
+    /// The evidence keys of an extraction (topic, conversation, source sequence
+    /// range, artifact type) reach Mem0 unchanged in `metadata`.
+    /// `mem0-client.operations.cases.ts:51-93`.
+    #[tokio::test]
+    async fn add_memory_forwards_the_evidence_metadata_verbatim() {
+        let transport = StubTransport::json(vec![json!([
+            { "id": "mem0-extended-1", "memory": "Episode summary" }
+        ])]);
+        let client = client(&transport);
+        let mut input = memory_input();
+        input.content = "Episode summary".to_string();
+        input.metadata = Map::from_iter([
+            ("type".to_string(), json!("fact")),
+            ("importance".to_string(), json!(4)),
+            ("topicKey".to_string(), json!("meeting-andreas")),
+            ("conversationId".to_string(), json!("conv-42")),
+            ("sourceSeqStart".to_string(), json!(100)),
+            ("sourceSeqEnd".to_string(), json!(124)),
+            ("artifactType".to_string(), json!("episode")),
+        ]);
+
+        client.add_memory(&input).await.expect("add");
+
+        let request = transport.only_request();
+        let body: Value =
+            serde_json::from_str(request.body.as_deref().expect("body")).expect("json body");
+        assert_eq!(body["metadata"]["topicKey"], "meeting-andreas");
+        assert_eq!(body["metadata"]["conversationId"], "conv-42");
+        assert_eq!(body["metadata"]["sourceSeqStart"], 100);
+        assert_eq!(body["metadata"]["sourceSeqEnd"], 124);
+        assert_eq!(body["metadata"]["artifactType"], "episode");
+    }
+
     /// `it('extracts memory id from results envelope on add memory')` —
     /// `mem0-client.operations.cases.ts:222-253`.
     #[tokio::test]

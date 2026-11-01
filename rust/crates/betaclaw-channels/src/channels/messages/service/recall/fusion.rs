@@ -175,4 +175,95 @@ mod tests {
         assert_eq!(format_date_de(&local), "05.03.2026");
         assert_eq!(format_date_de("kein Datum"), "kein Datum");
     }
+
+    #[test]
+    fn each_source_alone_is_returned_under_its_label() {
+        let knowledge = RecallSourcesInput {
+            knowledge: Some("Episode about office rules."),
+            ..Default::default()
+        };
+        assert_eq!(
+            fuse_recall_sources(&knowledge).as_deref(),
+            Some("[Knowledge]\nEpisode about office rules.")
+        );
+
+        let memory = RecallSourcesInput {
+            memory: Some("User prefers black coffee."),
+            ..Default::default()
+        };
+        assert_eq!(
+            fuse_recall_sources(&memory).as_deref(),
+            Some("[Memory]\nUser prefers black coffee.")
+        );
+
+        let hits = [stored(
+            "m2",
+            "user",
+            "Die Regeln im Office.",
+            "2026-10-05T10:00:00.000Z",
+        )];
+        let chat = RecallSourcesInput {
+            chat_hits: &hits,
+            ..Default::default()
+        };
+        let fused = fuse_recall_sources(&chat).expect("content");
+        assert!(
+            fused.starts_with("[Chat History]\n- \"Die Regeln im Office.\""),
+            "{fused}"
+        );
+    }
+
+    #[test]
+    fn every_chat_hit_is_listed() {
+        let hits = [
+            stored(
+                "m1",
+                "user",
+                "Erste Regel: p\u{fc}nktlich sein",
+                "2026-10-05T10:00:00.000Z",
+            ),
+            stored(
+                "m2",
+                "user",
+                "Zweite Regel: Laptop mitbringen",
+                "2026-10-05T10:00:00.000Z",
+            ),
+            stored(
+                "m3",
+                "user",
+                "Dritte Regel: Kamera an",
+                "2026-10-05T10:00:00.000Z",
+            ),
+        ];
+        let sources = RecallSourcesInput {
+            chat_hits: &hits,
+            ..Default::default()
+        };
+        let fused = fuse_recall_sources(&sources).expect("content");
+        for text in ["p\u{fc}nktlich", "Laptop", "Kamera"] {
+            assert!(fused.contains(text), "{fused}");
+        }
+    }
+
+    #[test]
+    fn the_total_output_stays_within_the_fusion_budget() {
+        let knowledge = "K".repeat(3000);
+        let memory = "M".repeat(3000);
+        let hits = [stored(
+            "m1",
+            "user",
+            &"C".repeat(3000),
+            "2026-10-05T10:00:00.000Z",
+        )];
+        let sources = RecallSourcesInput {
+            knowledge: Some(knowledge.as_str()),
+            memory: Some(memory.as_str()),
+            chat_hits: &hits,
+            ..Default::default()
+        };
+
+        let fused = fuse_recall_sources(&sources).expect("content");
+
+        assert!(utf16_len(&fused) <= RECALL_FUSION_TOTAL_BUDGET);
+    }
 }

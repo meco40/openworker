@@ -271,4 +271,22 @@ mod tests {
         // Still alive because the pong was observed.
         assert!(!registry.get("c0").unwrap().is_alive());
     }
+
+    #[test]
+    fn a_gone_socket_is_skipped_without_error() {
+        // A socket whose task has ended cannot be written to, the TypeScript skips it
+        // by readyState. Here the receiver is dropped and the broadcast must not panic,
+        // neither for a plain event nor for a slow-consumer close.
+        let registry = ClientRegistry::new();
+        let (tx, rx) = mpsc::channel(8);
+        let client = ClientHandle::new("c0", "u1", "v2", 0, tx);
+        registry.register(client.clone());
+        // Over the threshold while the socket still exists, then the task goes away.
+        assert!(client.enqueue_text("x".repeat(MAX_BUFFERED_BYTES + 1)));
+        drop(rx);
+
+        assert!(!client.sender_is_open());
+        broadcast(&registry, "tick", None);
+        assert_eq!(registry.connection_count(), 1);
+    }
 }

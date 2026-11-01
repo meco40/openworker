@@ -680,4 +680,119 @@ mod tests {
         assert_eq!(task.assigned_agent_name.as_deref(), Some("Scout"));
         assert_eq!(task.assigned_agent_id.as_deref(), Some("agent-9"));
     }
+
+    #[test]
+    fn list_narrows_by_status_business_workspace_and_agent_newest_first() {
+        let repo = TaskRepository::in_memory().unwrap();
+        insert_agent(&repo.connection(), "worker", "Worker", false, "standby");
+        let root = temp_root("narrow");
+        let first = repo
+            .create_task(
+                &root,
+                &CreateTaskInput {
+                    status: Some("inbox".to_string()),
+                    business_id: Some("biz-a".to_string()),
+                    ..new_task("first")
+                },
+            )
+            .unwrap();
+        // Keeps created_at apart, so the newest-first order is well defined.
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        let second = repo
+            .create_task(
+                &root,
+                &CreateTaskInput {
+                    status: Some("assigned".to_string()),
+                    business_id: Some("biz-b".to_string()),
+                    assigned_agent_id: Some(Some("worker".to_string())),
+                    ..new_task("second")
+                },
+            )
+            .unwrap();
+
+        let ids = |filters: TaskListFilters| -> Vec<String> {
+            repo.list_tasks(&filters)
+                .unwrap()
+                .into_iter()
+                .map(|task| task.id)
+                .collect()
+        };
+        assert_eq!(
+            ids(TaskListFilters {
+                status: Some("assigned".to_string()),
+                ..TaskListFilters::default()
+            }),
+            vec![second.id.clone()]
+        );
+        assert_eq!(
+            ids(TaskListFilters {
+                business_id: Some("biz-a".to_string()),
+                ..TaskListFilters::default()
+            }),
+            vec![first.id.clone()]
+        );
+        assert_eq!(
+            ids(TaskListFilters {
+                workspace_id: Some(first.workspace_id.clone()),
+                ..TaskListFilters::default()
+            })
+            .len(),
+            2
+        );
+        assert_eq!(
+            ids(TaskListFilters {
+                assigned_agent_id: Some("worker".to_string()),
+                ..TaskListFilters::default()
+            }),
+            vec![second.id.clone()]
+        );
+        assert_eq!(
+            ids(TaskListFilters::default()),
+            vec![second.id.clone(), first.id.clone()]
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn get_returns_the_task_or_not_found() {
+        let repo = TaskRepository::in_memory().unwrap();
+        let root = temp_root("get");
+        let task = repo.create_task(&root, &new_task("Site")).unwrap();
+        assert_eq!(repo.get_task(&task.id).unwrap().title, "Site");
+        assert!(matches!(repo.get_task("missing"), Err(TaskError::NotFound)));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_update_changes_the_fields_and_reports_the_previous_title() {
+        let repo = TaskRepository::in_memory().unwrap();
+        let root = temp_root("fields");
+        let task = repo.create_task(&root, &new_task("Old")).unwrap();
+        let result = repo
+            .update_task(
+                &task.id,
+                &UpdateTaskInput {
+                    title: Some("New".to_string()),
+                    description: Some("Details".to_string()),
+                    ..UpdateTaskInput::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(result.previous_title, "Old");
+        let updated = result.task.expect("updated task");
+        assert_eq!(updated.title, "New");
+        assert_eq!(updated.description.as_deref(), Some("Details"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn deleting_an_unknown_task_is_not_found() {
+        let repo = TaskRepository::in_memory().unwrap();
+        let root = temp_root("unknown-delete");
+        assert!(matches!(
+            repo.delete_task(&root, "missing"),
+            Err(TaskError::NotFound)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

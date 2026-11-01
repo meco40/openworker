@@ -145,6 +145,8 @@ kanonische Runtime-Pfad nutzt ihn nicht.
 
 ## 6. Operative Befehle
 
+Die Befehle laufen als Unterbefehle von `betaclaw-scheduler` (`scripts/rust-scheduler-ops.mjs`, Quelle `rust/crates/betaclaw-gateway/src/world_model_ops/`). Namen und Flags sind unverändert.
+
 ```bash
 npm run memory:reset
 npm run memory:cleanup-noise

@@ -192,4 +192,17 @@ mod tests {
         assert!(users.contains(&("u1".to_string(), 2)));
         assert!(users.contains(&("u2".to_string(), 1)));
     }
+
+    #[test]
+    fn get_and_get_all_cover_every_registered_connection() {
+        let registry = ClientRegistry::new();
+        assert!(registry.get("nonexistent").is_none());
+        assert!(registry.get_all().is_empty());
+
+        registry.register(client("c1", "u1"));
+        registry.register(client("c2", "u2"));
+        assert_eq!(&*registry.get("c1").expect("registered").user_id, "u1");
+        assert_eq!(registry.get_all().len(), 2);
+        assert!(registry.unregister("ghost").is_none());
+    }
 }

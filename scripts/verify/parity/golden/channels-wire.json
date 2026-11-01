@@ -1,0 +1,164 @@
+{
+  "values": {
+    "DELETE /api/channels/messages ohne messageId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "messageId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"messageId is required\"}"
+    },
+    "DELETE /api/channels/pair ohne channel": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "channel is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"channel is required\"}"
+    },
+    "GET /api/channels/messages/attachments ohne messageId": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "messageId is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"messageId is required\"}"
+    },
+    "GET /api/channels/whatsapp/accounts": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true,
+        "accounts": [],
+        "generatedAt": "2026-10-31T20:10:20.680Z"
+      },
+      "text": "{\"ok\":true,\"accounts\":[],\"generatedAt\":\"2026-10-31T20:10:20.680Z\"}"
+    },
+    "GET /api/webhooks/agent-completion": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "status": "active",
+        "endpoint": "/api/webhooks/agent-completion"
+      },
+      "text": "{\"status\":\"active\",\"endpoint\":\"/api/webhooks/agent-completion\"}"
+    },
+    "POST /api/channels/messages ohne Inhalt": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "content or attachment is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"content or attachment is required\"}"
+    },
+    "POST /api/channels/pair ohne channel": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "channel is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"channel is required\"}"
+    },
+    "POST /api/channels/slack/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "POST /api/channels/telegram/bots/[botId]/webhook (unbekannter Bot)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true
+      },
+      "text": "{\"ok\":true}"
+    },
+    "POST /api/channels/telegram/pairing/confirm ohne code": {
+      "status": 400,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "code is required"
+      },
+      "text": "{\"ok\":false,\"error\":\"code is required\"}"
+    },
+    "POST /api/channels/telegram/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "POST /api/channels/whatsapp/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "POST /api/webhooks/agent-completion ohne Signatur": {
+      "status": 401,
+      "contentType": "application/json",
+      "json": {
+        "error": "Unauthorized"
+      },
+      "text": "{\"error\":\"Unauthorized\"}"
+    },
+    "auth lane: POST /api/channels/slack/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "auth lane: POST /api/channels/telegram/bots/[botId]/webhook (unbekannter Bot)": {
+      "status": 200,
+      "contentType": "application/json",
+      "json": {
+        "ok": true
+      },
+      "text": "{\"ok\":true}"
+    },
+    "auth lane: POST /api/channels/telegram/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "auth lane: POST /api/channels/whatsapp/webhook ohne Secret": {
+      "status": 403,
+      "contentType": "application/json",
+      "json": {
+        "ok": false,
+        "error": "Forbidden"
+      },
+      "text": "{\"ok\":false,\"error\":\"Forbidden\"}"
+    },
+    "auth lane: POST /api/webhooks/agent-completion ohne Signatur": {
+      "status": 401,
+      "contentType": "application/json",
+      "json": {
+        "error": "Unauthorized"
+      },
+      "text": "{\"error\":\"Unauthorized\"}"
+    },
+    "resolveUserIdFromSession(null, true)": null
+  }
+}

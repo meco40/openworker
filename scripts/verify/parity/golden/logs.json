@@ -1,0 +1,92 @@
+{
+  "values": {
+    "typescript": {
+      "listed": [
+        {
+          "id": "log-1793477427482-889537de",
+          "timestamp": "2026-10-31T20:10:27.482Z",
+          "level": "error",
+          "source": "AUTH",
+          "category": "security",
+          "message": "login failed for user@example.com",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.482Z"
+        },
+        {
+          "id": "log-1793477427484-fbf20316",
+          "timestamp": "2026-10-31T20:10:27.484Z",
+          "level": "info",
+          "source": "SYS",
+          "category": "system",
+          "message": "gateway started",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.484Z"
+        },
+        {
+          "id": "log-1793477427484-11192141",
+          "timestamp": "2026-10-31T20:10:27.484Z",
+          "level": "info",
+          "source": "TOOL",
+          "category": "tooling",
+          "message": "shell command timed out",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.484Z"
+        },
+        {
+          "id": "log-1793477427484-79677edc",
+          "timestamp": "2026-10-31T20:10:27.485Z",
+          "level": "warn",
+          "source": "MEM",
+          "category": "memory",
+          "message": "embedding queue warning",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.485Z"
+        },
+        {
+          "id": "log-1793477427485-41b0ab77",
+          "timestamp": "2026-10-31T20:10:27.485Z",
+          "level": "info",
+          "source": "CHAN",
+          "category": "channel",
+          "message": "channel.inbound.accepted:telegram",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.485Z"
+        },
+        {
+          "id": "log-1793477427485-303c08cf",
+          "timestamp": "2026-10-31T20:10:27.485Z",
+          "level": "info",
+          "source": "UNKNOWN_TYPE",
+          "category": "system",
+          "message": "plain informational message",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.485Z"
+        },
+        {
+          "id": "log-1793477427485-069a89f1",
+          "timestamp": "2026-10-31T20:10:27.485Z",
+          "level": "error",
+          "source": "SYS",
+          "category": "system",
+          "message": "connection LOST",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.485Z"
+        },
+        {
+          "id": "log-1793477427485-6dfc0dce",
+          "timestamp": "2026-10-31T20:10:27.485Z",
+          "level": "warn",
+          "source": "TASK",
+          "category": "worker",
+          "message": "queue spike detected",
+          "metadata": null,
+          "createdAt": "2026-10-31T20:10:27.485Z"
+        }
+      ],
+      "total": 8,
+      "sources": ["AUTH", "CHAN", "MEM", "SYS", "TASK", "TOOL", "UNKNOWN_TYPE"],
+      "categories": ["channel", "memory", "security", "system", "tooling", "worker"],
+      "cleared": 8
+    }
+  }
+}

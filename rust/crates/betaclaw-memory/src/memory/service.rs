@@ -3142,6 +3142,40 @@ mod tests {
 
     // ─── store ──────────────────────────────────────────────────────────────
 
+    /// The optional evidence keys of a store call are kept on the returned node.
+    /// `memory-service.test.ts:192-208`.
+    #[test]
+    fn store_keeps_the_optional_evidence_metadata_on_the_node() {
+        let client = ScriptedClient::sqlite();
+        let publisher = RecordingPublisher::default();
+        let service = service(&client, &publisher);
+        let metadata = MemoryMetadata::from_iter([
+            ("topicKey".to_string(), json!("meeting-andreas")),
+            ("conversationId".to_string(), json!("conv-42")),
+            ("sourceSeqStart".to_string(), json!(101)),
+            ("sourceSeqEnd".to_string(), json!(128)),
+            ("artifactType".to_string(), json!("episode")),
+        ]);
+
+        let node = service
+            .store(
+                PERSONA,
+                MemoryType::Fact,
+                "meeting summary",
+                4.0,
+                Some(USER),
+                Some(metadata),
+            )
+            .expect("store");
+
+        let stored = node.metadata.as_ref().expect("metadata");
+        assert_eq!(stored["topicKey"], "meeting-andreas");
+        assert_eq!(stored["conversationId"], "conv-42");
+        assert_eq!(stored["sourceSeqStart"], 101);
+        assert_eq!(stored["sourceSeqEnd"], 128);
+        assert_eq!(stored["artifactType"], "episode");
+    }
+
     /// `store.ts:27-100`: normalise, guard, stamp, and return the node the
     /// caller can hand to a prompt.
     #[test]

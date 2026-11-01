@@ -511,6 +511,13 @@ mod tests {
         );
         assert_eq!(too_deep.status, StatusCode::BAD_REQUEST);
 
+        // The offset (10,000) is inside the window, but the page end (10,200) is not.
+        let crosses = api.get(
+            "user-1",
+            &query(&[("personaId", "p1"), ("page", "51"), ("pageSize", "200")]),
+        );
+        assert_eq!(crosses.status, StatusCode::BAD_REQUEST);
+
         let no_id = api.get("user-1", &query(&[("personaId", "p1"), ("history", "1")]));
         assert_eq!(
             no_id.body["error"],

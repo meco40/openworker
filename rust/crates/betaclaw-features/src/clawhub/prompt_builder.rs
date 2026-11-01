@@ -181,6 +181,24 @@ mod tests {
     }
 
     #[test]
+    fn only_enabled_skills_appear_in_the_block() {
+        let root = workspace_with(&[
+            ("weather", "---\ndescription: Forecasts\n---\n"),
+            ("calendar", "---\ndescription: Dates\n---\n"),
+        ]);
+        let repository = ClawHubRepository::in_memory().expect("open");
+        install(&repository, "weather");
+        install(&repository, "calendar");
+        repository.set_enabled("calendar", false).expect("disable");
+
+        let block =
+            build_clawhub_prompt_block(&root, &repository, PromptLimits::default()).expect("block");
+        assert!(block.contains("- weather: Forecasts"));
+        assert!(!block.contains("calendar"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn truncates_the_block_to_the_total_limit() {
         let root = workspace_with(&[("plain", "no frontmatter here")]);
         let repository = ClawHubRepository::in_memory().expect("open");

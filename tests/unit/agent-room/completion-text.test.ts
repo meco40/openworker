@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AgentV2EventEnvelope } from '@/server/agent-v2/types';
+import type { AgentV2EventEnvelope } from '@/shared/agentV2Types';
 import { extractCommandCompletionText } from '@/modules/agent-room/completionText';
 
 function eventWithPayload(payload: Record<string, unknown>): AgentV2EventEnvelope {

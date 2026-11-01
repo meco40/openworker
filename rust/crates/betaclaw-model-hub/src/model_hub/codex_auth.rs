@@ -713,4 +713,29 @@ mod tests {
             "https://example.test/token"
         );
     }
+
+    /// `readCodexCliCredentials` reads `auth.json` under `CODEX_HOME` and takes the
+    /// account id from the access token (`codex-auth.test.ts:27-47`). The keychain
+    /// is skipped off macOS, so the file is the source.
+    #[test]
+    fn reads_the_credentials_from_the_codex_home_auth_file() {
+        let home = std::env::temp_dir().join(format!("codex-home-test-{}", std::process::id()));
+        std::fs::create_dir_all(&home).expect("temp dir");
+        let access_token = codex_token(Some("acc_123"), None);
+        std::fs::write(
+            home.join("auth.json"),
+            json!({ "tokens": { "access_token": access_token, "refresh_token": "refresh-token" } })
+                .to_string(),
+        )
+        .expect("write auth.json");
+        let env = EnvOverrides::new().with("CODEX_HOME", home.to_string_lossy().into_owned());
+
+        let credentials = read_codex_cli_credentials(&env);
+        let _ = std::fs::remove_dir_all(&home);
+
+        let credentials = credentials.expect("credentials from auth.json");
+        assert_eq!(credentials.source, CodexCredentialSource::AuthFile);
+        assert_eq!(credentials.refresh_token, "refresh-token");
+        assert_eq!(credentials.account_id.as_deref(), Some("acc_123"));
+    }
 }

@@ -525,4 +525,92 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].id, "e-1");
     }
+
+    #[test]
+    fn list_filters_by_event_type_and_speaker_role() {
+        let connection = connection();
+        let repo = EventRepository::new(&connection);
+        repo.upsert_event(&input("e-1", "2026-01-01", "2026-01-01"))
+            .expect("meeting by assistant");
+        let mut visit = input("e-2", "2026-01-02", "2026-01-02");
+        visit.event_type = "visit".to_string();
+        repo.upsert_event(&visit).expect("visit by assistant");
+        let mut user_meeting = input("e-3", "2026-01-03", "2026-01-03");
+        user_meeting.speaker_role = SpeakerRole::User;
+        repo.upsert_event(&user_meeting).expect("meeting by user");
+
+        let mut by_type = filter();
+        by_type.event_type = Some("meeting".to_string());
+        let ids: Vec<String> = repo
+            .list_events(&by_type, None)
+            .expect("list")
+            .into_iter()
+            .map(|event| event.id)
+            .collect();
+        assert_eq!(ids.len(), 2, "{ids:?}");
+        assert!(!ids.contains(&"e-2".to_string()));
+
+        by_type.speaker_role = Some(SpeakerRole::User);
+        let users = repo.list_events(&by_type, None).expect("list");
+        assert_eq!(users.len(), 1);
+        assert_eq!(users[0].id, "e-3");
+    }
+
+    #[test]
+    fn the_overlap_lookup_needs_the_same_counterpart_and_event_type() {
+        let connection = connection();
+        let repo = EventRepository::new(&connection);
+        repo.upsert_event(&input("e-1", "2026-01-01", "2026-01-10"))
+            .expect("event with Nata");
+
+        let mut other_person = filter();
+        other_person.counterpart_entity = Some("Anna".to_string());
+        other_person.from = Some("2026-01-05".to_string());
+        other_person.to = Some("2026-01-05".to_string());
+        assert!(repo
+            .find_overlapping_events(&other_person)
+            .expect("overlap")
+            .is_empty());
+
+        let mut same_person = other_person.clone();
+        same_person.counterpart_entity = Some("nata".to_string());
+        assert_eq!(
+            repo.find_overlapping_events(&same_person)
+                .expect("overlap")
+                .len(),
+            1,
+            "the counterpart match ignores case"
+        );
+
+        same_person.event_type = Some("visit".to_string());
+        assert!(repo
+            .find_overlapping_events(&same_person)
+            .expect("overlap")
+            .is_empty());
+    }
+    #[test]
+    fn the_overlap_lookup_needs_the_same_speaker_role() {
+        let connection = connection();
+        let repo = EventRepository::new(&connection);
+        repo.upsert_event(&input("e-1", "2026-01-01", "2026-01-10"))
+            .expect("event by the assistant");
+
+        let mut by_user = filter();
+        by_user.counterpart_entity = Some("Nata".to_string());
+        by_user.from = Some("2026-01-05".to_string());
+        by_user.to = Some("2026-01-05".to_string());
+        by_user.speaker_role = Some(SpeakerRole::User);
+        assert!(repo
+            .find_overlapping_events(&by_user)
+            .expect("overlap")
+            .is_empty());
+
+        by_user.speaker_role = Some(SpeakerRole::Assistant);
+        assert_eq!(
+            repo.find_overlapping_events(&by_user)
+                .expect("overlap")
+                .len(),
+            1
+        );
+    }
 }

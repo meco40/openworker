@@ -344,4 +344,359 @@ mod tests {
         assert_eq!(clamp_min_messages(Some(3.8)), 3);
         assert_eq!(clamp_min_messages(Some(-4.0)), 1);
     }
+
+    use crate::knowledge::extractor::KnowledgeExtractionResult;
+    use crate::knowledge::extractor::KnowledgeMeetingLedger;
+    use crate::knowledge::ingestion::test_support::FakeWorldModel;
+    use crate::knowledge::ingestion::types::{
+        ExistingFactNode, FactStoreInput, KnowledgeExtractionInput, MemoryFactError,
+        MessageMemoryMarker,
+    };
+    use crate::knowledge::repository::{KnowledgeRepository, ListKnowledgeFilter};
+    use crate::knowledge::sqlite_knowledge_repository::SqliteKnowledgeRepository;
+    use crate::messages_store::{MessageRepositoryError, StoredMessage};
+    use serde_json::{Map, Value};
+    use std::sync::Mutex;
+
+    /// The cursor hands out a fixed list and records every processed window.
+    struct FakeCursor {
+        windows: Vec<IngestionWindow>,
+        processed: Mutex<Vec<String>>,
+    }
+
+    impl IngestionCursorLike for FakeCursor {
+        fn get_pending_windows(
+            &self,
+            _limit_conversations: i64,
+        ) -> Result<Vec<IngestionWindow>, IngestionCursorError> {
+            Ok(self.windows.clone())
+        }
+
+        fn mark_window_processed(&self, window: &IngestionWindow) -> Result<(), KnowledgeError> {
+            self.processed
+                .lock()
+                .expect("lock")
+                .push(window.conversation_id.clone());
+            Ok(())
+        }
+    }
+
+    /// Every extraction yields the same single fact.
+    struct FixedExtractor;
+
+    impl KnowledgeExtractorLike for FixedExtractor {
+        async fn extract(&self, _input: &KnowledgeExtractionInput) -> KnowledgeExtractionResult {
+            KnowledgeExtractionResult {
+                facts: vec!["Ich wohne in Berlin".to_string()],
+                teaser: "Wohnort".to_string(),
+                episode: "Der Nutzer erzaehlt vom Wohnort.".to_string(),
+                meeting_ledger: KnowledgeMeetingLedger {
+                    topic_key: "wohnort".to_string(),
+                    counterpart: None,
+                    participants: vec![],
+                    decisions: vec![],
+                    negotiated_terms: vec![],
+                    open_points: vec![],
+                    action_items: vec![],
+                    source_refs: vec![],
+                    confidence: 0.6,
+                },
+                events: vec![],
+                entities: vec![],
+            }
+        }
+    }
+
+    /// Stores every fact. A user whose id is in `failing_users` gets an error for
+    /// each fact, which leaves the window's facts pending.
+    #[derive(Default)]
+    struct SelectiveMemory {
+        failing_users: Vec<&'static str>,
+        stored: Mutex<Vec<String>>,
+    }
+
+    impl MemoryFactService for SelectiveMemory {
+        async fn store_fact(
+            &self,
+            input: FactStoreInput,
+        ) -> Result<Option<String>, MemoryFactError> {
+            if self.failing_users.contains(&input.user_id.as_str()) {
+                return Err(MemoryFactError("mem0 unavailable".into()));
+            }
+            let mut stored = self.stored.lock().expect("lock");
+            stored.push(input.content);
+            Ok(Some(format!("mem-{}", stored.len())))
+        }
+
+        async fn list_fact_nodes(
+            &self,
+            _persona_id: &str,
+            _user_id: &str,
+            _page_size: usize,
+        ) -> Result<Vec<ExistingFactNode>, MemoryFactError> {
+            Ok(Vec::new())
+        }
+
+        async fn update_memory_metadata(
+            &self,
+            _persona_id: &str,
+            _memory_id: &str,
+            _user_id: &str,
+            _metadata: Map<String, Value>,
+        ) -> Result<(), MemoryFactError> {
+            Ok(())
+        }
+    }
+
+    /// The service needs a marker type; this one never marks anything.
+    struct NoMarker;
+
+    impl MessageMemoryMarker for NoMarker {
+        fn mark_messages_memory_pending(
+            &self,
+            _message_ids: &[&str],
+            _pending: bool,
+            _error_message: Option<&str>,
+        ) -> Result<(), MessageRepositoryError> {
+            Ok(())
+        }
+    }
+
+    type TestService = KnowledgeIngestionService<
+        FakeCursor,
+        FixedExtractor,
+        SqliteKnowledgeRepository,
+        FakeWorldModel,
+        SelectiveMemory,
+        NoMarker,
+    >;
+
+    fn service(
+        windows: Vec<IngestionWindow>,
+        memory: Arc<SelectiveMemory>,
+        min_messages_per_batch: Option<f64>,
+    ) -> TestService {
+        KnowledgeIngestionService::new(
+            KnowledgeIngestionDeps {
+                cursor: FakeCursor {
+                    windows,
+                    processed: Mutex::new(Vec::new()),
+                },
+                extractor: FixedExtractor,
+                knowledge_repository: SqliteKnowledgeRepository::open(":memory:")
+                    .expect("in-memory store"),
+                world_model: FakeWorldModel::default(),
+                memory_service: Some(memory),
+                message_marker: None::<NoMarker>,
+                resolve_persona_name: None,
+            },
+            KnowledgeIngestionServiceOptions {
+                min_messages_per_batch,
+            },
+        )
+    }
+
+    fn message(seq: Option<i64>, content: &str) -> StoredMessage {
+        StoredMessage {
+            id: format!("m-{seq:?}-{content}"),
+            conversation_id: "c-1".into(),
+            seq,
+            role: if seq.unwrap_or(0) % 2 == 0 {
+                "agent".into()
+            } else {
+                "user".into()
+            },
+            content: content.into(),
+            platform: "web".into(),
+            external_msg_id: None,
+            sender_name: None,
+            metadata: None,
+            created_at: String::new(),
+        }
+    }
+
+    /// A window of `first..=last` for one user, conversation `c-<user>`.
+    fn window(user: &str, first: i64, last: i64) -> IngestionWindow {
+        IngestionWindow {
+            conversation_id: format!("c-{user}"),
+            user_id: user.into(),
+            persona_id: "p-1".into(),
+            workspace_id: None,
+            from_seq_exclusive: first - 1,
+            to_seq_inclusive: last,
+            messages: (first..=last)
+                .map(|seq| message(Some(seq), "Ich wohne in Berlin"))
+                .collect(),
+        }
+    }
+
+    fn direct_input(
+        user: &str,
+        persona: &str,
+        messages: Vec<StoredMessage>,
+    ) -> IngestConversationWindowInput {
+        IngestConversationWindowInput {
+            conversation_id: "c-1".into(),
+            user_id: user.into(),
+            persona_id: persona.into(),
+            workspace_id: None,
+            messages,
+            summary_text: None,
+            persona_context: None,
+        }
+    }
+
+    fn checkpoint_of(service: &TestService, user: &str) -> Option<i64> {
+        service
+            .repository()
+            .get_ingestion_checkpoint("c-1", user, Some("p-1"))
+            .expect("checkpoint read")
+            .map(|checkpoint| checkpoint.last_seq)
+    }
+
+    fn ten_messages(seqs: std::ops::RangeInclusive<i64>) -> Vec<StoredMessage> {
+        seqs.map(|seq| message(Some(seq), "Ich wohne in Berlin"))
+            .collect()
+    }
+
+    /// A pending window is processed once: its fact is stored and the checkpoint
+    /// moves to the last sequence number.
+    #[tokio::test]
+    async fn a_window_is_processed_once_and_its_checkpoint_advances() {
+        let memory = Arc::new(SelectiveMemory::default());
+        let service = service(vec![window("u-ok", 1, 3)], memory.clone(), None);
+
+        let result = service.run_once().await.expect("cursor");
+
+        assert_eq!(result.processed_conversations, 1);
+        assert_eq!(result.processed_messages, 3);
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(memory.stored.lock().expect("lock").len(), 1);
+        // The cursor writes the checkpoint when it marks the window processed.
+        assert_eq!(
+            *service.deps.cursor.processed.lock().expect("lock"),
+            vec!["c-u-ok".to_string()]
+        );
+    }
+
+    /// A window whose Mem0 facts stay pending is reported, keeps its checkpoint
+    /// and is not marked processed. The window after it still runs.
+    #[tokio::test]
+    async fn a_failed_window_is_reported_and_the_windows_after_it_still_run() {
+        let memory = Arc::new(SelectiveMemory {
+            failing_users: vec!["u-bad"],
+            ..Default::default()
+        });
+        let service = service(
+            vec![window("u-bad", 1, 2), window("u-ok", 1, 3)],
+            memory.clone(),
+            None,
+        );
+
+        let result = service.run_once().await.expect("cursor");
+
+        assert_eq!(result.processed_conversations, 1);
+        assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
+        assert_eq!(result.errors[0].conversation_id, "c-u-bad");
+        assert!(result.errors[0].reason.contains("persistence incomplete"));
+        assert_eq!(checkpoint_of(&service, "u-bad"), None);
+        assert_eq!(
+            *service.deps.cursor.processed.lock().expect("lock"),
+            vec!["c-u-ok".to_string()],
+            "only the completed window is marked"
+        );
+    }
+
+    /// Ingesting the same window twice stores its fact once: the second call sees
+    /// the checkpoint and has no delta.
+    #[tokio::test]
+    async fn ingesting_the_same_window_twice_stores_its_facts_once() {
+        let memory = Arc::new(SelectiveMemory::default());
+        let service = service(Vec::new(), memory.clone(), None);
+        let input = || direct_input("u-ok", "p-1", ten_messages(1..=3));
+
+        service
+            .ingest_conversation_window(input())
+            .await
+            .expect("first");
+        service
+            .ingest_conversation_window(input())
+            .await
+            .expect("second");
+
+        assert_eq!(memory.stored.lock().expect("lock").len(), 1);
+        assert_eq!(checkpoint_of(&service, "u-ok"), Some(3));
+    }
+
+    /// No persona id, or messages without a sequence number, are skipped without
+    /// touching the checkpoint or memory.
+    #[tokio::test]
+    async fn a_direct_window_without_persona_or_sequence_numbers_is_skipped() {
+        let memory = Arc::new(SelectiveMemory::default());
+        let service = service(Vec::new(), memory.clone(), None);
+
+        service
+            .ingest_conversation_window(direct_input("u-ok", "   ", ten_messages(1..=3)))
+            .await
+            .expect("blank persona is skipped");
+        let without_seq = vec![message(None, "a"), message(None, "b")];
+        service
+            .ingest_conversation_window(direct_input("u-ok", "p-1", without_seq))
+            .await
+            .expect("messages without seq are skipped");
+
+        assert_eq!(checkpoint_of(&service, "u-ok"), None);
+        assert!(memory.stored.lock().expect("lock").is_empty());
+    }
+
+    /// Only the messages after the checkpoint form the window: the episode starts
+    /// at the first new sequence number, and the checkpoint moves to the last.
+    #[tokio::test]
+    async fn a_direct_window_processes_only_the_messages_after_the_checkpoint() {
+        let memory = Arc::new(SelectiveMemory::default());
+        let service = service(Vec::new(), memory.clone(), None);
+        service
+            .repository()
+            .upsert_ingestion_checkpoint(&UpsertKnowledgeCheckpointInput {
+                conversation_id: "c-1".into(),
+                user_id: Some("u-ok".into()),
+                persona_id: "p-1".into(),
+                last_seq: 2,
+            })
+            .expect("seed checkpoint");
+
+        service
+            .ingest_conversation_window(direct_input("u-ok", "p-1", ten_messages(1..=4)))
+            .await
+            .expect("window");
+
+        assert_eq!(checkpoint_of(&service, "u-ok"), Some(4));
+        let episodes = service
+            .repository()
+            .list_episodes(&ListKnowledgeFilter {
+                user_id: "u-ok".into(),
+                persona_id: "p-1".into(),
+                ..Default::default()
+            })
+            .expect("episodes");
+        assert_eq!(episodes.len(), 1);
+        assert_eq!(episodes[0].source_seq_start, 3);
+        assert_eq!(episodes[0].source_seq_end, 4);
+    }
+
+    /// A direct window with fewer new messages than the minimum waits for a later
+    /// batch: no checkpoint and no memory write.
+    #[tokio::test]
+    async fn a_direct_window_below_the_minimum_batch_waits_for_more_messages() {
+        let memory = Arc::new(SelectiveMemory::default());
+        let service = service(Vec::new(), memory.clone(), Some(3.0));
+
+        service
+            .ingest_conversation_window(direct_input("u-ok", "p-1", ten_messages(1..=2)))
+            .await
+            .expect("window");
+
+        assert_eq!(checkpoint_of(&service, "u-ok"), None);
+        assert!(memory.stored.lock().expect("lock").is_empty());
+    }
 }

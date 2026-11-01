@@ -271,4 +271,26 @@ mod tests {
             "Execute the following automated workflow:\n\nStep 1: Filter: if undefined undefined \"undefined\", continue; otherwise stop."
         );
     }
+
+    #[test]
+    fn a_skill_step_names_the_skill_and_carries_its_parameters() {
+        let graph = flow(
+            vec![
+                test_node(
+                    "t",
+                    FlowNodeType::TriggerCron,
+                    json!({"cronExpression": "0 9 * * *"}),
+                ),
+                test_node(
+                    "s",
+                    FlowNodeType::ActionSkill,
+                    json!({"skillId": "weather", "city": "Berlin"}),
+                ),
+            ],
+            vec![test_edge("e1", "t", "s")],
+        );
+        let prompt = compile_flow(&graph).prompt;
+        assert!(prompt.contains("Step 1: Use skill \"weather\" with parameters: {"));
+        assert!(prompt.contains("\"city\":\"Berlin\""));
+    }
 }

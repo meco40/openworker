@@ -103,4 +103,77 @@ mod tests {
             Some("p1".to_string())
         );
     }
+
+    #[test]
+    fn parse_keeps_session_entries_in_order_and_skips_speakers() {
+        let buffer = vec![
+            PhaseBufferEntry::AgentSession {
+                persona_id: "p1".to_string(),
+                session_id: "s1".to_string(),
+                last_seq: 5,
+            },
+            PhaseBufferEntry::Speaker {
+                persona_id: "p1".to_string(),
+            },
+            PhaseBufferEntry::AgentSession {
+                persona_id: "p2".to_string(),
+                session_id: "s2".to_string(),
+                last_seq: 10,
+            },
+        ];
+        let sessions = parse_agent_sessions(&buffer);
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(sessions[0].session_id, "s1");
+        assert_eq!(sessions[1].last_seq, 10);
+        assert!(parse_agent_sessions(&[]).is_empty());
+    }
+
+    #[test]
+    fn a_persona_without_a_session_is_not_found() {
+        let buffer = vec![PhaseBufferEntry::AgentSession {
+            persona_id: "p1".to_string(),
+            session_id: "s1".to_string(),
+            last_seq: 3,
+        }];
+        assert_eq!(get_agent_session_entry(&buffer, "unknown"), None);
+        assert!(get_agent_session_entry(&buffer, "p1").is_some());
+    }
+
+    #[test]
+    fn a_session_for_a_new_persona_is_appended() {
+        let buffer = vec![PhaseBufferEntry::Speaker {
+            persona_id: "p1".to_string(),
+        }];
+        let updated = AgentSession {
+            persona_id: "p2".to_string(),
+            session_id: "s2".to_string(),
+            last_seq: 0,
+        };
+        let result = update_phase_buffer_sessions(&buffer, &updated);
+        assert_eq!(result.len(), 2);
+        assert_eq!(get_agent_session_entry(&result, "p2"), Some(updated));
+        assert_eq!(
+            extract_speaker_from_phase_buffer(Some(result.as_slice())),
+            Some("p1".to_string())
+        );
+    }
+
+    #[test]
+    fn no_speaker_without_a_buffer_an_empty_buffer_or_a_speaker_entry() {
+        let empty: Vec<PhaseBufferEntry> = Vec::new();
+        assert_eq!(extract_speaker_from_phase_buffer(None), None);
+        assert_eq!(
+            extract_speaker_from_phase_buffer(Some(empty.as_slice())),
+            None
+        );
+        let sessions_only = vec![PhaseBufferEntry::AgentSession {
+            persona_id: "p1".to_string(),
+            session_id: "s1".to_string(),
+            last_seq: 3,
+        }];
+        assert_eq!(
+            extract_speaker_from_phase_buffer(Some(sessions_only.as_slice())),
+            None
+        );
+    }
 }
