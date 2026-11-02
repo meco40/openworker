@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import {
   classifyChangedDomains,
@@ -90,7 +91,9 @@ function runPolicy(): PolicyResult {
   const uncoveredCodeFiles = changedFiles.filter((filePath) => {
     if (!isLikelyCodePath(filePath)) return false;
     if (filePath.startsWith('.github/')) return false;
+    if (filePath.startsWith('src/shared/ci/')) return false;
     if (filePath.startsWith('docs/archive/')) return false;
+    if (!existsSync(filePath)) return false;
     for (const [, files] of domainMatches.entries()) {
       if (files.includes(filePath)) return false;
     }

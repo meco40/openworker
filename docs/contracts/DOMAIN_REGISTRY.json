@@ -141,6 +141,7 @@
         "src/modules/profile/**",
         "src/shared/personaTypes.ts",
         "src/shared/personas/**",
+        "src/lib/persona-templates.ts",
         "src/lib/personalityMatrix.ts",
         "src/components/dashboard/PersonalityRadar.tsx",
         "src/components/PersonasView.tsx",

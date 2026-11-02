@@ -43,6 +43,7 @@ describe('main policy utilities', () => {
         'app/mission-control/page.tsx',
         'src/modules/app-shell/components/AppShellViewContent.tsx',
         'app/login/LoginForm.tsx',
+        'src/lib/persona-templates.ts',
         'src/cli/gateway-cli.ts',
         'src/components/logs/hooks/useDiagnostics.ts',
         'src/modules/personas/PersonaContext.tsx',
