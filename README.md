@@ -508,7 +508,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `REQUIRE_AUTH`                         | Auth erzwingen (`true`/`false`, Default `false`; siehe Netzwerkzugriff)                                                        |
 | `HOSTNAME`                             | Bind-Adresse des Servers (Default `127.0.0.1`; Docker/Compose setzen `0.0.0.0`)                                                |
 | `NEXTAUTH_SECRET`                      | Secret für NextAuth-JWT-Signierung                                                                                             |
-| `PRINCIPAL_USER_ID`                    | Legacy-Workspace-Besitzer für Migrationen; in Production auf die Auth-User-ID setzen                                           |
+| `PRINCIPAL_USER_ID`                    | Besitzer der Kanal-Konversationen. Ohne Wert: Admin aus `AUTH_DEFAULT_EMAIL`; nur setzen bei anderem Account.                  |
 | `AUTH_DB_PATH`                         | Pfad zur Auth-SQLite                                                                                                           |
 | `E2E_ALLOW_ANONYMOUS_AUTH`             | Nur für explizite loopback-E2E-Prozesse mit `HOSTNAME=127.0.0.1`                                                               |
 | `SCHEDULER_HEALTH_TOKEN`               | Bearer-Token für Scheduler-Health-Checks                                                                                       |

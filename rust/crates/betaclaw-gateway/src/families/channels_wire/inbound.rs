@@ -113,7 +113,9 @@ impl TelegramInboundPort for TelegramBridge {
                     content: text.to_string(),
                     sender_name: Some(dispatch.sender_name.to_string()),
                     external_msg_id: Some(dispatch.external_msg_id.to_string()),
-                    user_id: None,
+                    // The web UI passes the session user. Telegram has no session, so it
+                    // uses the principal, the same user the web UI resolves to.
+                    user_id: Some(betaclaw_core::auth::principal::get_principal_user_id()),
                     client_message_id: None,
                     attachment_metadata: None,
                     on_stream_delta: None,

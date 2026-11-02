@@ -113,6 +113,11 @@ impl AppState {
         };
         let auth_users =
             betaclaw_core::auth::AuthUserStore::open(&config.auth_db_path, &bootstrap)?;
+        // Single-admin installs: channels and loopback requests act as this account
+        // unless `PRINCIPAL_USER_ID` names another one.
+        if let Some(admin_id) = auth_users.user_id_for_email(&bootstrap.default_email)? {
+            betaclaw_core::auth::principal::set_bootstrap_principal_user_id(&admin_id);
+        }
         let login_limiter = betaclaw_core::auth::LoginRateLimiter::default();
         let agent_v2 = Arc::new(AgentV2Repository::open(&config.messages_db_path)?);
         let _ = agent_v2.recover_running_commands_on_startup();

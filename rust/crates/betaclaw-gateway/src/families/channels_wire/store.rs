@@ -42,14 +42,25 @@ impl ChannelDb {
     }
 
     /// `getOrCreateConversation(channelType, externalChatId)` of the TypeScript
-    /// message service, used by the inbound paths before the dispatch.
+    /// message service, used by the inbound paths before the dispatch. The owner is
+    /// the principal, so the conversation matches the one the web UI uses.
     pub fn get_or_create_conversation(
         &self,
         channel_type: &str,
         external_chat_id: &str,
     ) -> Result<Conversation, MessageRepositoryError> {
+        let user_id = betaclaw_core::auth::principal::get_principal_user_id();
+        self.get_or_create_conversation_for_user(channel_type, external_chat_id, &user_id)
+    }
+
+    fn get_or_create_conversation_for_user(
+        &self,
+        channel_type: &str,
+        external_chat_id: &str,
+        user_id: &str,
+    ) -> Result<Conversation, MessageRepositoryError> {
         self.with(|store| {
-            store.get_or_create_conversation(channel_type, external_chat_id, None, None)
+            store.get_or_create_conversation(channel_type, external_chat_id, None, Some(user_id))
         })
     }
 }
@@ -328,6 +339,17 @@ mod tests {
                 "round {round} must have exactly one winner"
             );
         }
+    }
+
+    #[test]
+    fn telegram_conversations_belong_to_the_principal() {
+        let scratch = ScratchDir::new();
+        let db = ChannelDb::open(&scratch.path_string("messages.db")).expect("open");
+        let conversation = db
+            .get_or_create_conversation_for_user("telegram", "555", "usr-principal")
+            .expect("conversation");
+
+        assert_eq!(conversation.user_id, "usr-principal");
     }
 
     #[test]

@@ -246,6 +246,18 @@ impl AuthUserStore {
         Ok(Some(AuthUser { id, email, name }))
     }
 
+    /// The id of the account with this email, matched case-insensitively.
+    pub fn user_id_for_email(&self, email: &str) -> Result<Option<String>, AuthStoreError> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT id FROM auth_users WHERE email = ?1",
+                params![email.trim().to_ascii_lowercase()],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
     /// Test and maintenance helper; not part of the login contract.
     pub fn set_password(&mut self, user_id: &str, password: &str) -> Result<(), AuthStoreError> {
         let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
@@ -410,6 +422,18 @@ mod tests {
             .verify_credentials("a@b.c", "admin1234")
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn bootstrap_admin_id_is_found_by_email() {
+        let store = AuthUserStore::open(":memory:", &bootstrap("Admin@Example.com", "s3cret-pass"))
+            .unwrap();
+        let id = store
+            .user_id_for_email("admin@example.com")
+            .unwrap()
+            .expect("bootstrap admin");
+        assert!(id.starts_with("usr-"));
+        assert_eq!(store.user_id_for_email("nobody@example.com").unwrap(), None);
     }
 
     #[test]

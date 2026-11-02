@@ -216,13 +216,14 @@ impl TelegramCommands {
 
     /// `handleTelegramDeleteCommand`: removes the newest message of the chat.
     async fn chat_delete(&self, external_chat_id: &str) -> Result<(), ChannelError> {
+        let user_id = betaclaw_core::auth::principal::get_principal_user_id();
         let conversation = self
             .db
             .with(|store| {
                 store.get_conversation_by_external_chat(
                     ChannelType::Telegram.as_str(),
                     external_chat_id,
-                    None,
+                    Some(&user_id),
                 )
             })
             .map_err(channel_error)?;
@@ -907,7 +908,12 @@ mod tests {
             .expect("handled");
 
         assert!(handled);
-        assert!(sent_body(&transport, 0).contains("Last message deleted."));
+        assert!(
+            sent_body(&transport, 0).contains("Last message deleted."),
+            "unexpected Telegram response for owner {}: {}",
+            conversation.user_id,
+            sent_body(&transport, 0)
+        );
         let remaining = h
             .state
             .messages
