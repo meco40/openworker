@@ -185,6 +185,15 @@ impl ChannelPairing {
         self.poller.start().await;
     }
 
+    /// The restart path of the source's `bootstrapMessageRuntime`. Polling resumes
+    /// only for a bot that is connected or waiting for its pairing code.
+    pub async fn resume_telegram_polling(&self) {
+        let status = self.store.get_credential("telegram", "pairing_status");
+        if resumes_after_restart(status.as_deref()) {
+            self.start_telegram_polling().await;
+        }
+    }
+
     /// `stopTelegramPolling`.
     pub fn stop_telegram_polling(&self) {
         self.poller.stop();
@@ -196,10 +205,24 @@ impl ChannelPairing {
     }
 }
 
+/// Whether a stored `pairing_status` lets polling resume after a restart.
+fn resumes_after_restart(status: Option<&str>) -> bool {
+    matches!(status, Some("connected" | "awaiting_code"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::channels::pairing::test_support::isolated_env;
+
+    #[test]
+    fn restart_resumes_polling_only_when_connected_or_awaiting_code() {
+        assert!(resumes_after_restart(Some("connected")));
+        assert!(resumes_after_restart(Some("awaiting_code")));
+        assert!(!resumes_after_restart(Some("idle")));
+        assert!(!resumes_after_restart(Some("")));
+        assert!(!resumes_after_restart(None));
+    }
 
     #[test]
     fn the_channel_names_are_matched_exactly() {

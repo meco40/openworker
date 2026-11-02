@@ -90,12 +90,14 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "[telegram-poller] status"
     );
     let persona_poller = if poller_enabled {
-        let inbound = state
+        let channels = state
             .channels
             .get()
-            .ok_or("Telegram channels are not initialized")?
-            .pairing
-            .inbound();
+            .ok_or("Telegram channels are not initialized")?;
+        // The main bot's poller starts from the pairing routes only. Without this,
+        // a restart leaves the paired bot unpolled.
+        channels.pairing.resume_telegram_polling().await;
+        let inbound = channels.pairing.inbound();
         Some(
             betaclaw_gateway::persona_poller::PersonaPoller::new(
                 state.upstream.clone(),
