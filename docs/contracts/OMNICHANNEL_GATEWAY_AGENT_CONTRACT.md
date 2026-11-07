@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Omnichannel Gateway.
-- Scope: "src/server/gateway/**", "app/api/channels/**", "src/modules/gateway/**", "src/cli/**", "src/services/gateway.ts", "src/shared/gatewayTypes.ts", "src/messenger/\*\*", "src/components/ExposureManager.tsx".
+- Scope: "rust/crates/betaclaw-channels/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "rust/crates/betaclaw-gateway/src/ws.rs", "src/modules/gateway/**", "src/cli/**", "src/services/gateway.ts", "src/shared/gatewayTypes.ts", "src/shared/gateway/**", "src/messenger/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 

@@ -1,10 +1,10 @@
 # World Model Agent Contract
 
-Stand: 2026-10-09
+Stand: 2026-11-07
 
 ## Metadata
 
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ## Zweck
 
@@ -14,7 +14,7 @@ persoenlichen 24-Stunden-Sekretaerin. Er definiert Zuständigkeiten, Invarianten
 und Eigentümerschaft zwischen Raw Messages, World Model, Mission Control,
 SQLite Knowledge, Mem0 und Graphiti. Er ist Teil der Zielarchitektur
 (`docs/memory-knowledge-target-architecture.md`) und wird durch die Services
-im Verzeichnis `src/server/world-model/` implementiert.
+im Crate `rust/crates/betaclaw-world-model` (`src/world_model/`) implementiert.
 
 ## Unverhandelbare Invarianten
 
@@ -33,19 +33,19 @@ im Verzeichnis `src/server/world-model/` implementiert.
 
 ## Eigentümer (Single Writer pro Domäne)
 
-Die Module liegen unter `src/server/world-model/services/`, sofern nicht anders angegeben.
+Die Module liegen unter `rust/crates/betaclaw-world-model/src/world_model/services/`, sofern nicht anders angegeben.
 Die Service-Namen in den folgenden Abschnitten bezeichnen diese Module.
 
-| Domaene                   | Autoritatives Modul                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------- |
-| Observations              | `observationService.ts`                                                                             |
-| Assertions                | `assertionService.ts`                                                                               |
-| Events                    | `eventService.ts`                                                                                   |
-| Entities und Relations    | `entityService.ts`                                                                                  |
-| Tasks und Action Attempts | `canonicalTaskService.ts` und `actionService.ts`                                                    |
-| Open Loops                | `openLoopService.ts`                                                                                |
-| Standing Intents          | `standingIntentCompiler.ts` und `standingIntentDispatcher.ts`                                       |
-| Generische Memory         | `src/server/memory/service.ts` (`MemoryService`) → `postgresMemoryClient.ts` (`src/server/memory/`) |
+| Domaene                   | Autoritatives Modul                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| Observations              | `observation_service.rs`                                                              |
+| Assertions                | `assertion_service.rs`                                                                |
+| Events                    | `event_service.rs`                                                                    |
+| Entities und Relations    | `entity_service.rs`                                                                   |
+| Tasks und Action Attempts | `canonical_task_service.rs` und `action_service.rs`                                   |
+| Open Loops                | `open_loop_service.rs`                                                                |
+| Standing Intents          | `standing_intent_compiler.rs` und `standing_intent_dispatcher.rs`                     |
+| Generische Memory         | `MemoryService` (`rust/crates/betaclaw-memory/src/memory/service.rs`) → `postgres.rs` |
 
 Die kanonische Memory-Tabelle ist `world_model_memory_items` (Migrationen 016 bis 018).
 
@@ -61,20 +61,20 @@ Worker verarbeiten explizit gescopte Aufträge. Scopes stammen aus dem gemeinsam
 Chat-Speicher oder `WORLD_MODEL_DISPATCH_SCOPES`; reine externe Scopes ohne
 Chat-Konversation müssen dort explizit eingetragen sein. Der Worker erhält kein
 unbeschränktes Leserecht und keine Schema-CREATE-Berechtigung.
-`runtime-worker-role.test.ts` prüft echte SQL-Schreib-/Transition-Pfade und
-Scope-Isolation unter der Worker-Rolle.
+`verify_worker_role` (`role_verification.rs`, `pnpm run world-model:verify-rls`) prüft echte
+SQL-Schreib-/Transition-Pfade und Scope-Isolation unter der Worker-Rolle.
 
 Bestehende öffentliche Schnittstellen bleiben kompatibel. Neue kanonische
 Zustände werden gespiegelt, bis der jeweilige Scope den Cutover-Gates genügt.
 
-| Bestehender Pfad                       | Kanonische Verdrahtung                                                 | Übergangsregel                                                                                                            |
-| -------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Eingehende Channel-Nachricht           | `handleInbound` → Knowledge-Ingestion → `ObservationService`/Projector | Raw Message bleibt erhalten; SQLite/Mem0 sind abgeleitete Projektionen bzw. Pending-Retry                                 |
-| `POST /api/tasks` und Task-Statusroute | Mission-Control-Task-Mirror → `CanonicalTaskService`                   | Bestehende Task-API bleibt unverändert; Statusübergänge erzeugen scoped Outbox-/Transition-Evidenz                        |
-| Master-Tool-Ausführung                 | `masterActionBridge`/`ActionService`                                   | Attempt und Receipt werden vor `succeeded` persistiert; externe Provider-ID bleibt optional, bis der Provider sie liefert |
-| Scheduler/Open Loops                   | Lease → `proactive.question.requested` → Delivery Receipt              | `asked` erst nach bestätigter Zustellung; fehlende Kanalbindung bleibt sichtbar fehlgeschlagen                            |
-| Knowledge-/Memory-Recall               | `retrieveContext` + kanonischer PostgreSQL-Memory-Adapter              | Mem0 ist nur ein expliziter Legacy-/Migrationspfad; neue Writes gehen nicht nach Mem0                                     |
-| Automation API                         | Bestehende Automation- und Run-Verträge                                | Keine stille Statusumstellung; Migration erfolgt über dokumentierte Outbox-/Task-Projektion                               |
+| Bestehender Pfad                       | Kanonische Verdrahtung                                                          | Übergangsregel                                                                                                            |
+| -------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Eingehende Channel-Nachricht           | `handle_inbound_message` → Knowledge-Ingestion → `ObservationService`/Projector | Raw Message bleibt erhalten; SQLite/Mem0 sind abgeleitete Projektionen bzw. Pending-Retry                                 |
+| `POST /api/tasks` und Task-Statusroute | Mission-Control-Task-Mirror → `CanonicalTaskService`                            | Bestehende Task-API bleibt unverändert; Statusübergänge erzeugen scoped Outbox-/Transition-Evidenz                        |
+| Master-Tool-Ausführung                 | `master_action_bridge`/`ActionService`                                          | Attempt und Receipt werden vor `succeeded` persistiert; externe Provider-ID bleibt optional, bis der Provider sie liefert |
+| Scheduler/Open Loops                   | Lease → `proactive.question.requested` → Delivery Receipt                       | `asked` erst nach bestätigter Zustellung; fehlende Kanalbindung bleibt sichtbar fehlgeschlagen                            |
+| Knowledge-/Memory-Recall               | `retrieve_context` + kanonischer PostgreSQL-Memory-Adapter                      | Mem0 ist nur ein expliziter Legacy-/Migrationspfad; neue Writes gehen nicht nach Mem0                                     |
+| Automation API                         | Bestehende Automation- und Run-Verträge                                         | Keine stille Statusumstellung; Migration erfolgt über dokumentierte Outbox-/Task-Projektion                               |
 
 ## Rollout-Modi
 
@@ -97,19 +97,19 @@ angelegten Rollen `world_model_app` bzw. `world_model_worker` zeigen. Die bisher
 
 ## Proaktive Zustellung (Phasen 7-9)
 
-- Fällige Open Loops werden ueber `deliverDueOpenLoops` nach der Policy in
-  `followUpPolicy.ts` geprueft (Ruhezeiten, Budget, Kanal, Nutzer-Aktivitaet).
+- Fällige Open Loops werden ueber `deliver_due_open_loops` nach der Policy in
+  `follow_up_policy.rs` geprueft (Ruhezeiten, Budget, Kanal, Nutzer-Aktivitaet).
 - Die Zustellung passiert atomar als `proactive.question.requested`-Outbox-
   Event; `asked` wird erst nach bestaetigter Zustellung gesetzt.
-- Standing Intents werden durch `matchStandingIntents` (prospectiveEngine)
+- Standing Intents werden durch `match_standing_intents` (`prospective_engine.rs`)
   ausgewertet; ein Match stösst idempotent eine Folgeaktion ueber
-  `dispatchStandingIntentAction` an (Outbox-Event `proactive.intent.fired`).
+  `dispatch_standing_intent_action` an (Outbox-Event `proactive.intent.fired`).
 - Der Scheduler startet einen Prospective Runtime Takt, der die Zustellung und
-  Heartbeat-Reconciliation anstösst (`runProspectiveRuntimeOnce`).
-- Nutzerantworten werden ueber `correlateUserResponse` dem passenden Open
+  Heartbeat-Reconciliation anstösst (`run_prospective_runtime_once`).
+- Nutzerantworten werden ueber `correlate_user_response` dem passenden Open
   Loop / Event / Task / Intent zugeordnet; bei Mehrdeutigkeit erzeugt
-  `buildClarificationPrompt` eine Rueckfrage statt einer stillen Zuordnung.
-- Kanaluebergreifende Benachrichtigungspolitik: `decideNotification`
+  `build_clarification_prompt` eine Rueckfrage statt einer stillen Zuordnung.
+- Kanaluebergreifende Benachrichtigungspolitik: `decide_notification`
   (Ruhezeiten, Tagesbudget, Kanalpraeferenz).
 
 ## Abnahmekriterien (Teilmenge)

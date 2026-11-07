@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-08T22:40:59Z",
+  "generatedAt": "2026-11-07T00:00:00Z",
   "domains": [
     {
       "risk": "high",
@@ -10,8 +10,8 @@
       "paths": [
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/**",
-        "src/lib/db/**",
+        "rust/crates/betaclaw-base/src/db.rs",
+        "rust/crates/betaclaw-store/**",
         "src/lib/events.ts",
         "src/lib/types.ts",
         "src/shared/eventsTypes.ts"
@@ -27,10 +27,11 @@
       "contract": "docs/contracts/AUTH_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/authentication.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-base/src/auth/**",
+        "rust/crates/betaclaw-gateway/src/auth_gate.rs",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "app/login/**",
-        "src/server/auth/**"
+        "app/login/**"
       ],
       "owner": "team-security",
       "systemDoc": "docs/AUTH_SYSTEM.md",
@@ -43,10 +44,9 @@
       "contract": "docs/contracts/SESSION_AGENT_CONTRACT.md",
       "tests": ["tests/integration/persistent-chat-session-v2.contract.test.ts"],
       "paths": [
-        "rust/crates/betaclaw-gateway/src/routes/**",
-        "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/channels/**",
-        "src/components/SessionsList.tsx"
+        "rust/crates/betaclaw-gateway/src/routes/channel_state.rs",
+        "rust/crates/betaclaw-gateway/src/routes/conversations.rs",
+        "rust/crates/betaclaw-channels/**"
       ],
       "owner": "team-security",
       "systemDoc": "docs/SESSION_MANAGEMENT.md",
@@ -59,7 +59,7 @@
       "contract": "docs/contracts/WORLD_MODEL_AGENT_CONTRACT.md",
       "tests": ["rust/crates/betaclaw-world-model/src/world_model/role_provisioning.rs"],
       "paths": [
-        "src/server/world-model/**",
+        "rust/crates/betaclaw-world-model/**",
         "rust/crates/betaclaw-world-model/migrations/**",
         "rust/crates/betaclaw-world-model/src/world_model/role_provisioning.rs",
         "rust/crates/betaclaw-world-model/src/world_model/role_verification.rs",
@@ -77,9 +77,9 @@
       "contract": "docs/contracts/MEMORY_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/memory/memory-operations.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-memory/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/memory/**",
         "src/core/memory/**",
         "src/components/MemoryView.tsx",
         "src/components/memory/**"
@@ -95,16 +95,16 @@
       "contract": "docs/contracts/OMNICHANNEL_GATEWAY_AGENT_CONTRACT.md",
       "tests": ["tests/unit/gateway/gateway-contract.test.ts"],
       "paths": [
-        "src/server/gateway/**",
+        "rust/crates/betaclaw-channels/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
+        "rust/crates/betaclaw-gateway/src/ws.rs",
         "src/modules/gateway/**",
         "src/cli/**",
         "src/services/gateway.ts",
         "src/shared/gatewayTypes.ts",
         "src/shared/gateway/**",
-        "src/messenger/**",
-        "src/components/ExposureManager.tsx"
+        "src/messenger/**"
       ],
       "owner": "team-gateway",
       "systemDoc": "docs/OMNICHANNEL_GATEWAY_SYSTEM.md",
@@ -117,9 +117,9 @@
       "contract": "docs/contracts/MODEL_HUB_AGENT_CONTRACT.md",
       "tests": ["rust/crates/betaclaw-model-hub/src/lib.rs"],
       "paths": [
+        "rust/crates/betaclaw-model-hub/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/model-hub/**",
         "src/components/model-hub/**",
         "src/shared/contracts/modelHub.ts"
       ],
@@ -134,9 +134,9 @@
       "contract": "docs/contracts/PERSONA_ROOMS_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/chat-queue-and-persona.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-store/src/personas/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/personas/**",
         "src/modules/personas/**",
         "src/modules/profile/**",
         "src/shared/personaTypes.ts",
@@ -159,12 +159,12 @@
       "contract": "docs/contracts/OPS_OBSERVABILITY_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/ops-dashboard.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-store/src/stats/**",
+        "rust/crates/betaclaw-base/src/logging/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
         "src/components/stats/**",
-        "src/server/stats/**",
         "src/components/logs/**",
-        "src/components/ActivityLog.tsx",
         "src/modules/ops/**",
         "src/modules/conversation-debugger/**"
       ],
@@ -179,7 +179,9 @@
       "contract": "docs/contracts/AUTOMATION_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/automation.spec.ts"],
       "paths": [
-        "src/server/automation/**",
+        "rust/crates/betaclaw-features/src/automation/**",
+        "rust/crates/betaclaw-master/src/master/reminders.rs",
+        "rust/crates/betaclaw-master/src/master/cron_bridge.rs",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
         "src/modules/cron/**"
@@ -194,7 +196,7 @@
       "display": "Skills",
       "contract": "docs/contracts/SKILLS_AGENT_CONTRACT.md",
       "tests": ["tests/unit/skills/skills-registry.test.ts"],
-      "paths": ["src/server/skills/**", "src/skills/**"],
+      "paths": ["rust/crates/betaclaw-skills/**", "src/skills/**"],
       "owner": "team-runtime",
       "systemDoc": "docs/SKILLS_SYSTEM.md",
       "scenarios": ["skills-policy-guard"],
@@ -205,7 +207,7 @@
       "display": "ClawHub",
       "contract": "docs/contracts/CLAWHUB_AGENT_CONTRACT.md",
       "tests": ["tests/unit/skills/skills-registry.test.ts"],
-      "paths": ["src/server/clawhub/**"],
+      "paths": ["rust/crates/betaclaw-features/src/clawhub/**"],
       "owner": "team-runtime",
       "systemDoc": "docs/CLAWHUB_SYSTEM.md",
       "scenarios": ["clawhub-sync"],
@@ -217,7 +219,8 @@
       "contract": "docs/contracts/KNOWLEDGE_BASE_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/knowledge-graph.spec.ts"],
       "paths": [
-        "src/server/knowledge/**",
+        "rust/crates/betaclaw-knowledge/**",
+        "rust/crates/betaclaw-gateway/src/knowledge_runtime.rs",
         "src/components/knowledge/**",
         "src/components/KnowledgeView.tsx"
       ],
@@ -232,11 +235,12 @@
       "contract": "docs/contracts/SECURITY_AGENT_CONTRACT.md",
       "tests": ["rust/crates/betaclaw-base/src/auth/policy.rs"],
       "paths": [
-        "src/server/auth/**",
-        "src/server/security/**",
+        "rust/crates/betaclaw-base/src/auth/**",
+        "rust/crates/betaclaw-skills/src/security/**",
+        "rust/crates/betaclaw-skills/src/net_guard/**",
+        "rust/crates/betaclaw-skills/src/skills/exec_approval.rs",
+        "rust/crates/betaclaw-master/src/master/safety.rs",
         "src/modules/security/**",
-        "src/server/master/safety.ts",
-        "src/server/skills/handlers/**",
         "src/components/SecurityView.tsx"
       ],
       "owner": "team-security",
@@ -250,9 +254,9 @@
       "contract": "docs/contracts/MASTER_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/integration-scenarios.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-master/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/master/**",
         "src/modules/master/**"
       ],
       "owner": "team-master",
@@ -266,8 +270,9 @@
       "contract": "docs/contracts/PROJECT_WORKSPACE_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/task-management.spec.ts"],
       "paths": [
-        "src/server/personas/personaProjectWorkspace.ts",
-        "src/server/tasks/taskWorkspace.ts"
+        "rust/crates/betaclaw-master/src/master/workspace_scope.rs",
+        "rust/crates/betaclaw-features/src/tasks/**",
+        "rust/crates/betaclaw-gateway/src/workspace_cleanup.rs"
       ],
       "owner": "team-runtime",
       "systemDoc": "docs/PROJECT_WORKSPACE_SYSTEM.md",
@@ -280,9 +285,9 @@
       "contract": "docs/contracts/TASKS_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/task-management.spec.ts"],
       "paths": [
+        "rust/crates/betaclaw-features/src/tasks/**",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/tasks/**",
         "src/modules/tasks/**"
       ],
       "owner": "team-core",
@@ -297,9 +302,9 @@
       "tests": ["tests/e2e/browser/chat-smoke.spec.ts"],
       "paths": [
         "src/modules/chat/**",
-        "rust/crates/betaclaw-gateway/src/routes/**",
-        "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/channels/messages/**",
+        "rust/crates/betaclaw-channels/src/channels/messages/**",
+        "rust/crates/betaclaw-gateway/src/families/chat_runtime/**",
+        "rust/crates/betaclaw-gateway/src/routes/messages.rs",
         "src/components/ChatInterface.tsx",
         "src/components/ConnectionStatus.tsx"
       ],
@@ -314,24 +319,21 @@
       "contract": "docs/contracts/MISSION_CONTROL_AGENT_CONTRACT.md",
       "tests": ["tests/e2e/browser/mission-control-run-feedback.spec.ts"],
       "paths": [
-        "src/modules/mission-control/**",
-        "app/mission-control/**",
+        "src/modules/master/**",
+        "src/modules/app-shell/**",
+        "src/modules/agent-room/**",
         "src/components/Sidebar.tsx",
         "src/lib/config.ts",
-        "src/modules/app-shell/**",
         "app/layout.tsx",
         "app/globals.css",
         "app/icon.svg",
         "src/components/Dashboard.tsx",
-        "src/components/DeliverablesList.tsx",
         "src/components/config/**",
-        "src/components/planning/**",
+        "src/components/shared/**",
         "src/shared/domain/types.ts",
         "rust/crates/betaclaw-gateway/src/routes/**",
         "rust/crates/betaclaw-gateway/src/families/**",
-        "src/server/master/**",
-        "src/components/shared/**",
-        "src/modules/agent-room/**"
+        "rust/crates/betaclaw-master/**"
       ],
       "owner": "team-master",
       "systemDoc": "docs/MASTER_AGENT_SYSTEM.md",

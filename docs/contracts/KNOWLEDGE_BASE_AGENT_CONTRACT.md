@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Knowledge Base.
-- Scope: "src/server/knowledge/**", "src/components/knowledge/**", "src/components/KnowledgeView.tsx".
+- Scope: "rust/crates/betaclaw-knowledge/**", "rust/crates/betaclaw-gateway/src/knowledge_runtime.rs", "src/components/knowledge/**", "src/components/KnowledgeView.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/unit/knowledge/retrieval-service/retrieval-service.harness.ts
+1. tests/e2e/browser/knowledge-graph.spec.ts

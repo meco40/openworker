@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Automation.
-- Scope: "src/server/automation/**", "app/api/master/reminders/**", "src/modules/cron/**".
+- Scope: "rust/crates/betaclaw-features/src/automation/**", "rust/crates/betaclaw-master/src/master/reminders.rs", "rust/crates/betaclaw-master/src/master/cron_bridge.rs", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/modules/cron/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/unit/master/master-notes-reminders-cron.test.ts
+1. tests/e2e/browser/automation.spec.ts

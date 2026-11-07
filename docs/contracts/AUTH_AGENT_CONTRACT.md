@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Auth.
-- Scope: "src/auth.ts", "app/api/auth/**", "app/login/**", "src/server/auth/\*\*".
+- Scope: "rust/crates/betaclaw-base/src/auth/**", "rust/crates/betaclaw-gateway/src/auth_gate.rs", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "app/login/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,9 +29,11 @@
 
 ## Pflicht-Tests
 
-Der separate HTTP/WebSocket-Server parst Node-Request-Cookies vor `getToken`.
-Session-Signatur, sichere Cookie-Namen und Cookie-Chunks bleiben durch NextAuth
-geprüft. `tests/unit/auth/websocket-session-cookie.test.ts` und
-`pnpm run test:e2e:production` prüfen diese Grenze inklusive echter Anmeldung.
+Der Rust-Gateway prüft HTTP-Requests (`auth_gate.rs`) und `/ws` (`ws.rs`) mit
+derselben Session-Prüfung aus `betaclaw-base/src/auth/jwe.rs`: NextAuth-JWE,
+sichere Cookie-Namen und Cookie-Chunks. Die Tests in `jwe.rs` laufen gegen eine
+mit dem echten `next-auth@4.24.15` erzeugte Fixture; `pnpm run test:e2e:production`
+prüft diese Grenze inklusive echter Anmeldung.
 
-1. tests/integration/channels/omnichannel-security.contract.test.ts
+1. tests/e2e/browser/authentication.spec.ts
+2. `rust/crates/betaclaw-base/src/auth/jwe.rs` (Session-Cookie-Fixture aus `next-auth@4.24.15`)

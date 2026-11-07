@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Master Agent.
-- Scope: "app/api/master/**", "src/server/master/**", "src/modules/master/\*\*".
+- Scope: "rust/crates/betaclaw-master/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/modules/master/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/integration/master/master-runs-route.test.ts
+1. tests/e2e/browser/integration-scenarios.spec.ts

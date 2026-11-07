@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich ClawHub.
-- Scope: "src/server/clawhub/\*\*".
+- Scope: "rust/crates/betaclaw-features/src/clawhub/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/unit/clawhub/clawhub-service.test.ts
+1. tests/unit/skills/skills-registry.test.ts

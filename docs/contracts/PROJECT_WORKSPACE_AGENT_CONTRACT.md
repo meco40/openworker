@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Project Workspace.
-- Scope: "src/server/personas/personaProjectWorkspace.ts", "src/server/tasks/taskWorkspace.ts".
+- Scope: "rust/crates/betaclaw-master/src/master/workspace_scope.rs", "rust/crates/betaclaw-features/src/tasks/**", "rust/crates/betaclaw-gateway/src/workspace_cleanup.rs".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/unit/channels/message-service-project-workspace-cwd.test.ts
+1. tests/e2e/browser/task-management.spec.ts

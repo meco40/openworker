@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Security.
-- Scope: "src/server/auth/**", "src/server/security/**", "src/modules/security/**", "src/server/master/safety.ts", "src/server/skills/handlers/**", "src/components/SecurityView.tsx".
+- Scope: "rust/crates/betaclaw-base/src/auth/**", "rust/crates/betaclaw-skills/src/security/**", "rust/crates/betaclaw-skills/src/net_guard/**", "rust/crates/betaclaw-skills/src/skills/exec_approval.rs", "rust/crates/betaclaw-master/src/master/safety.rs", "src/modules/security/**", "src/components/SecurityView.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -37,4 +37,6 @@ Prüfungen sind keine OS-Sandbox und schließen Symlink-Rennen nicht vollständi
 Sicherheitsanzeigen beschreiben HTTPS/WebCrypto und Command Policy, keine E2E-
 Verschlüsselung oder Prozessisolation.
 
-1. tests/integration/channels/omnichannel-security.contract.test.ts
+1. rust/crates/betaclaw-base/src/auth/policy.rs
+2. rust/crates/betaclaw-skills/src/skills/exec_approval.rs
+3. rust/crates/betaclaw-skills/src/skills/python_execute.rs

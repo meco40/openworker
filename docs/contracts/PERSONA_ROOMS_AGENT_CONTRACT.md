@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Persona Rooms.
-- Scope: "app/api/personas/**", "src/server/personas/**", "src/modules/personas/**", "src/modules/profile/**", "src/shared/personaTypes.ts", "src/lib/persona-templates.ts", "src/lib/personalityMatrix.ts", "src/components/dashboard/PersonalityRadar.tsx", "src/components/PersonasView.tsx", "src/components/personas/**", "src/components/profile/**".
+- Scope: "rust/crates/betaclaw-store/src/personas/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/modules/personas/**", "src/modules/profile/**", "src/shared/personaTypes.ts", "src/shared/personas/**", "src/lib/persona-templates.ts", "src/lib/personalityMatrix.ts", "src/components/dashboard/PersonalityRadar.tsx", "src/components/PersonasView.tsx", "src/components/personas/**", "src/components/profile/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 

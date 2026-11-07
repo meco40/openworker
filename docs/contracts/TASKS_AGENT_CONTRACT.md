@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Tasks.
-- Scope: "app/api/tasks/**", "src/server/tasks/**", "src/modules/tasks/**".
+- Scope: "rust/crates/betaclaw-features/src/tasks/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/modules/tasks/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/integration/mission-control/tasks-route-workspaces.test.ts
+1. tests/e2e/browser/task-management.spec.ts

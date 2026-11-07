@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Änderungen im Chat-/Omnichannel-Pfad.
-- Scope: "src/modules/chat/**", "app/api/channels/**", "src/server/channels/messages/\*\*", "src/components/ChatInterface.tsx", "src/components/ConnectionStatus.tsx".
+- Scope: "src/modules/chat/**", "rust/crates/betaclaw-channels/src/channels/messages/**", "rust/crates/betaclaw-gateway/src/families/chat_runtime/**", "rust/crates/betaclaw-gateway/src/routes/messages.rs", "src/components/ChatInterface.tsx", "src/components/ConnectionStatus.tsx".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -18,8 +18,8 @@
 ## Erlaubte Änderungsflächen
 
 1. `src/modules/chat/*` fuer UI/UX und lokale State-Logik.
-2. `app/api/channels/*` fuer HTTP-Entrypoints.
-3. `src/server/channels/messages/*` fuer Routing, Recall, Dispatch und Attachments.
+2. `rust/crates/betaclaw-gateway/src/routes/messages.rs` und `src/families/chat_runtime/*` fuer HTTP-/WS-Entrypoints.
+3. `rust/crates/betaclaw-channels/src/channels/messages/*` fuer Routing, Recall, Dispatch und Attachments.
 4. `src/components/ChatInterface.tsx` und `src/components/ConnectionStatus.tsx` fuer Chat- und Verbindungsanzeige.
 
 ## Verbotene Muster
@@ -32,4 +32,4 @@
 
 1. `tests/e2e/chat/*` fuer Stream-, Abort-, Queue- und Persona-Pfade.
 2. `tests/unit/chat/*` fuer UI- und Utility-Verhalten.
-3. `tests/integration/channels/*` fuer API- und Sicherheitsverträge.
+3. `tests/e2e/browser/chat-smoke.spec.ts` und die Rust-Tests in `betaclaw-channels` fuer API- und Sicherheitsverträge.

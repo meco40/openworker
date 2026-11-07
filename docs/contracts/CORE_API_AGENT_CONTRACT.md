@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Core API.
-- Scope: "app/api/**", "src/server/**", "src/lib/db/**", "src/lib/events.ts", "src/lib/betaclaw/**", "src/lib/types.ts", "src/shared/eventsTypes.ts".
+- Scope: "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "rust/crates/betaclaw-base/src/db.rs", "rust/crates/betaclaw-store/**", "src/lib/events.ts", "src/lib/types.ts", "src/shared/eventsTypes.ts".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -30,3 +30,4 @@
 ## Pflicht-Tests
 
 1. tests/contract/public-api.contract.test.ts
+2. `pnpm run verify:route-parity` und `pnpm run verify:route-coverage`

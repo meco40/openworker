@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Ops Observability.
-- Scope: "app/api/stats/**", "src/components/stats/**", "src/server/stats/**", "src/components/logs/**", "src/components/ActivityLog.tsx", "src/logging/**", "src/modules/ops/**", "src/modules/conversation-debugger/**".
+- Scope: "rust/crates/betaclaw-store/src/stats/**", "rust/crates/betaclaw-base/src/logging/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/components/stats/**", "src/components/logs/**", "src/modules/ops/**", "src/modules/conversation-debugger/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-09
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,5 @@
 
 ## Pflicht-Tests
 
-1. tests/integration/stats/engineering-route.test.ts
+1. tests/e2e/browser/ops-dashboard.spec.ts
+2. `pnpm run verify:logs-parity`

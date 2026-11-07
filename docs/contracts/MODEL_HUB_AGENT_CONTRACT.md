@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Model Hub.
-- Scope: "app/api/model-hub/**", "src/server/model-hub/**", "src/components/model-hub/\*\*", "src/shared/contracts/modelHub.ts".
+- Scope: "rust/crates/betaclaw-model-hub/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/components/model-hub/**", "src/shared/contracts/modelHub.ts".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/integration/model-hub/pipeline-route.test.ts
+1. rust/crates/betaclaw-model-hub/src/lib.rs

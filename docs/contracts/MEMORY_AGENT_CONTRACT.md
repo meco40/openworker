@@ -3,9 +3,9 @@
 ## Metadata
 
 - Purpose: Verbindliche Regeln fuer agentische Aenderungen im Bereich Memory.
-- Scope: "app/api/memory/**", "src/server/memory/**", "src/core/memory/**", "src/components/MemoryView.tsx", "src/components/memory/**".
+- Scope: "rust/crates/betaclaw-memory/**", "rust/crates/betaclaw-gateway/src/routes/**", "rust/crates/betaclaw-gateway/src/families/**", "src/core/memory/**", "src/components/MemoryView.tsx", "src/components/memory/**".
 - Source of Truth: Diese Datei und docs/contracts/DOMAIN_REGISTRY.json.
-- Last Reviewed: 2026-10-08
+- Last Reviewed: 2026-11-07
 
 ---
 
@@ -29,4 +29,4 @@
 
 ## Pflicht-Tests
 
-1. tests/integration/memory/memory-route.test.ts
+1. tests/e2e/memory/memory-operations.spec.ts
