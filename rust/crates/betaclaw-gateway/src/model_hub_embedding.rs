@@ -26,7 +26,8 @@ use betaclaw_core::model_hub::sqlite::SqliteModelHubRepository;
 use betaclaw_core::model_hub::types::{PipelineModelEntry, PipelineStatus};
 use betaclaw_core::world_model::db::{PgError, PgExecutor, QueryEmbedder};
 use betaclaw_core::world_model::embeddings::provider::{
-    configured_embedding_provider, generate_embedding_once,
+    clip_embedding_input, configured_embedding_provider, embedding_max_input_chars,
+    generate_embedding_once,
 };
 use betaclaw_core::world_model::embeddings::provider::{EmbeddingError, EmbeddingProvider};
 
@@ -92,9 +93,10 @@ impl ModelHubEmbedding {
             codex: &NoCodexRefresh,
         };
         let service = get_model_hub_service(&repository, dependencies);
+        let max_chars = embedding_max_input_chars(env.get("EMBEDDING_MAX_INPUT_CHARS").as_deref());
         let input = EmbeddingInput {
             operation: EmbeddingOperation::EmbedContent,
-            payload: json!({ "model": self.model, "input": text }),
+            payload: json!({ "model": self.model, "input": clip_embedding_input(text, max_chars) }),
         };
         let result = service
             .dispatch_embedding(&encryption_key, &input)

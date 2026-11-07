@@ -168,6 +168,30 @@ pub fn embedding_timeout_ms(env: &HashMap<String, String>) -> u64 {
     effective.max(1_000.0) as u64
 }
 
+/// Default upper bound, in characters, for the text sent to an embedding model.
+///
+/// Models reject inputs above their token window (for example HTTP 422 "input length
+/// 13291 exceeds model maximum 4096"). 8000 characters stay below 4096 tokens for
+/// Latin-script prose and code; the vector of the leading part is good enough for
+/// retrieval.
+pub const DEFAULT_EMBEDDING_MAX_INPUT_CHARS: usize = 8_000;
+
+/// `EMBEDDING_MAX_INPUT_CHARS` as a positive integer, else the default.
+pub fn embedding_max_input_chars(configured: Option<&str>) -> usize {
+    configured
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_EMBEDDING_MAX_INPUT_CHARS)
+}
+
+/// The first `max_chars` characters of `text`, cut on a character boundary.
+pub fn clip_embedding_input(text: &str, max_chars: usize) -> &str {
+    match text.char_indices().nth(max_chars) {
+        Some((end, _)) => &text[..end],
+        None => text,
+    }
+}
+
 /// The `fetch`-based provider of `provider.ts:99-134`.
 pub struct HttpEmbeddingProvider {
     url: String,
@@ -175,6 +199,7 @@ pub struct HttpEmbeddingProvider {
     model: String,
     model_version: String,
     timeout_ms: u64,
+    max_input_chars: usize,
     transport: Arc<dyn HttpTransport>,
 }
 
@@ -194,13 +219,21 @@ impl HttpEmbeddingProvider {
             model: model.into(),
             model_version: model_version.into(),
             timeout_ms,
+            max_input_chars: DEFAULT_EMBEDDING_MAX_INPUT_CHARS,
             transport,
         }
     }
 
-    /// The request of `provider.ts:109-117`, as the seam sees it.
+    /// Overrides [`DEFAULT_EMBEDDING_MAX_INPUT_CHARS`].
+    pub fn with_max_input_chars(mut self, max_input_chars: usize) -> Self {
+        self.max_input_chars = max_input_chars;
+        self
+    }
+
+    /// The request of `provider.ts:109-117`, as the seam sees it, with the input clipped.
     pub fn request_body(&self, text: &str) -> Value {
-        serde_json::json!({ "model": self.model, "input": text })
+        let input = clip_embedding_input(text, self.max_input_chars);
+        serde_json::json!({ "model": self.model, "input": input })
     }
 }
 
@@ -294,14 +327,19 @@ pub fn configured_embedding_provider(
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| "1".to_string());
 
-    Some(Arc::new(HttpEmbeddingProvider::new(
-        url,
-        api_key,
-        model,
-        model_version,
-        embedding_timeout_ms(env),
-        transport,
-    )))
+    Some(Arc::new(
+        HttpEmbeddingProvider::new(
+            url,
+            api_key,
+            model,
+            model_version,
+            embedding_timeout_ms(env),
+            transport,
+        )
+        .with_max_input_chars(embedding_max_input_chars(
+            env.get("EMBEDDING_MAX_INPUT_CHARS").map(String::as_str),
+        )),
+    ))
 }
 
 #[cfg(test)]
@@ -578,5 +616,51 @@ mod tests {
             .expect("bridge")
             .expect("vector");
         assert_eq!(vector, vec![0.5, 1.0]);
+    }
+
+    #[test]
+    fn long_inputs_are_clipped_on_a_character_boundary() {
+        assert_eq!(clip_embedding_input("äöü", 2), "äö");
+        assert_eq!(clip_embedding_input("abc", 10), "abc");
+        assert_eq!(
+            embedding_max_input_chars(None),
+            DEFAULT_EMBEDDING_MAX_INPUT_CHARS
+        );
+        assert_eq!(embedding_max_input_chars(Some(" 300 ")), 300);
+        assert_eq!(
+            embedding_max_input_chars(Some("0")),
+            DEFAULT_EMBEDDING_MAX_INPUT_CHARS
+        );
+        assert_eq!(
+            embedding_max_input_chars(Some("abc")),
+            DEFAULT_EMBEDDING_MAX_INPUT_CHARS
+        );
+
+        let transport = Arc::new(ScriptTransport::default());
+        transport
+            .responses
+            .lock()
+            .expect("responses")
+            .push_back(HttpResponse::new(
+                StatusCode::OK,
+                HeaderMap::new(),
+                r#"{"data":[{"embedding":[0.5]}]}"#,
+            ));
+        let provider = configured_embedding_provider(
+            &env(&[
+                ("EMBEDDING_API_URL", "http://x/v1/embeddings"),
+                ("EMBEDDING_API_KEY", "k"),
+                ("EMBEDDING_MAX_INPUT_CHARS", "4"),
+            ]),
+            transport.clone(),
+            None,
+        )
+        .expect("provider");
+        drive_sync(provider.generate_embedding("abcdefgh"))
+            .expect("bridge")
+            .expect("vector");
+        let request = transport.requests.lock().expect("requests")[0].clone();
+        let body = serde_json::from_str::<Value>(request.body.as_deref().unwrap()).unwrap();
+        assert_eq!(body["input"], "abcd");
     }
 }

@@ -525,6 +525,7 @@ Details: [Model Hub Provider Matrix](docs/architecture/model-hub-provider-matrix
 | `WORLD_MODEL_RUNTIME_ROLE`             | Laufzeitrolle (`app` oder `worker`); wählt die passende World-Model-URL                                                        |
 | `WORLD_MODEL_DEFAULT_PERSONA_ID`       | Explizite Persona-Zuordnung für Legacy-Mission-Control-Task-Spiegelung                                                         |
 | `EMBEDDING_API_URL`                    | Embedding-API für pgvector (alternativ `OPENAI_BASE_URL` plus API-Key)                                                         |
+| `EMBEDDING_MAX_INPUT_CHARS`            | Maximale Zeichenzahl pro Embedding-Eingabe (Standard 8000); längere Texte werden vor dem Embedding-Modell gekürzt              |
 | `GRAPHITI_PROJECTOR_ENABLED`           | Explizite Aktivierung des Graphiti-Projektors; benötigt `GRAPHITI_BASE_URL`                                                    |
 
 Hinweis: Provider-Secrets für den Model-Hub werden über UI/API hinterlegt und verschlüsselt gespeichert (`MODEL_HUB_ENCRYPTION_KEY` erforderlich). Einige Legacy-Fallbacks und Channel-Bot-Token (z. B. `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `SLACK_BOT_TOKEN`, `GEMINI_API_KEY`) werden weiterhin aus der Umgebung gelesen, sofern konfiguriert.
